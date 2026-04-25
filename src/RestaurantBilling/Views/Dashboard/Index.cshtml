@@ -1,0 +1,349 @@
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewBag.UseCharts = true;
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title-h">Dashboard</h1>
+        <div class="page-sub">Live operations snapshot &mdash; billing, kitchen and stock.</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+        <span id="dashLastUpdated" style="font-size:12px;color:var(--text-muted);"></span>
+        <button class="btn-accent" id="dashRefresh" style="padding:7px 16px;font-size:13px;">
+            <i class="fas fa-rotate"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<!-- KPI Row -->
+<div class="kpi-row">
+    <div class="kpi-card">
+        <div class="kpi-icon-wrap orange"><i class="fas fa-indian-rupee-sign"></i></div>
+        <div style="flex:1;">
+            <div class="kpi-label">Today Sales</div>
+            <div class="kpi-value" id="kpiSales">&#8377;0.00</div>
+            <div class="kpi-sub" id="kpiSalesSub"></div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon-wrap blue"><i class="fas fa-file-invoice"></i></div>
+        <div style="flex:1;">
+            <div class="kpi-label">Bills Today</div>
+            <div class="kpi-value" id="kpiBills">0</div>
+            <div class="kpi-sub" id="kpiBillsSub"></div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon-wrap yellow"><i class="fas fa-hourglass-half"></i></div>
+        <div style="flex:1;">
+            <div class="kpi-label">Pending Bills</div>
+            <div class="kpi-value" id="kpiPendingBills">0</div>
+            <div class="kpi-sub" id="kpiPendingBillsSub">awaiting settlement</div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon-wrap green"><i class="fas fa-chair"></i></div>
+        <div style="flex:1;">
+            <div class="kpi-label">Active Tables</div>
+            <div class="kpi-value" id="kpiTables">0</div>
+            <div class="kpi-sub" id="kpiKotSub"></div>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon-wrap red"><i class="fas fa-triangle-exclamation"></i></div>
+        <div style="flex:1;">
+            <div class="kpi-label">Low Stock</div>
+            <div class="kpi-value" id="kpiLowStock">0</div>
+            <div class="kpi-sub" id="kpiLowStockSub"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-3">
+    <div class="col-lg-8 col-12">
+        <div class="card" style="height:100%;">
+            <div class="card-header-custom">
+                <div class="card-title-custom"><i class="fas fa-chart-column" style="color:var(--accent);"></i> Sales — Last 7 Days</div>
+                <div id="salesTotal7d" style="font-size:13px;font-weight:700;color:var(--accent);"></div>
+            </div>
+            <div class="card-body-custom">
+                <canvas id="salesTrendChart" height="90"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 col-12">
+        <div class="card" style="height:100%;">
+            <div class="card-header-custom">
+                <div class="card-title-custom"><i class="fas fa-chart-pie" style="color:var(--info);"></i> Payment Breakdown</div>
+            </div>
+            <div class="card-body-custom" style="display:flex;flex-direction:column;align-items:center;">
+                <canvas id="paymentChart" height="160" style="max-width:200px;"></canvas>
+                <div id="payLegend" style="width:100%;margin-top:12px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Selling Items -->
+<div class="card mb-3">
+    <div class="card-header-custom">
+        <div class="card-title-custom"><i class="fas fa-trophy" style="color:var(--warning);"></i> Top Selling Items &mdash; Today</div>
+        <a href="/reports/itemwise" style="font-size:12px;color:var(--accent);">Full Report</a>
+    </div>
+    <div class="card-body-custom" style="padding:0;">
+        <table class="table-custom">
+            <thead><tr><th>#</th><th>Item</th><th>Qty Sold</th><th>Revenue</th></tr></thead>
+            <tbody id="topItemsBody">
+                <tr><td colspan="4" class="text-center text-muted" style="padding:20px;">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Quick Actions + Status Row -->
+<div class="row g-3 mb-3">
+    <div class="col-lg-4 col-12">
+        <div class="card">
+            <div class="card-header-custom">
+                <div class="card-title-custom"><i class="fas fa-bolt" style="color:var(--warning);"></i> Quick Actions</div>
+            </div>
+            <div class="card-body-custom" style="display:flex;flex-direction:column;gap:10px;">
+                <a href="/billing/dinein" class="btn-accent" style="justify-content:center;padding:12px;text-decoration:none;">
+                    <i class="fas fa-chair"></i> New Dine-In Order
+                </a>
+                <a href="/billing/takeaway" class="btn-outline-accent" style="padding:11px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px;">
+                    <i class="fas fa-shopping-bag"></i> New Takeaway
+                </a>
+                <a href="/kitchen/kotlist" class="btn-ghost" style="padding:11px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px;">
+                    <i class="fas fa-fire-burner"></i> View KOT List
+                </a>
+                <a href="/reports/dailysales" class="btn-ghost" style="padding:11px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px;">
+                    <i class="fas fa-chart-bar"></i> Daily Sales Report
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 col-12">
+        <div class="card">
+            <div class="card-header-custom">
+                <div class="card-title-custom"><i class="fas fa-fire-burner" style="color:var(--warning);"></i> Active KOTs</div>
+                <a href="/kitchen/kotlist" style="font-size:12px;color:var(--accent);">View All</a>
+            </div>
+            <div class="card-body-custom" style="padding:0;">
+                <table class="table-custom" id="activeKotTable">
+                    <thead><tr><th>KOT</th><th>Status</th><th>Time</th></tr></thead>
+                    <tbody id="activeKotBody">
+                        <tr><td colspan="3" class="text-center text-muted" style="padding:20px;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 col-12">
+        <div class="card">
+            <div class="card-header-custom">
+                <div class="card-title-custom"><i class="fas fa-box-open" style="color:var(--danger);"></i> Low Stock Alerts</div>
+                <a href="/stock/balance" style="font-size:12px;color:var(--accent);">View All</a>
+            </div>
+            <div class="card-body-custom" style="padding:0;">
+                <table class="table-custom" id="lowStockTable">
+                    <thead><tr><th>Item</th><th>Balance</th><th>Reorder</th></tr></thead>
+                    <tbody id="lowStockBody">
+                        <tr><td colspan="3" class="text-center text-muted" style="padding:20px;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Bills -->
+<div class="card">
+    <div class="card-header-custom">
+        <div class="card-title-custom"><i class="fas fa-list" style="color:var(--info);"></i> Recent Bills</div>
+        <a href="/billing/bills" style="font-size:12px;color:var(--accent);">View All Bills</a>
+    </div>
+    <div class="table-scroll">
+        <table class="table-custom">
+            <thead>
+                <tr><th>Bill No</th><th>Type</th><th>Date</th><th>Status</th><th>Total</th><th></th></tr>
+            </thead>
+            <tbody id="recentBillsBody">
+                <tr><td colspan="6" class="text-center text-muted" style="padding:24px;">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let salesChart = null, payChart = null;
+
+const chartDefaults = {
+  color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#64748B',
+  grid:  getComputedStyle(document.documentElement).getPropertyValue('--border').trim()  || '#E2E8F0'
+};
+
+async function loadDashboard() {
+  try {
+    const [kpi, sales, payment, bills, kots, lowStock, topItems] = await Promise.all([
+      getJSON('/dashboard/kpi'),
+      getJSON('/dashboard/sales-trend'),
+      getJSON('/dashboard/payment-breakdown'),
+      getJSON('/dashboard/recent-bills'),
+      getJSON('/kitchen/kots-data?outletId=1').catch(() => []),
+      getJSON('/dashboard/low-stock'),
+      getJSON('/dashboard/top-items').catch(() => [])
+    ]);
+
+    // KPI Cards
+    document.getElementById('kpiSales').textContent        = fmtINR(kpi.todaySales   || 0);
+    document.getElementById('kpiBills').textContent        = kpi.billsCount            || 0;
+    document.getElementById('kpiPendingBills').textContent = kpi.pendingBills          || 0;
+    document.getElementById('kpiTables').textContent       = kpi.activeTables          || 0;
+    document.getElementById('kpiLowStock').textContent     = kpi.lowStock              || 0;
+    const sub = document.getElementById('kpiSalesSub');
+    if (sub && kpi.yesterdaySales != null) {
+      const diff = ((kpi.todaySales - kpi.yesterdaySales) / Math.max(1, kpi.yesterdaySales)) * 100;
+      sub.innerHTML = `<span class="${diff >= 0 ? 'kpi-trend-up' : 'kpi-trend-down'}"><i class="fas fa-arrow-${diff >= 0 ? 'up' : 'down'}"></i> ${Math.abs(diff).toFixed(1)}% vs yesterday</span>`;
+    }
+    const kotSub = document.getElementById('kpiKotSub');
+    if (kotSub) kotSub.textContent = kpi.pendingKot > 0 ? `${kpi.pendingKot} KOT${kpi.pendingKot > 1 ? 's' : ''} in kitchen` : 'kitchen clear';
+
+    // Sales Trend Chart
+    const salesCtx = document.getElementById('salesTrendChart');
+    if (salesCtx && window.Chart) {
+      const total7d = (sales || []).reduce((s, x) => s + (x.sales || 0), 0);
+      document.getElementById('salesTotal7d').textContent = fmtINR(total7d);
+      if (salesChart) salesChart.destroy();
+      salesChart = new Chart(salesCtx, {
+        type: 'bar',
+        data: {
+          labels: (sales || []).map(x => x.date),
+          datasets: [{
+            label: 'Sales', data: (sales || []).map(x => x.sales),
+            backgroundColor: 'rgba(255,107,53,0.85)',
+            borderRadius: 6, borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: true,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtINR(ctx.raw) } } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: chartDefaults.color, font: { size: 11 } } },
+            y: { grid: { color: chartDefaults.grid }, ticks: { color: chartDefaults.color, font: { size: 11 }, callback: v => '₹' + v.toLocaleString('en-IN') } }
+          }
+        }
+      });
+    }
+
+    // Payment Doughnut
+    const payCtx = document.getElementById('paymentChart');
+    if (payCtx && window.Chart && payment?.length) {
+      if (payChart) payChart.destroy();
+      const colors = ['#FF6B35', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+      payChart = new Chart(payCtx, {
+        type: 'doughnut',
+        data: {
+          labels: payment.map(x => x.mode),
+          datasets: [{ data: payment.map(x => x.amount), backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }]
+        },
+        options: { responsive: true, cutout: '65%', plugins: { legend: { display: false } } }
+      });
+      const legend = document.getElementById('payLegend');
+      if (legend) legend.innerHTML = payment.map((x, i) =>
+        `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px;">
+           <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:${colors[i]};display:inline-block;"></span>${x.mode}</span>
+           <strong>${fmtINR(x.amount)}</strong>
+         </div>`).join('');
+    }
+
+    // Recent Bills
+    const billsBody = document.getElementById('recentBillsBody');
+    billsBody.innerHTML = bills?.length
+      ? bills.map(x => {
+          const cls = x.status === 'Paid' ? 'badge-custom status-paid' : x.status === 'Draft' ? 'badge-custom status-draft' : 'badge-custom badge-muted';
+          return `<tr>
+            <td><strong style="color:var(--accent);">${x.billNo}</strong></td>
+            <td><span class="badge-custom badge-muted" style="font-size:11px;">${x.billType || 'DineIn'}</span></td>
+            <td style="font-size:12px;color:var(--text-muted);">${x.billDate}</td>
+            <td><span class="${cls}">${x.status}</span></td>
+            <td><strong>${fmtINR(x.grandTotal)}</strong></td>
+            <td><a class="btn-ghost" href="/billing/bills/${x.billId}" style="font-size:11px;padding:4px 10px;"><i class="fas fa-eye"></i></a></td>
+          </tr>`;
+        }).join('')
+      : '<tr><td colspan="6" class="text-center text-muted" style="padding:24px;">No bills today.</td></tr>';
+
+    // Active KOTs
+    const kotBody = document.getElementById('activeKotBody');
+    const activeKots = (kots || []).filter(x => x.status === 'Pending' || x.status === 'Preparing');
+    kotBody.innerHTML = activeKots.length
+      ? activeKots.slice(0, 5).map(x => {
+          const cls = x.status === 'Pending' ? 'badge-custom status-pending' : 'badge-custom status-preparing';
+          const t0 = x.kotDateIso ? new Date(x.kotDateIso) : null;
+          const elapsed = (t0 && !isNaN(t0.getTime())) ? Math.floor((Date.now() - t0.getTime()) / 60000) : null;
+          return `<tr>
+            <td><strong>${x.kotNo}</strong></td>
+            <td><span class="${cls}">${x.status}</span></td>
+            <td style="font-size:12px;color:var(--text-muted);">${elapsed != null && elapsed >= 0 ? elapsed + 'm' : (x.kotDate || '—')}</td>
+          </tr>`;
+        }).join('')
+      : '<tr><td colspan="3" class="text-center text-muted" style="padding:20px;"><i class="fas fa-check-circle" style="color:var(--success);"></i> All clear</td></tr>';
+
+    // Top Selling Items
+    const topBody = document.getElementById('topItemsBody');
+    if (topBody) {
+      const medals = ['🥇','🥈','🥉','4','5'];
+      topBody.innerHTML = topItems?.length
+        ? topItems.map((x, i) => `<tr>
+            <td style="font-size:16px;text-align:center;">${medals[i] || (i+1)}</td>
+            <td><strong>${x.itemName}</strong></td>
+            <td><span class="badge-custom badge-muted">${x.totalQty} sold</span></td>
+            <td><strong style="color:var(--accent);">${fmtINR(x.totalSales)}</strong></td>
+          </tr>`).join('')
+        : '<tr><td colspan="4" class="text-center text-muted" style="padding:20px;">No sales data today yet.</td></tr>';
+    }
+
+    // Low Stock
+    const lowBody = document.getElementById('lowStockBody');
+    lowBody.innerHTML = lowStock?.length
+      ? lowStock.slice(0, 5).map(x => `<tr class="low-stock-row">
+          <td><span class="low-stock-indicator"></span>${x.itemName}</td>
+          <td><strong>${x.balance}</strong></td>
+          <td>${x.reorderLevel}</td>
+        </tr>`).join('')
+      : '<tr><td colspan="3" class="text-center text-muted" style="padding:20px;"><i class="fas fa-check-circle" style="color:var(--success);"></i> All normal</td></tr>';
+
+    const ts = document.getElementById('dashLastUpdated');
+    if (ts) ts.textContent = 'Updated: ' + new Date().toLocaleTimeString('en-IN');
+
+  } catch(e) {
+    if (typeof toastr !== 'undefined') toastr.error('Dashboard load failed.');
+  }
+}
+
+document.getElementById('dashRefresh')?.addEventListener('click', loadDashboard);
+document.addEventListener('DOMContentLoaded', () => {
+  loadDashboard();
+
+  // Auto-refresh every 30 seconds
+  let autoTimer = setInterval(loadDashboard, 30000);
+
+  // SignalR push refresh on bill/KOT events
+  if (window.signalR) {
+    const conn = new signalR.HubConnectionBuilder()
+      .withUrl('/hubs/alert')
+      .withAutomaticReconnect()
+      .build();
+    conn.on('DashboardRefresh', () => {
+      clearInterval(autoTimer);
+      loadDashboard();
+      autoTimer = setInterval(loadDashboard, 30000);
+    });
+    conn.start().catch(() => {});
+  }
+});
+</script>
+}

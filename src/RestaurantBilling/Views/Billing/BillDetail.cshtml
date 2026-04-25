@@ -1,0 +1,59 @@
+@model Entities.Sales.Bill
+@using Entities.Enums
+@{
+    ViewData["Title"] = "Bill Detail";
+    var isDraft = Model.Status.ToString() == "Draft";
+    var recallPosUrl = Model.BillType == BillType.Takeaway
+        ? $"/billing/takeaway?recall={Model.BillId}"
+        : $"/billing/dinein?recall={Model.BillId}";
+}
+
+<nav class="app-muted mb-3" style="font-size:13px;">
+    <a href="/billing/bills" class="text-decoration-none" style="color:var(--text-muted);"><i class="fas fa-arrow-left me-1"></i>Back to All Bills</a>
+</nav>
+
+<div class="page-header" style="flex-wrap:wrap;gap:12px;">
+    <div>
+        <h1 class="page-title-h">Bill Detail</h1>
+        <div class="page-sub">@Model.BillNo · @Model.BillType · @Model.Status · @Model.BillDate.ToString("dd-MMM-yyyy hh:mm tt")</div>
+    </div>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <a class="btn-outline-accent" href="/billing/bills" style="padding:8px 16px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:8px;">
+            <i class="fas fa-list-ul"></i> All bills
+        </a>
+        <a class="btn-outline-accent" href="/kitchen/kotlist" style="padding:8px 16px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:8px;" title="Kitchen tickets">
+            <i class="fas fa-ticket"></i> KOT
+        </a>
+        @if (isDraft)
+        {
+            <a class="btn-accent" href="@recallPosUrl" style="padding:8px 16px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:8px;" title="Open in POS with this bill">
+                <i class="fas fa-rotate-left"></i> Recall
+            </a>
+            <span class="badge-custom badge-warning d-none d-md-inline">Draft — add items, Hold, then KOT, or use Recall to edit in POS.</span>
+        }
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body-custom">
+        <table class="table-custom app-table" id="billDetailTable">
+            <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Tax</th><th>Total</th></tr></thead>
+            <tbody>
+            @foreach (var line in Model.Items)
+            {
+                <tr>
+                    <td>@line.ItemNameSnapshot</td>
+                    <td>@line.Qty</td>
+                    <td>@line.RateSnapshot</td>
+                    <td>@line.TaxAmount</td>
+                    <td>@line.LineTotal</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        <div class="mt-3 d-flex flex-wrap justify-content-between align-items-center gap-2" style="border-top:1px solid var(--border);padding-top:14px;">
+            <div class="app-muted" style="font-size:13px;">Grand total</div>
+            <div class="page-title-h mb-0" style="color:var(--accent);">₹@Model.GrandTotal.ToString("N2")</div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,51 @@
+<div class="app-module-header">
+    <h1 class="h3 mb-1">Settings</h1>
+    <p class="app-muted mb-0">Restaurant operational and compliance settings.</p>
+</div>
+<div class="card">
+    <div class="card-body-custom">
+        <div class="row g-2">
+            <div class="col-md-4">
+                <label class="form-label-custom">FSSAI License</label>
+                <input id="fssai" class="form-control-custom" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label-custom">GSTIN</label>
+                <input id="gstin" class="form-control-custom" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label-custom">Manager PIN</label>
+                <input id="managerPin" class="form-control-custom" />
+            </div>
+        </div>
+        <div class="mt-3">
+            <button id="saveSettings" class="btn-accent">Save Settings</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(() => {
+  async function load() {
+    const data = await getJSON('/settings/get?outletId=1');
+    document.getElementById('fssai').value = data.fssai || '';
+    document.getElementById('gstin').value = data.gstin || '';
+    document.getElementById('managerPin').value = data.managerPin || '';
+  }
+
+  async function save() {
+    await postJSON('/settings/save', {
+      outletId: 1,
+      fssai: document.getElementById('fssai').value,
+      gstin: document.getElementById('gstin').value,
+      managerPin: document.getElementById('managerPin').value
+    });
+    toastr.success('Settings saved');
+  }
+
+  document.getElementById('saveSettings').addEventListener('click', save);
+  document.addEventListener('DOMContentLoaded', load);
+})();
+</script>
+}

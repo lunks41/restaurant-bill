@@ -1,0 +1,36 @@
+# User/requested local folders
+.claude/
+.vs/
+
+# Build output
+bin/
+obj/
+out/
+
+# Visual Studio / Rider user files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.VC.opendb
+.idea/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# NuGet
+packages/
+*.nupkg
+
+# Test and coverage results
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# OS / editor junk
+.DS_Store
+Thumbs.db

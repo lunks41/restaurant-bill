@@ -1,0 +1,28 @@
+@{
+    ViewData["Title"] = "POS";
+}
+<h1 class="h3 mb-1">POS Billing</h1>
+<p class="app-muted mb-3">Create dine-in/takeaway bills, collect payments, and print receipts.</p>
+<nav class="nav app-module-tabs gap-2">
+    <a class="nav-link active" asp-controller="Billing" asp-action="Pos">POS</a>
+    <a class="nav-link" asp-controller="Billing" asp-action="Takeaway">Takeaway</a>
+</nav>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="app-surface">
+            <h2 class="h6 mb-2">Order Panel</h2>
+            <p class="app-muted mb-0">Item grid and cart will appear here.</p>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="app-surface">
+            <h2 class="h6 mb-2">Bill Summary</h2>
+            <ul class="list-unstyled app-muted mb-0">
+                <li>Sub Total: Rs 0.00</li>
+                <li>Tax: Rs 0.00</li>
+                <li>Grand Total: Rs 0.00</li>
+            </ul>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,48 @@
+<div class="page-header">
+    <div>
+        <h1 class="page-title-h">Users</h1>
+        <div class="page-sub">Manage staff access and login identities.</div>
+    </div>
+</div>
+<div class="card mb-3">
+    <div class="card-body-custom">
+        <div class="row g-2">
+            <div class="col-md-4"><input id="userName" class="form-control-custom" placeholder="User name" /></div>
+            <div class="col-md-4"><input id="userEmail" class="form-control-custom" placeholder="Email (optional)" /></div>
+            <div class="col-md-4"><input id="userPassword" class="form-control-custom" placeholder="Password" value="Admin@123" /></div>
+            <div class="col-md-2"><button id="createUser" class="btn-accent">Create User</button></div>
+        </div>
+    </div>
+</div>
+<div class="card">
+    <div class="card-body-custom">
+        <table class="table-custom">
+            <thead><tr><th>UserName</th><th>Email</th><th>Lockout</th></tr></thead>
+            <tbody id="usersRows"><tr><td colspan="3" class="text-center text-muted">No users loaded.</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(() => {
+  async function load() {
+    const rows = await getJSON('/admin/users-data');
+    document.getElementById('usersRows').innerHTML = rows.length
+      ? rows.map(x => `<tr><td>${x.userName}</td><td>${x.email || ''}</td><td>${x.lockoutEnabled ? 'Yes' : 'No'}</td></tr>`).join('')
+      : '<tr><td colspan="3" class="text-center text-muted">No users loaded.</td></tr>';
+  }
+  async function createUser() {
+    await postJSON('/admin/users-create', {
+      userName: document.getElementById('userName').value,
+      email: document.getElementById('userEmail').value,
+      password: document.getElementById('userPassword').value
+    });
+    toastr.success('User created');
+    load();
+  }
+  document.getElementById('createUser').addEventListener('click', createUser);
+  document.addEventListener('DOMContentLoaded', load);
+})();
+</script>
+}

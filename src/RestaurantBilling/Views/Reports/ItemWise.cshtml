@@ -1,0 +1,33 @@
+@{ ViewData["Title"] = "Item Wise"; }
+<div class="page-header"><div><h1 class="page-title-h">Item Wise Report</h1><div class="page-sub">Top selling items and quantities.</div></div></div>
+<div class="filter-bar"><div><label class="form-label-custom">From</label><input id="fromDate" type="date" class="form-control-custom"/></div><div><label class="form-label-custom">To</label><input id="toDate" type="date" class="form-control-custom"/></div><button id="runItemWise" class="btn-accent">Run</button><button id="exportItemCsv" class="btn-ghost"><i class="fas fa-file-csv"></i> CSV</button><button id="exportItemXlsx" class="btn-ghost" style="color:var(--success);"><i class="fas fa-file-excel"></i> Excel</button></div>
+<div class="card"><div class="card-body-custom"><table class="table-custom"><thead><tr><th>Item</th><th>Theoretical</th><th>Actual</th><th>Variance Qty</th><th>Variance Value</th></tr></thead><tbody id="itemWiseBody"><tr><td colspan="5" class="text-center text-muted">No data</td></tr></tbody></table></div></div>
+
+@section Scripts {
+<script>
+(() => {
+  const today = new Date();
+  const from = new Date(today);
+  from.setDate(today.getDate() - 6);
+  const fmt = d => d.toISOString().slice(0, 10);
+  document.getElementById('fromDate').value = fmt(from);
+  document.getElementById('toDate').value = fmt(today);
+
+  async function run() {
+    const fromDate = document.getElementById('fromDate').value;
+    const toDate = document.getElementById('toDate').value;
+    const rows = await getJSON(`/reports/item-wise?outletId=1&from=${fromDate}&to=${toDate}`);
+    document.getElementById('itemWiseBody').innerHTML = rows.length
+      ? rows.map(x => `<tr><td>${x.itemName}</td><td>${x.theoreticalConsumption}</td><td>${x.actualConsumption}</td><td>${x.varianceQty}</td><td>${fmtINR(x.varianceValue)}</td></tr>`).join('')
+      : '<tr><td colspan="5" class="text-center text-muted">No data</td></tr>';
+  }
+
+  document.getElementById('runItemWise').addEventListener('click', run);
+  document.getElementById('exportItemCsv').addEventListener('click', () =>
+    window.open(`/reports/item-wise-export?outletId=1&from=${document.getElementById('fromDate').value}&to=${document.getElementById('toDate').value}&format=csv`, '_blank'));
+  document.getElementById('exportItemXlsx').addEventListener('click', () =>
+    window.open(`/reports/item-wise-export?outletId=1&from=${document.getElementById('fromDate').value}&to=${document.getElementById('toDate').value}&format=xlsx`, '_blank'));
+  document.addEventListener('DOMContentLoaded', run);
+})();
+</script>
+}

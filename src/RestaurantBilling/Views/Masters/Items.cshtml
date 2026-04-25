@@ -1,0 +1,75 @@
+@model RestaurantBilling.Models.Masters.ItemInputModel
+@{
+    var rows = ViewBag.Rows;
+    var categories = (IEnumerable<Entities.Masters.Category>)ViewBag.Categories;
+}
+<div class="app-module-header">
+    <h1 class="h3 mb-1">Masters</h1>
+    <p class="app-muted mb-0">Manage core menu and taxation setup.</p>
+</div>
+
+<nav class="nav app-module-tabs gap-2">
+    <a class="nav-link" asp-controller="Masters" asp-action="Categories">Categories</a>
+    <a class="nav-link active" asp-controller="Masters" asp-action="Items">Items</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Tables">Tables</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Customers">Customers</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Suppliers">Suppliers</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Taxes">Taxes</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Units">Units</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Printers">Printers</a>
+</nav>
+
+<div class="app-surface mb-3">
+<form method="post" class="row g-2">
+    @Html.AntiForgeryToken()
+    <input asp-for="ItemId" type="hidden" />
+    <div class="col-md-2"><input asp-for="ItemCode" class="form-control" placeholder="Code" /></div>
+    <div class="col-md-3"><input asp-for="ItemName" class="form-control" placeholder="Name" /></div>
+    <div class="col-md-2">
+        <select asp-for="CategoryId" class="form-select">
+            <option value="">Select category</option>
+            @foreach (var c in categories)
+            {
+                <option value="@c.CategoryId">@c.CategoryName</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-1"><input asp-for="SalePrice" class="form-control" placeholder="Sale" /></div>
+    <div class="col-md-1"><input asp-for="GstPercent" class="form-control" placeholder="GST%" /></div>
+    <div class="col-md-1"><input asp-for="SacCode" class="form-control" placeholder="SAC" /></div>
+    <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">@(Model.ItemId.HasValue ? "Update Item" : "Add Item")</button>
+        @if (Model.ItemId.HasValue)
+        {
+            <a class="btn btn-outline-secondary" href="/masters/items">Cancel</a>
+        }
+    </div>
+</form>
+</div>
+
+<div class="app-surface">
+<table class="table table-sm app-table mb-0">
+    <thead>
+    <tr><th>Code</th><th>Name</th><th>Category</th><th>Sale</th><th>GST</th><th></th></tr>
+    </thead>
+    <tbody>
+    @foreach (var row in rows)
+    {
+        <tr>
+            <td>@row.i.ItemCode</td>
+            <td>@row.i.ItemName</td>
+            <td>@row.CategoryName</td>
+            <td>@row.i.SalePrice</td>
+            <td>@row.i.GstPercent</td>
+            <td class="d-flex gap-2">
+                <a class="btn btn-sm btn-outline-primary" href="/masters/items?editId=@row.i.ItemId">Edit</a>
+                <form method="post" action="/masters/items/@row.i.ItemId/delete">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+</div>

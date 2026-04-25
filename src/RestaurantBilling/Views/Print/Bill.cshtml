@@ -1,0 +1,13 @@
+@{
+    Layout = "_LayoutPrint";
+    ViewData["Title"] = "Bill Print";
+    var fssai = Context.Request.Query["fssai"].ToString();
+    var gstin = Context.Request.Query["gstin"].ToString();
+    var printer = Context.Request.Query["printer"].ToString();
+}
+<div class="text-center mb-2"><h5 class="mb-0">Tax Invoice</h5><small>FSSAI: @(string.IsNullOrWhiteSpace(fssai) ? "NA" : fssai)</small></div>
+<hr />
+<p class="mb-1">Bill No: ________</p>
+<p class="mb-1">Date: ________</p>
+<p class="mb-1">GSTIN: @(string.IsNullOrWhiteSpace(gstin) ? "NA" : gstin)</p>
+<p class="mb-1">Printer: @(string.IsNullOrWhiteSpace(printer) ? "Default" : printer)</p>

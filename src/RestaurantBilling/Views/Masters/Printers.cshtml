@@ -1,0 +1,36 @@
+<div class="app-module-header">
+    <h1 class="h3 mb-1">Masters</h1>
+    <p class="app-muted mb-0">Manage core menu and taxation setup.</p>
+</div>
+
+<nav class="nav app-module-tabs gap-2">
+    <a class="nav-link" asp-controller="Masters" asp-action="Categories">Categories</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Items">Items</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Tables">Tables</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Customers">Customers</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Suppliers">Suppliers</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Taxes">Taxes</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Units">Units</a>
+    <a class="nav-link active" asp-controller="Masters" asp-action="Printers">Printers</a>
+</nav>
+
+<div class="card mb-3"><div class="card-body-custom"><div class="row g-2"><div class="col-md-4"><input id="printerName" class="form-control-custom" placeholder="Printer name"/></div><div class="col-md-2"><select id="printerType" class="form-select-custom"><option>Thermal</option><option>A4</option></select></div><div class="col-md-4"><input id="devicePath" class="form-control-custom" placeholder="Device path"/></div><div class="col-md-2 form-check pt-2"><input id="isDefault" class="form-check-input" type="checkbox"/><label class="form-check-label" for="isDefault">Default</label></div><div class="col-md-2"><button id="savePrinter" class="btn-accent">Add Printer</button></div></div></div></div>
+<div class="card"><div class="card-body-custom"><table class="table-custom"><thead><tr><th>Name</th><th>Type</th><th>Path</th><th>Default</th></tr></thead><tbody id="printersBody"><tr><td colspan="4" class="text-center text-muted">No printers found.</td></tr></tbody></table></div></div>
+
+@section Scripts {
+<script>
+(() => {
+  async function load() {
+    const rows = await getJSON('/masters/printers-data?outletId=1');
+    document.getElementById('printersBody').innerHTML = rows.length ? rows.map(x => `<tr><td>${x.printerName}</td><td>${x.printerType}</td><td>${x.devicePath || ''}</td><td>${x.isDefault ? 'Yes' : 'No'}</td></tr>`).join('') : '<tr><td colspan="4" class="text-center text-muted">No printers found.</td></tr>';
+  }
+  async function save() {
+    await postJSON('/masters/printers-create', { name: document.getElementById('printerName').value, printerType: document.getElementById('printerType').value, devicePath: document.getElementById('devicePath').value, isDefault: document.getElementById('isDefault').checked });
+    toastr.success('Printer added');
+    await load();
+  }
+  document.getElementById('savePrinter').addEventListener('click', save);
+  document.addEventListener('DOMContentLoaded', load);
+})();
+</script>
+}

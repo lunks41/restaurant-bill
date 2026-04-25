@@ -1,0 +1,33 @@
+@{ ViewData["Title"] = "Stock Loss"; }
+<div class="page-header"><div><h1 class="page-title-h">Stock Loss Report</h1><div class="page-sub">Wastage trends and reason analysis.</div></div></div>
+<div class="filter-bar"><div><label class="form-label-custom">From</label><input id="fromDate" type="date" class="form-control-custom"/></div><div><label class="form-label-custom">To</label><input id="toDate" type="date" class="form-control-custom"/></div><button id="runStockLoss" class="btn-accent">Run</button><button id="exportLossCsv" class="btn-ghost"><i class="fas fa-file-csv"></i> CSV</button><button id="exportLossXlsx" class="btn-ghost" style="color:var(--success);"><i class="fas fa-file-excel"></i> Excel</button></div>
+<div class="card"><div class="card-body-custom"><table class="table-custom"><thead><tr><th>Date</th><th>Item</th><th>Qty</th><th>Reason</th></tr></thead><tbody id="stockLossBody"><tr><td colspan="4" class="text-center text-muted">No data</td></tr></tbody></table></div></div>
+
+@section Scripts {
+<script>
+(() => {
+  const today = new Date();
+  const from = new Date(today);
+  from.setDate(today.getDate() - 6);
+  const fmt = d => d.toISOString().slice(0, 10);
+  document.getElementById('fromDate').value = fmt(from);
+  document.getElementById('toDate').value = fmt(today);
+
+  async function run() {
+    const fromDate = document.getElementById('fromDate').value;
+    const toDate = document.getElementById('toDate').value;
+    const rows = await getJSON(`/reports/stock-loss-data?outletId=1&from=${fromDate}&to=${toDate}`);
+    document.getElementById('stockLossBody').innerHTML = rows.length
+      ? rows.map(x => `<tr><td>${x.date}</td><td>${x.itemName}</td><td>${x.qty}</td><td>${x.reason}</td></tr>`).join('')
+      : '<tr><td colspan="4" class="text-center text-muted">No data</td></tr>';
+  }
+
+  document.getElementById('runStockLoss').addEventListener('click', run);
+  document.getElementById('exportLossCsv').addEventListener('click', () =>
+    window.open(`/reports/stock-loss-export?outletId=1&from=${document.getElementById('fromDate').value}&to=${document.getElementById('toDate').value}&format=csv`, '_blank'));
+  document.getElementById('exportLossXlsx').addEventListener('click', () =>
+    window.open(`/reports/stock-loss-export?outletId=1&from=${document.getElementById('fromDate').value}&to=${document.getElementById('toDate').value}&format=xlsx`, '_blank'));
+  document.addEventListener('DOMContentLoaded', run);
+})();
+</script>
+}

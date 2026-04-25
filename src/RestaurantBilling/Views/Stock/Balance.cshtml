@@ -1,0 +1,124 @@
+@{
+    ViewData["Title"] = "Stock Balance";
+}
+
+<div class="app-module-header">
+    <h1 class="h3 mb-1">Stock</h1>
+    <p class="app-muted mb-0">Current quantity and reorder alerts.</p>
+</div>
+<nav class="nav app-module-tabs gap-1">
+    <a class="nav-link active" asp-controller="Stock" asp-action="Balance"><i class="fas fa-warehouse"></i> Stock Balance</a>
+    <a class="nav-link" asp-controller="Stock" asp-action="Purchase"><i class="fas fa-truck-ramp-box"></i> Purchase / GRN</a>
+    <a class="nav-link" asp-controller="Stock" asp-action="Adjustment"><i class="fas fa-sliders"></i> Adjustment</a>
+    <a class="nav-link" asp-controller="Stock" asp-action="Loss"><i class="fas fa-trash-can"></i> Stock Loss</a>
+</nav>
+
+<div class="kpi-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:16px;">
+    <div class="kpi-card">
+        <div class="kpi-icon-wrap green"><i class="fas fa-boxes-stacked"></i></div>
+        <div><div class="kpi-label">Total Items</div><div class="kpi-value" id="kpiStockTotal">-</div></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon-wrap red"><i class="fas fa-triangle-exclamation"></i></div>
+        <div><div class="kpi-label">Low Stock</div><div class="kpi-value" id="kpiStockLow">-</div></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon-wrap orange"><i class="fas fa-circle-exclamation"></i></div>
+        <div><div class="kpi-label">Out of Stock</div><div class="kpi-value" id="kpiStockOut">-</div></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon-wrap blue"><i class="fas fa-circle-check"></i></div>
+        <div><div class="kpi-label">Normal</div><div class="kpi-value" id="kpiStockNormal">-</div></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header-custom">
+        <div class="card-title-custom"><i class="fas fa-warehouse"></i> Stock Levels</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <div style="position:relative;">
+                <i class="fas fa-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:12px;"></i>
+                <input id="stockSearch" class="form-control-custom" placeholder="Search items..." style="padding-left:32px;width:220px;height:34px;font-size:12px;" />
+            </div>
+            <button class="btn-accent" id="refreshStock" style="padding:6px 14px;font-size:12px;"><i class="fas fa-rotate"></i> Refresh</button>
+        </div>
+    </div>
+    <div class="table-scroll">
+        <table class="table-custom">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Current Qty</th>
+                    <th>Reorder Level</th>
+                    <th>Status</th>
+                    <th>Stock Bar</th>
+                </tr>
+            </thead>
+            <tbody id="balanceBody">
+                <tr><td colspan="5" class="text-center text-muted" style="padding:32px;">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let allStock = [];
+
+async function loadStock() {
+  try {
+    allStock = await getJSON('/stock/balance-data?outletId=1') || [];
+    updateStockKpis();
+    renderStock(allStock);
+  } catch { if(typeof toastr!=='undefined') toastr.error('Failed to load stock'); }
+}
+
+function updateStockKpis() {
+  const low    = allStock.filter(x => x.status === 'Low' || x.currentQty <= x.reorderLevel).length;
+  const out    = allStock.filter(x => x.currentQty <= 0).length;
+  const normal = allStock.filter(x => x.currentQty > x.reorderLevel).length;
+  document.getElementById('kpiStockTotal').textContent  = allStock.length;
+  document.getElementById('kpiStockLow').textContent    = low;
+  document.getElementById('kpiStockOut').textContent    = out;
+  document.getElementById('kpiStockNormal').textContent = normal;
+}
+
+function renderStock(rows) {
+  const body = document.getElementById('balanceBody');
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="5" class="text-center text-muted" style="padding:32px;">No stock items found.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(x => {
+    const isLow  = x.currentQty <= x.reorderLevel && x.currentQty > 0;
+    const isOut  = x.currentQty <= 0;
+    const statusCls = isOut ? 'badge-custom badge-danger' : isLow ? 'badge-custom badge-warning' : 'badge-custom badge-success';
+    const statusTxt = isOut ? 'Out of Stock' : isLow ? 'Low Stock' : 'Normal';
+    const pct  = x.reorderLevel > 0 ? Math.min(100, Math.round((x.currentQty / (x.reorderLevel * 3)) * 100)) : 50;
+    const barClr = isOut ? 'var(--danger)' : isLow ? 'var(--warning)' : 'var(--success)';
+    return `<tr class="${isLow||isOut?'low-stock-row':''}">
+      <td>
+        ${isLow||isOut?`<span class="low-stock-indicator"></span>`:''}
+        <strong>${x.itemName}</strong>
+      </td>
+      <td><strong style="font-size:15px;">${x.currentQty}</strong></td>
+      <td style="color:var(--text-muted);">${x.reorderLevel}</td>
+      <td><span class="${statusCls}">${statusTxt}</span></td>
+      <td style="min-width:120px;">
+        <div style="height:6px;background:var(--bg-surface2);border-radius:4px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${barClr};border-radius:4px;transition:width 0.4s ease;"></div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('stockSearch')?.addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  renderStock(q ? allStock.filter(x => x.itemName.toLowerCase().includes(q)) : allStock);
+});
+
+document.getElementById('refreshStock')?.addEventListener('click', loadStock);
+document.addEventListener('DOMContentLoaded', loadStock);
+</script>
+}

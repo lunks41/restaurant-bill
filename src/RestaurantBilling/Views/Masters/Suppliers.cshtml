@@ -1,0 +1,45 @@
+@{
+    ViewData["Title"] = "Suppliers";
+}
+<div class="app-module-header"><h1 class="h3 mb-1">Masters</h1><p class="app-muted mb-0">Manage core menu and taxation setup.</p></div>
+<nav class="nav app-module-tabs gap-2"><a class="nav-link" asp-controller="Masters" asp-action="Categories">Categories</a><a class="nav-link" asp-controller="Masters" asp-action="Items">Items</a><a class="nav-link" asp-controller="Masters" asp-action="Tables">Tables</a><a class="nav-link" asp-controller="Masters" asp-action="Customers">Customers</a><a class="nav-link active" asp-controller="Masters" asp-action="Suppliers">Suppliers</a><a class="nav-link" asp-controller="Masters" asp-action="Taxes">Taxes</a><a class="nav-link" asp-controller="Masters" asp-action="Units">Units</a><a class="nav-link" asp-controller="Masters" asp-action="Printers">Printers</a></nav>
+<div class="card mb-3"><div class="card-body-custom"><div class="row g-2"><div class="col-md-4"><input id="supplierName" class="form-control-custom" placeholder="Supplier name"/></div><div class="col-md-3"><input id="supplierPhone" class="form-control-custom" placeholder="Contact"/></div><div class="col-md-3"><input id="supplierGstin" class="form-control-custom" placeholder="GSTIN"/></div><div class="col-md-2"><button id="saveSupplier" class="btn-accent">Add Supplier</button></div></div></div></div>
+<div class="card"><div class="card-body-custom"><table id="suppliersTable" class="table-custom"><thead><tr><th>Name</th><th>Contact</th><th>GSTIN</th><th></th></tr></thead><tbody id="suppliersBody"><tr><td colspan="4" class="text-center text-muted">No suppliers found.</td></tr></tbody></table></div></div>
+
+@section Scripts {
+<script>
+(() => {
+  async function load() {
+    const rows = await getJSON('/masters/suppliers-data?outletId=1');
+    document.getElementById('suppliersBody').innerHTML = rows.length ? rows.map(x => `<tr><td>${x.supplierName}</td><td>${x.contactNo || ''}</td><td>${x.gstin || ''}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.supplierId}" data-name="${x.supplierName}" data-phone="${x.contactNo || ''}" data-gstin="${x.gstin || ''}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.supplierId}">Delete</button></td></tr>`).join('') : '<tr><td colspan="4" class="text-center text-muted">No suppliers found.</td></tr>';
+    bindRowActions();
+    if (window.refreshDataTableById) window.refreshDataTableById('suppliersTable');
+  }
+  async function save() {
+    await postJSON('/masters/suppliers-create', { name: document.getElementById('supplierName').value, phone: document.getElementById('supplierPhone').value, gstin: document.getElementById('supplierGstin').value });
+    toastr.success('Supplier added');
+    await load();
+  }
+  function bindRowActions() {
+    document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-edit');
+      const name = prompt('Edit supplier name', btn.getAttribute('data-name'));
+      if (!name) return;
+      const phone = prompt('Edit contact', btn.getAttribute('data-phone') || '') ?? '';
+      const gstin = prompt('Edit GSTIN', btn.getAttribute('data-gstin') || '') ?? '';
+      await postJSON(`/masters/suppliers-update/${id}`, { name, phone, gstin });
+      toastr.success('Supplier updated');
+      await load();
+    }));
+    document.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm('Delete this supplier?')) return;
+      await postJSON(`/masters/suppliers-delete/${btn.getAttribute('data-delete')}`, { name: '' });
+      toastr.success('Supplier deleted');
+      await load();
+    }));
+  }
+  document.getElementById('saveSupplier').addEventListener('click', save);
+  document.addEventListener('DOMContentLoaded', load);
+})();
+</script>
+}

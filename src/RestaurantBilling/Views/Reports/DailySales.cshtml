@@ -1,0 +1,47 @@
+@{
+    ViewData["Title"] = "Daily Sales";
+}
+<div class="page-header"><div><h1 class="page-title-h">Daily Sales Report</h1><div class="page-sub">Date wise sales and bill count.</div></div></div>
+<div class="filter-bar"><div><label class="form-label-custom">From</label><input id="fromDate" type="date" class="form-control-custom"/></div><div><label class="form-label-custom">To</label><input id="toDate" type="date" class="form-control-custom"/></div><button id="runDailySales" class="btn-accent">Run</button><button id="exportDailyCsv" class="btn-ghost"><i class="fas fa-file-csv"></i> CSV</button><button id="exportDailyXlsx" class="btn-ghost" style="color:var(--success);"><i class="fas fa-file-excel"></i> Excel</button></div>
+<div class="card"><div class="card-body-custom"><table class="table-custom"><thead><tr><th>Date</th><th>Bills</th><th>Gross</th><th>Tax</th><th>Net</th></tr></thead><tbody id="dailySalesBody"><tr><td colspan="5" class="text-center text-muted">No data</td></tr></tbody></table></div></div>
+<div class="card mt-3"><div class="card-body-custom"><h6 class="mb-2">Drilldown</h6><table class="table-custom"><thead><tr><th>Bill</th><th>Time</th><th>Status</th><th>Tax</th><th>Total</th></tr></thead><tbody id="drillRows"><tr><td colspan="5" class="text-center text-muted">Select a date row to view bills.</td></tr></tbody></table></div></div>
+
+@section Scripts {
+<script>
+(() => {
+  const today = new Date();
+  const from = new Date(today);
+  from.setDate(today.getDate() - 6);
+  const fmt = d => d.toISOString().slice(0, 10);
+
+  const fromDate = document.getElementById('fromDate');
+  const toDate = document.getElementById('toDate');
+  fromDate.value = fmt(from);
+  toDate.value = fmt(today);
+
+  async function run() {
+    const rows = await getJSON(`/reports/daily-sales?outletId=1&from=${fromDate.value}&to=${toDate.value}`);
+    const body = document.getElementById('dailySalesBody');
+    body.innerHTML = rows.length
+      ? rows.map(x => `<tr data-date="${x.businessDate}"><td>${x.businessDate}</td><td>${x.totalBills}</td><td>${fmtINR(x.grossSales)}</td><td>${fmtINR(x.totalTax)}</td><td>${fmtINR(x.netSales)}</td></tr>`).join('')
+      : '<tr><td colspan="5" class="text-center text-muted">No data</td></tr>';
+    body.querySelectorAll('tr[data-date]').forEach(tr => tr.addEventListener('click', () => drill(tr.dataset.date)));
+  }
+
+  async function drill(date) {
+    const rows = await getJSON(`/reports/daily-sales-drilldown?outletId=1&date=${date}`);
+    const body = document.getElementById('drillRows');
+    body.innerHTML = rows.length
+      ? rows.map(x => `<tr><td>${x.billNo}</td><td>${x.billDate}</td><td>${x.status}</td><td>${fmtINR(x.taxAmount)}</td><td>${fmtINR(x.grandTotal)}</td></tr>`).join('')
+      : '<tr><td colspan="5" class="text-center text-muted">No bills for selected date.</td></tr>';
+  }
+
+  document.getElementById('runDailySales').addEventListener('click', run);
+  document.getElementById('exportDailyCsv').addEventListener('click', () =>
+    window.open(`/reports/daily-sales-export?outletId=1&from=${fromDate.value}&to=${toDate.value}&format=csv`, '_blank'));
+  document.getElementById('exportDailyXlsx').addEventListener('click', () =>
+    window.open(`/reports/daily-sales-export?outletId=1&from=${fromDate.value}&to=${toDate.value}&format=xlsx`, '_blank'));
+  document.addEventListener('DOMContentLoaded', run);
+})();
+</script>
+}

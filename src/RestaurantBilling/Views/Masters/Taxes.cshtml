@@ -1,0 +1,71 @@
+@model RestaurantBilling.Models.Masters.TaxConfigurationInputModel
+@{
+    var rows = (IEnumerable<Entities.Configuration.TaxConfiguration>)ViewBag.Rows;
+}
+<div class="app-module-header">
+    <h1 class="h3 mb-1">Masters</h1>
+    <p class="app-muted mb-0">Manage core menu and taxation setup.</p>
+</div>
+
+<nav class="nav app-module-tabs gap-2">
+    <a class="nav-link" asp-controller="Masters" asp-action="Categories">Categories</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Items">Items</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Tables">Tables</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Customers">Customers</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Suppliers">Suppliers</a>
+    <a class="nav-link active" asp-controller="Masters" asp-action="Taxes">Taxes</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Units">Units</a>
+    <a class="nav-link" asp-controller="Masters" asp-action="Printers">Printers</a>
+</nav>
+
+<div class="app-surface mb-3">
+<form method="post" class="row g-2">
+    @Html.AntiForgeryToken()
+    <input asp-for="TaxConfigurationId" type="hidden" />
+    <div class="col-md-2"><input asp-for="ScenarioType" class="form-control" placeholder="Scenario" /></div>
+    <div class="col-md-2"><input asp-for="TotalGstPercent" class="form-control" placeholder="Total GST" /></div>
+    <div class="col-md-2"><input asp-for="CgstPercent" class="form-control" placeholder="CGST" /></div>
+    <div class="col-md-2"><input asp-for="SgstPercent" class="form-control" placeholder="SGST" /></div>
+    <div class="col-md-2"><input asp-for="IgstPercent" class="form-control" placeholder="IGST" /></div>
+    <div class="col-md-2"><input asp-for="EffectiveFrom" class="form-control" type="date" /></div>
+    <div class="col-md-2 form-check">
+        <input asp-for="IsItcAllowed" class="form-check-input" />
+        <label asp-for="IsItcAllowed" class="form-check-label">ITC Allowed</label>
+    </div>
+    <div class="col-md-3">
+        <button type="submit" class="btn btn-primary">@(Model.TaxConfigurationId.HasValue ? "Update Tax Config" : "Add Tax Config")</button>
+        @if (Model.TaxConfigurationId.HasValue)
+        {
+            <a class="btn btn-outline-secondary" href="/masters/taxes">Cancel</a>
+        }
+    </div>
+</form>
+</div>
+
+<div class="app-surface">
+<table class="table table-sm app-table mb-0">
+    <thead>
+    <tr><th>Scenario</th><th>Total</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Effective</th><th></th></tr>
+    </thead>
+    <tbody>
+    @foreach (var row in rows)
+    {
+        <tr>
+            <td>@row.ScenarioType</td>
+            <td>@row.TotalGstPercent</td>
+            <td>@row.CgstPercent</td>
+            <td>@row.SgstPercent</td>
+            <td>@row.IgstPercent</td>
+            <td>@row.EffectiveFrom.ToString("yyyy-MM-dd")</td>
+            <td class="d-flex gap-2">
+                <a class="btn btn-sm btn-outline-primary" href="/masters/taxes?editId=@row.TaxConfigurationId">Edit</a>
+                <form method="post" action="/masters/taxes/@row.TaxConfigurationId/delete">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+</div>

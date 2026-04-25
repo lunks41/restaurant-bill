@@ -1,0 +1,45 @@
+@{
+    ViewData["Title"] = "Customers";
+}
+<div class="app-module-header"><h1 class="h3 mb-1">Masters</h1><p class="app-muted mb-0">Manage core menu and taxation setup.</p></div>
+<nav class="nav app-module-tabs gap-2"><a class="nav-link" asp-controller="Masters" asp-action="Categories">Categories</a><a class="nav-link" asp-controller="Masters" asp-action="Items">Items</a><a class="nav-link" asp-controller="Masters" asp-action="Tables">Tables</a><a class="nav-link active" asp-controller="Masters" asp-action="Customers">Customers</a><a class="nav-link" asp-controller="Masters" asp-action="Suppliers">Suppliers</a><a class="nav-link" asp-controller="Masters" asp-action="Taxes">Taxes</a><a class="nav-link" asp-controller="Masters" asp-action="Units">Units</a><a class="nav-link" asp-controller="Masters" asp-action="Printers">Printers</a></nav>
+<div class="card mb-3"><div class="card-body-custom"><div class="row g-2"><div class="col-md-4"><input id="customerName" class="form-control-custom" placeholder="Customer name"/></div><div class="col-md-3"><input id="customerPhone" class="form-control-custom" placeholder="Phone"/></div><div class="col-md-3"><input id="customerGstin" class="form-control-custom" placeholder="GSTIN"/></div><div class="col-md-2"><button id="saveCustomer" class="btn-accent">Add Customer</button></div></div></div></div>
+<div class="card"><div class="card-body-custom"><table id="customersTable" class="table-custom"><thead><tr><th>Name</th><th>Phone</th><th>GSTIN</th><th></th></tr></thead><tbody id="customersBody"><tr><td colspan="4" class="text-center text-muted">No customers found.</td></tr></tbody></table></div></div>
+
+@section Scripts {
+<script>
+(() => {
+  async function load() {
+    const rows = await getJSON('/masters/customers-data?outletId=1');
+    document.getElementById('customersBody').innerHTML = rows.length ? rows.map(x => `<tr><td>${x.customerName}</td><td>${x.phone || ''}</td><td>${x.gstin || ''}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.customerId}" data-name="${x.customerName}" data-phone="${x.phone || ''}" data-gstin="${x.gstin || ''}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.customerId}">Delete</button></td></tr>`).join('') : '<tr><td colspan="4" class="text-center text-muted">No customers found.</td></tr>';
+    bindRowActions();
+    if (window.refreshDataTableById) window.refreshDataTableById('customersTable');
+  }
+  async function save() {
+    await postJSON('/masters/customers-create', { name: document.getElementById('customerName').value, phone: document.getElementById('customerPhone').value, gstin: document.getElementById('customerGstin').value });
+    toastr.success('Customer added');
+    await load();
+  }
+  function bindRowActions() {
+    document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-edit');
+      const name = prompt('Edit customer name', btn.getAttribute('data-name'));
+      if (!name) return;
+      const phone = prompt('Edit phone', btn.getAttribute('data-phone') || '') ?? '';
+      const gstin = prompt('Edit GSTIN', btn.getAttribute('data-gstin') || '') ?? '';
+      await postJSON(`/masters/customers-update/${id}`, { name, phone, gstin });
+      toastr.success('Customer updated');
+      await load();
+    }));
+    document.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm('Delete this customer?')) return;
+      await postJSON(`/masters/customers-delete/${btn.getAttribute('data-delete')}`, { name: '' });
+      toastr.success('Customer deleted');
+      await load();
+    }));
+  }
+  document.getElementById('saveCustomer').addEventListener('click', save);
+  document.addEventListener('DOMContentLoaded', load);
+})();
+</script>
+}

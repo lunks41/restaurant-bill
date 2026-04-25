@@ -1,0 +1,33 @@
+@{ ViewData["Title"] = "Payment Mode"; }
+<div class="page-header"><div><h1 class="page-title-h">Payment Mode Report</h1><div class="page-sub">Mode-wise collections summary.</div></div></div>
+<div class="filter-bar"><div><label class="form-label-custom">From</label><input id="fromDate" type="date" class="form-control-custom"/></div><div><label class="form-label-custom">To</label><input id="toDate" type="date" class="form-control-custom"/></div><button id="runPaymentMode" class="btn-accent">Run</button><button id="exportPayCsv" class="btn-ghost"><i class="fas fa-file-csv"></i> CSV</button><button id="exportPayXlsx" class="btn-ghost" style="color:var(--success);"><i class="fas fa-file-excel"></i> Excel</button></div>
+<div class="card"><div class="card-body-custom"><table class="table-custom"><thead><tr><th>Mode</th><th>Amount</th><th>Transactions</th></tr></thead><tbody id="paymentModeBody"><tr><td colspan="3" class="text-center text-muted">No data</td></tr></tbody></table></div></div>
+
+@section Scripts {
+<script>
+(() => {
+  const today = new Date();
+  const from = new Date(today);
+  from.setDate(today.getDate() - 6);
+  const fmt = d => d.toISOString().slice(0, 10);
+  document.getElementById('fromDate').value = fmt(from);
+  document.getElementById('toDate').value = fmt(today);
+
+  async function run() {
+    const fromDate = document.getElementById('fromDate').value;
+    const toDate = document.getElementById('toDate').value;
+    const rows = await getJSON(`/reports/payment-summary?outletId=1&from=${fromDate}&to=${toDate}`);
+    document.getElementById('paymentModeBody').innerHTML = rows.length
+      ? rows.map(x => `<tr><td>${x.paymentMode}</td><td>${fmtINR(x.totalAmount)}</td><td>${x.transactionCount}</td></tr>`).join('')
+      : '<tr><td colspan="3" class="text-center text-muted">No data</td></tr>';
+  }
+
+  document.getElementById('runPaymentMode').addEventListener('click', run);
+  document.getElementById('exportPayCsv').addEventListener('click', () =>
+    window.open(`/reports/payment-summary-export?outletId=1&from=${document.getElementById('fromDate').value}&to=${document.getElementById('toDate').value}&format=csv`, '_blank'));
+  document.getElementById('exportPayXlsx').addEventListener('click', () =>
+    window.open(`/reports/payment-summary-export?outletId=1&from=${document.getElementById('fromDate').value}&to=${document.getElementById('toDate').value}&format=xlsx`, '_blank'));
+  document.addEventListener('DOMContentLoaded', run);
+})();
+</script>
+}

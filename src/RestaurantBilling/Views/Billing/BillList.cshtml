@@ -1,0 +1,136 @@
+@{
+    ViewData["Title"] = "Bills";
+}
+
+<div class="app-module-header">
+    <h1 class="h3 mb-1">Billing</h1>
+    <p class="app-muted mb-0">View settled, draft, and cancelled bills.</p>
+</div>
+<nav class="nav app-module-tabs gap-1">
+    <a class="nav-link" asp-controller="Billing" asp-action="DineIn"><i class="fas fa-chair"></i> Dine-In POS</a>
+    <a class="nav-link" asp-controller="Billing" asp-action="Takeaway"><i class="fas fa-shopping-bag"></i> Takeaway</a>
+    <a class="nav-link" asp-controller="Billing" asp-action="Quote"><i class="fas fa-file-lines"></i> Quote</a>
+    <a class="nav-link active" asp-controller="Billing" asp-action="BillList"><i class="fas fa-list-ul"></i> Bills</a>
+</nav>
+
+<div class="app-surface mb-3" style="padding:12px 16px;font-size:13px;line-height:1.5;">
+    <strong><i class="fas fa-circle-info" style="color:var(--accent);"></i> How billing &amp; KOT work</strong>
+    <p class="mb-2 app-muted" style="margin-top:6px;">New order: open <a href="/billing/dinein">Dine-In POS</a> or <a href="/billing/takeaway">Takeaway</a>, add items, then <strong>Hold</strong> (saves a draft bill). Press <strong>KOT</strong> to send that draft to the kitchen. Track tickets under <a href="/kitchen/kotlist">KOT List</a> or <a href="/kitchen/kdsscreen" target="_blank" rel="noopener">KDS screen</a>. <strong>Settle Bill</strong> when payment is taken. This page lists all bills — use <strong>View</strong> to open details.</p>
+</div>
+
+<div class="kpi-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:16px;">
+    <div class="kpi-card">
+        <div class="kpi-icon-wrap green"><i class="fas fa-circle-check"></i></div>
+        <div><div class="kpi-label">Settled</div><div class="kpi-value" id="kpiBillSettled">-</div></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon-wrap orange"><i class="fas fa-clock"></i></div>
+        <div><div class="kpi-label">Draft</div><div class="kpi-value" id="kpiBillDraft">-</div></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon-wrap red"><i class="fas fa-ban"></i></div>
+        <div><div class="kpi-label">Cancelled</div><div class="kpi-value" id="kpiBillCancelled">-</div></div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon-wrap blue"><i class="fas fa-indian-rupee-sign"></i></div>
+        <div><div class="kpi-label">Total Value</div><div class="kpi-value" id="kpiBillTotal">-</div></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header-custom">
+        <div class="card-title-custom"><i class="fas fa-file-invoice"></i> Bill List</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <div style="display:flex;gap:6px;">
+                <button class="btn-ghost bill-filter-btn active" data-filter="all" style="font-size:12px;padding:5px 12px;">All</button>
+                <button class="btn-ghost bill-filter-btn" data-filter="Paid" style="font-size:12px;padding:5px 12px;color:var(--success);">Paid</button>
+                <button class="btn-ghost bill-filter-btn" data-filter="Draft" style="font-size:12px;padding:5px 12px;color:var(--warning);">Draft</button>
+            </div>
+            <button class="btn-accent" id="refreshBills" style="padding:6px 14px;font-size:12px;"><i class="fas fa-rotate"></i> Refresh</button>
+        </div>
+    </div>
+    <div class="table-scroll">
+        <table class="table-custom" id="billTable">
+            <thead>
+                <tr>
+                    <th>Bill No</th>
+                    <th>Type</th>
+                    <th>Date</th>
+                    <th>Items</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="billBody">
+                <tr><td colspan="7" class="text-center text-muted" style="padding:32px;">Loading bills...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let allBills = [];
+let billFilter = 'all';
+
+const statusMap = {
+  Paid:      'badge-custom status-paid',
+  Draft:     'badge-custom status-draft',
+  Cancelled: 'badge-custom status-cancelled',
+  Refunded:  'badge-custom badge-warning'
+};
+
+async function loadBills() {
+  try {
+    allBills = await getJSON('/billing/bills-data?outletId=1') || [];
+    updateKpis();
+    renderBills();
+  } catch { if(typeof toastr!=='undefined') toastr.error('Failed to load bills'); }
+}
+
+function updateKpis() {
+  const settled   = allBills.filter(x => x.status === 'Paid').length;
+  const draft     = allBills.filter(x => x.status === 'Draft').length;
+  const cancelled = allBills.filter(x => x.status === 'Cancelled').length;
+  const total     = allBills.filter(x => x.status === 'Paid').reduce((s, x) => s + (x.grandTotal || 0), 0);
+  document.getElementById('kpiBillSettled').textContent   = settled;
+  document.getElementById('kpiBillDraft').textContent     = draft;
+  document.getElementById('kpiBillCancelled').textContent = cancelled;
+  document.getElementById('kpiBillTotal').textContent     = fmtINR(total);
+}
+
+function renderBills() {
+  const body = document.getElementById('billBody');
+  const filtered = billFilter === 'all' ? allBills : allBills.filter(x => x.status === billFilter);
+  if (!filtered.length) {
+    body.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">No bills found.</td></tr>';
+    return;
+  }
+  body.innerHTML = filtered.map(x => {
+    const cls = statusMap[x.status] || 'badge-custom badge-muted';
+    return `<tr>
+      <td><strong style="color:var(--accent);">${x.billNo}</strong></td>
+      <td><span class="badge-custom badge-muted">${x.billType || 'DineIn'}</span></td>
+      <td style="font-size:12px;color:var(--text-muted);">${x.billDate}</td>
+      <td style="font-size:12px;">${x.itemCount || '-'}</td>
+      <td><span class="${cls}">${x.status}</span></td>
+      <td><strong>${fmtINR(x.grandTotal)}</strong></td>
+      <td><a class="btn-ghost" href="/billing/bills/${x.billId}" style="font-size:12px;padding:5px 12px;"><i class="fas fa-eye"></i> View</a></td>
+    </tr>`;
+  }).join('');
+}
+
+document.querySelectorAll('.bill-filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.bill-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    billFilter = btn.dataset.filter;
+    renderBills();
+  });
+});
+
+document.getElementById('refreshBills')?.addEventListener('click', loadBills);
+document.addEventListener('DOMContentLoaded', loadBills);
+</script>
+}

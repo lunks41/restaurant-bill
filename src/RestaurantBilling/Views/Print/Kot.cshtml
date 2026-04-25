@@ -1,0 +1,11 @@
+@{
+    Layout = "_LayoutPrint";
+    ViewData["Title"] = "KOT Print";
+    var fssai = Context.Request.Query["fssai"].ToString();
+    var printer = Context.Request.Query["printer"].ToString();
+}
+<div class="text-center mb-2"><h5 class="mb-0">Kitchen Order Ticket</h5><small>FSSAI: @(string.IsNullOrWhiteSpace(fssai) ? "NA" : fssai)</small></div>
+<hr />
+<p class="mb-1">KOT No: ________</p>
+<p class="mb-1">Station: ________</p>
+<p class="mb-1">Printer: @(string.IsNullOrWhiteSpace(printer) ? "Default" : printer)</p>
