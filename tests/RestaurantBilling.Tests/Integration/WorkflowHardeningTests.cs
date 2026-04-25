@@ -14,7 +14,11 @@ public class WorkflowHardeningTests
     public async Task KitchenStatus_ReturnsBadRequest_ForInvalidStatus()
     {
         await using var db = CreateDb();
-        var controller = new KitchenController(db, new FakeNumberGenerator(), new FakeHubContext());
+        var controller = new KitchenController(
+            db,
+            new FakeNumberGenerator(),
+            new FakeHubContext<RestaurantBilling.Hubs.KdsHub>(),
+            new FakeHubContext<RestaurantBilling.Hubs.AlertHub>());
 
         var result = await controller.UpdateStatus(new KotStatusUpdateRequest(1, 99, "Unknown"), CancellationToken.None);
 
@@ -29,7 +33,7 @@ public class WorkflowHardeningTests
         var from = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));
         var to = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var result = await controller.DailySalesExport(1, from, to, CancellationToken.None);
+        var result = await controller.DailySalesExport(1, from, to, "csv", CancellationToken.None);
 
         var file = Assert.IsType<FileContentResult>(result);
         var content = Encoding.UTF8.GetString(file.FileContents);
@@ -63,7 +67,8 @@ public class WorkflowHardeningTests
             => Task.FromResult<IReadOnlyList<IServices.Dtos.StockMovementDto>>([]);
     }
 
-    private sealed class FakeHubContext : Microsoft.AspNetCore.SignalR.IHubContext<RestaurantBilling.Hubs.KdsHub>
+    private sealed class FakeHubContext<THub> : Microsoft.AspNetCore.SignalR.IHubContext<THub>
+        where THub : Microsoft.AspNetCore.SignalR.Hub
     {
         public Microsoft.AspNetCore.SignalR.IHubClients Clients => new FakeHubClients();
         public Microsoft.AspNetCore.SignalR.IGroupManager Groups => new FakeGroupManager();

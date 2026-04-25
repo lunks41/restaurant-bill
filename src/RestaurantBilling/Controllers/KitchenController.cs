@@ -31,6 +31,7 @@ public class KitchenController(
     public IActionResult Kots() => View();
 
     [HttpGet("kotlist")]
+    [HttpGet("/kot")]
     public IActionResult KotList()
     {
         ViewBag.UseDataTables = true;

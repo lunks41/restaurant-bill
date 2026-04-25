@@ -4,72 +4,251 @@
     var categories = (IEnumerable<Entities.Masters.Category>)ViewBag.Categories;
 }
 <div class="app-module-header">
-    <h1 class="h3 mb-1">Masters</h1>
-    <p class="app-muted mb-0">Manage core menu and taxation setup.</p>
+    <h1 class="h3 mb-1">Items</h1>
+    <p class="app-muted mb-0">Manage menu items, pricing, tax, and image catalog.</p>
 </div>
 
-<nav class="nav app-module-tabs gap-2">
-    <a class="nav-link" asp-controller="Masters" asp-action="Categories">Categories</a>
-    <a class="nav-link active" asp-controller="Masters" asp-action="Items">Items</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Tables">Tables</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Customers">Customers</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Suppliers">Suppliers</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Taxes">Taxes</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Units">Units</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Printers">Printers</a>
-</nav>
-
-<div class="app-surface mb-3">
-<form method="post" class="row g-2">
-    @Html.AntiForgeryToken()
-    <input asp-for="ItemId" type="hidden" />
-    <div class="col-md-2"><input asp-for="ItemCode" class="form-control" placeholder="Code" /></div>
-    <div class="col-md-3"><input asp-for="ItemName" class="form-control" placeholder="Name" /></div>
-    <div class="col-md-2">
-        <select asp-for="CategoryId" class="form-select">
-            <option value="">Select category</option>
-            @foreach (var c in categories)
-            {
-                <option value="@c.CategoryId">@c.CategoryName</option>
-            }
-        </select>
-    </div>
-    <div class="col-md-1"><input asp-for="SalePrice" class="form-control" placeholder="Sale" /></div>
-    <div class="col-md-1"><input asp-for="GstPercent" class="form-control" placeholder="GST%" /></div>
-    <div class="col-md-1"><input asp-for="SacCode" class="form-control" placeholder="SAC" /></div>
-    <div class="col-md-3 d-flex gap-2">
-        <button type="submit" class="btn btn-primary">@(Model.ItemId.HasValue ? "Update Item" : "Add Item")</button>
-        @if (Model.ItemId.HasValue)
-        {
-            <a class="btn btn-outline-secondary" href="/masters/items">Cancel</a>
-        }
-    </div>
-</form>
+<div class="app-surface mb-3 d-flex justify-content-end">
+    <button type="button" class="btn-accent" id="openAddItem">
+        <i class="fas fa-plus"></i> Add Item
+    </button>
 </div>
 
 <div class="app-surface">
-<table class="table table-sm app-table mb-0">
-    <thead>
-    <tr><th>Code</th><th>Name</th><th>Category</th><th>Sale</th><th>GST</th><th></th></tr>
-    </thead>
-    <tbody>
-    @foreach (var row in rows)
-    {
-        <tr>
-            <td>@row.i.ItemCode</td>
-            <td>@row.i.ItemName</td>
-            <td>@row.CategoryName</td>
-            <td>@row.i.SalePrice</td>
-            <td>@row.i.GstPercent</td>
-            <td class="d-flex gap-2">
-                <a class="btn btn-sm btn-outline-primary" href="/masters/items?editId=@row.i.ItemId">Edit</a>
-                <form method="post" action="/masters/items/@row.i.ItemId/delete">
-                    @Html.AntiForgeryToken()
-                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
-                </form>
-            </td>
-        </tr>
-    }
-    </tbody>
-</table>
+    <table id="itemsTable" class="table table-sm app-table mb-0">
+        <thead>
+            <tr>
+                <th>Image</th>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Sale</th>
+                <th>GST</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in rows)
+            {
+                <tr>
+                    <td>
+                        @if (!string.IsNullOrWhiteSpace(row.i.ImagePath))
+                        {
+                            <img src="@row.i.ImagePath" alt="@row.i.ItemName" style="width:36px;height:36px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" />
+                        }
+                        else
+                        {
+                            <span class="badge-custom badge-muted">No image</span>
+                        }
+                    </td>
+                    <td>@row.i.ItemCode</td>
+                    <td>@row.i.ItemName</td>
+                    <td>@row.CategoryName</td>
+                    <td>@row.i.SalePrice</td>
+                    <td>@row.i.GstPercent</td>
+                    <td>
+                        @if (row.i.IsActive)
+                        {
+                            <span class="badge-custom badge-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge-custom badge-muted">Inactive</span>
+                        }
+                    </td>
+                    <td class="d-flex gap-2">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-primary btn-edit-item"
+                                data-id="@row.i.ItemId"
+                                data-code="@row.i.ItemCode"
+                                data-name="@row.i.ItemName"
+                                data-category-id="@row.i.CategoryId"
+                                data-sale="@row.i.SalePrice"
+                                data-purchase="@row.i.PurchasePrice"
+                                data-gst="@row.i.GstPercent"
+                                data-sac="@row.i.SacCode"
+                                data-tax-inclusive="@row.i.IsTaxInclusive.ToString().ToLowerInvariant()"
+                                data-stock-tracked="@row.i.IsStockTracked.ToString().ToLowerInvariant()"
+                                data-reorder="@row.i.ReorderLevel"
+                                data-image-path="@row.i.ImagePath">
+                            Edit
+                        </button>
+                        <form method="post" action="/masters/items/@row.i.ItemId/delete">
+                            @Html.AntiForgeryToken()
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Inactivate</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
 </div>
+
+<div class="modal fade" id="itemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" id="itemForm" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="itemModalTitle">Add Item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input asp-for="ItemId" type="hidden" id="modalItemId" />
+                    <input asp-for="ImagePath" type="hidden" id="modalImagePath" />
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Code</label>
+                            <input asp-for="ItemCode" class="form-control" id="modalItemCode" placeholder="Code" required />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Name</label>
+                            <input asp-for="ItemName" class="form-control" id="modalItemName" placeholder="Name" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Category</label>
+                            <select asp-for="CategoryId" class="form-select" id="modalCategoryId" required>
+                                <option value="">Select category</option>
+                                @foreach (var c in categories)
+                                {
+                                    <option value="@c.CategoryId">@c.CategoryName</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Sale</label>
+                            <input asp-for="SalePrice" class="form-control" id="modalSalePrice" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Purchase</label>
+                            <input asp-for="PurchasePrice" class="form-control" id="modalPurchasePrice" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">GST%</label>
+                            <input asp-for="GstPercent" class="form-control" id="modalGstPercent" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">SAC</label>
+                            <input asp-for="SacCode" class="form-control" id="modalSacCode" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Item image</label>
+                            <input asp-for="ImageFile" type="file" class="form-control" id="modalImageFile" accept=".jpg,.jpeg,.png,.webp,.gif" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Reorder</label>
+                            <input asp-for="ReorderLevel" class="form-control" id="modalReorderLevel" />
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <div class="form-check">
+                                <input asp-for="IsTaxInclusive" class="form-check-input" id="modalTaxInclusive" />
+                                <label class="form-check-label" for="modalTaxInclusive">Tax inclusive</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <div class="form-check">
+                                <input asp-for="IsStockTracked" class="form-check-input" id="modalStockTracked" />
+                                <label class="form-check-label" for="modalStockTracked">Stock tracked</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <img id="modalImagePreview" src="" alt="Preview" style="display:none;width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--border);" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveItemBtn">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(() => {
+  const modalEl = document.getElementById('itemModal');
+  if (!modalEl || !window.bootstrap) return;
+  const modal = new window.bootstrap.Modal(modalEl);
+
+  const titleEl = document.getElementById('itemModalTitle');
+  const saveBtn = document.getElementById('saveItemBtn');
+  const idEl = document.getElementById('modalItemId');
+  const codeEl = document.getElementById('modalItemCode');
+  const nameEl = document.getElementById('modalItemName');
+  const categoryEl = document.getElementById('modalCategoryId');
+  const saleEl = document.getElementById('modalSalePrice');
+  const purchaseEl = document.getElementById('modalPurchasePrice');
+  const gstEl = document.getElementById('modalGstPercent');
+  const sacEl = document.getElementById('modalSacCode');
+  const reorderEl = document.getElementById('modalReorderLevel');
+  const taxInclusiveEl = document.getElementById('modalTaxInclusive');
+  const stockTrackedEl = document.getElementById('modalStockTracked');
+  const imagePathEl = document.getElementById('modalImagePath');
+  const imageFileEl = document.getElementById('modalImageFile');
+  const imagePreviewEl = document.getElementById('modalImagePreview');
+
+  const setPreview = (src) => {
+    if (!src) {
+      imagePreviewEl.style.display = 'none';
+      imagePreviewEl.src = '';
+      return;
+    }
+    imagePreviewEl.src = src;
+    imagePreviewEl.style.display = 'inline-block';
+  };
+
+  const openAdd = () => {
+    titleEl.textContent = 'Add Item';
+    saveBtn.textContent = 'Add';
+    idEl.value = '';
+    codeEl.value = '';
+    nameEl.value = '';
+    categoryEl.value = '';
+    saleEl.value = '0';
+    purchaseEl.value = '0';
+    gstEl.value = '5';
+    sacEl.value = '996331';
+    reorderEl.value = '0';
+    taxInclusiveEl.checked = false;
+    stockTrackedEl.checked = false;
+    imagePathEl.value = '';
+    imageFileEl.value = '';
+    setPreview('');
+    modal.show();
+  };
+
+  const openEdit = (btn) => {
+    titleEl.textContent = 'Edit Item';
+    saveBtn.textContent = 'Update';
+    idEl.value = btn.getAttribute('data-id') || '';
+    codeEl.value = btn.getAttribute('data-code') || '';
+    nameEl.value = btn.getAttribute('data-name') || '';
+    categoryEl.value = btn.getAttribute('data-category-id') || '';
+    saleEl.value = btn.getAttribute('data-sale') || '0';
+    purchaseEl.value = btn.getAttribute('data-purchase') || '0';
+    gstEl.value = btn.getAttribute('data-gst') || '0';
+    sacEl.value = btn.getAttribute('data-sac') || '';
+    reorderEl.value = btn.getAttribute('data-reorder') || '0';
+    taxInclusiveEl.checked = (btn.getAttribute('data-tax-inclusive') === 'true');
+    stockTrackedEl.checked = (btn.getAttribute('data-stock-tracked') === 'true');
+    imagePathEl.value = btn.getAttribute('data-image-path') || '';
+    imageFileEl.value = '';
+    setPreview(imagePathEl.value);
+    modal.show();
+  };
+
+  document.getElementById('openAddItem')?.addEventListener('click', openAdd);
+  document.querySelectorAll('.btn-edit-item').forEach((btn) => btn.addEventListener('click', () => openEdit(btn)));
+
+  imageFileEl?.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setPreview(URL.createObjectURL(file));
+  });
+})();
+</script>
+}

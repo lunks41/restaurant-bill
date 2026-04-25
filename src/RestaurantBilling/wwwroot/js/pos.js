@@ -22,7 +22,8 @@ async function loadCatalog() {
     posState.categories = (data.categories || []).map(c => ({ id: c.id, name: c.name, color: c.color }));
     posState.items = (data.items || []).map(i => ({
       id: i.id, name: i.name, categoryId: i.categoryId,
-      price: i.price, taxPercent: i.taxPercent || 0, foodType: i.foodType || "veg"
+      price: i.price, taxPercent: i.taxPercent || 0, foodType: i.foodType || "veg",
+      imageUrl: i.imageUrl || ""
     }));
   } catch { toastr?.error("Unable to load item catalog."); }
 }
@@ -31,7 +32,7 @@ async function loadCatalog() {
 function renderPos() { renderPosCategories(); renderPosItems(); renderPosCart(); }
 
 function renderPosCategories() {
-  const host = document.getElementById("posCategories");
+  const host = document.getElementById("posCategoryTabs") || document.getElementById("posCategories");
   if (!host) return;
   host.innerHTML = "";
   const allEl = document.createElement("div");
@@ -66,9 +67,13 @@ function renderPosItems() {
     const tile = document.createElement("div");
     tile.className = "item-tile";
     const badge = i.foodType === "nonveg" ? "nonveg" : i.foodType === "egg" ? "egg" : "veg";
+    const media = i.imageUrl
+      ? `<img class="item-tile-img" src="${i.imageUrl}" alt="${i.name}" loading="lazy" />`
+      : `<div class="item-tile-img item-tile-img-ph"><i class="fas fa-utensils"></i></div>`;
     tile.innerHTML = `
+      ${media}
       <div class="item-tile-top"><div class="item-tile-name">${i.name}</div><span class="item-tile-badge ${badge}"></span></div>
-      <div class="item-tile-bottom"><div class="item-tile-price">${fmtINR(i.price)}</div><div class="item-tile-add"><i class="fas fa-plus" style="font-size:11px;"></i></div></div>`;
+      <div class="item-tile-bottom"><div class="item-tile-price">${fmtINR(i.price)}</div><div class="item-tile-kot">KOT</div></div>`;
     tile.addEventListener("click", () => addPosItem(i));
     host.appendChild(tile);
   });
@@ -162,11 +167,27 @@ function bindPosEvents() {
   const search = document.getElementById("posSearch");
   if (search) { let t; search.addEventListener("input", e => { clearTimeout(t); t = setTimeout(() => { posState.searchTerm = e.target.value.trim().toLowerCase(); renderPosItems(); }, 250); }); }
 
-  document.getElementById("btnHold")?.addEventListener("click", holdBill);
+  document.getElementById("btnHold")?.addEventListener("click", cancelOrderDraft);
   document.getElementById("btnSettle")?.addEventListener("click", openSettleModal);
   document.getElementById("btnKot")?.addEventListener("click", generateKot);
+  document.getElementById("btnKotPrint")?.addEventListener("click", generateKotAndPrint);
   document.getElementById("btnTable")?.addEventListener("click", openTablePicker);
   document.getElementById("btnRecall")?.addEventListener("click", openRecallPanel);
+  document.getElementById("btnCancelLines")?.addEventListener("click", () => {
+    if (!posState.cart.length) return;
+    if (!confirm("Clear all line items from current order?")) return;
+    posState.cart = [];
+    renderPosCart();
+  });
+  document.getElementById("posQuickBtn")?.addEventListener("click", async () => {
+    await loadCatalog();
+    renderPosItems();
+    toastr?.info("POS refreshed.");
+  });
+  document.getElementById("btnBackTables")?.addEventListener("click", async () => {
+    await posSaveBeforeBackToTables();
+    window.location.href = "/fooler";
+  });
 
   // Table picker events
   document.getElementById("tablePanelClose")?.addEventListener("click", closeTablePicker);
@@ -246,6 +267,39 @@ async function holdBill() {
   finally { if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fas fa-pause"></i> Hold`; } }
 }
 
+function cancelOrderDraft() {
+  if (!posState.cart.length) return;
+  if (!confirm("Cancel current order items?")) return;
+  posState.cart = [];
+  posState.currentBillId = null;
+  posState.currentBillNo = null;
+  posState.selectedTableId = null;
+  posState.selectedTableName = null;
+  updateCartHeader();
+  renderPosCart();
+  const btn = document.getElementById("btnTable");
+  if (btn) btn.innerHTML = `<i class="fas fa-chair"></i> Table`;
+  toastr?.info("Order cancelled.");
+}
+
+async function posSaveBeforeBackToTables() {
+  if (!posState.selectedTableName || !posState.cart.length || posState.currentBillId) return;
+  try {
+    const r = await postJSON("/billing/hold", {
+      outletId: 1, billType: "DineIn",
+      businessDate: new Date().toISOString().slice(0, 10),
+      items: mapCartItems(), billLevelDiscount: 0,
+      serviceChargeOptIn: false, serviceChargeAmount: 0,
+      tableName: posState.selectedTableName || null
+    });
+    posState.currentBillId = r.billId;
+    posState.currentBillNo = r.billNo;
+    updateCartHeader();
+  } catch {
+    // best effort: allow navigation even if autosave fails
+  }
+}
+
 async function updateRecallBadge() {
   try {
     const bills = await getJSON("/billing/held-bills-detail?outletId=1");
@@ -315,7 +369,7 @@ function recallBill(b) {
 async function generateKot() {
   if (!posState.cart.length) { toastr?.warning("Add items before generating KOT."); return; }
   const btn = document.getElementById("btnKot");
-  if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> KOT...`; }
+  if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending...`; }
   try {
     // Hold first if no bill exists yet
     if (!posState.currentBillId) {
@@ -339,7 +393,21 @@ async function generateKot() {
     toastr?.success(msg);
     updateRecallBadge();
   } catch { toastr?.error("Failed to generate KOT."); }
-  finally { if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fas fa-fire-burner"></i> KOT`; } }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fas fa-paper-plane"></i> Send KOT`; } }
+}
+
+async function generateKotAndPrint() {
+  const printBtn = document.getElementById("btnKotPrint");
+  if (printBtn) {
+    printBtn.disabled = true;
+    printBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Printing...`;
+  }
+  await generateKot();
+  if (posState.currentBillNo) window.print();
+  if (printBtn) {
+    printBtn.disabled = false;
+    printBtn.innerHTML = `<i class="fas fa-print"></i> KOT & print`;
+  }
 }
 
 /* ─── Settle Modal ─── */
@@ -479,12 +547,42 @@ async function posTryRecallFromQuery() {
   }
 }
 
+async function posTryRecallFromPath() {
+  const m = window.location.pathname.match(/\/(?:billing\/)?pos\/order\/(\d+)/i);
+  if (!m || !m[1]) return;
+  const id = m[1];
+  try {
+    const b = await getJSON(`/billing/held-bill/${encodeURIComponent(id)}?outletId=1`);
+    if (b.billType && b.billType !== "DineIn") {
+      toastr?.warning("This order is not Dine-In. Open Takeaway POS to continue.");
+      return;
+    }
+    recallBill(b);
+  } catch {
+    toastr?.error("Could not load this order.");
+  }
+}
+
+function posTryPreselectTableFromQuery() {
+  const query = new URLSearchParams(window.location.search);
+  const tableName = query.get("table");
+  const tableId = query.get("tableId");
+  if (!tableName) return;
+  posState.selectedTableName = tableName;
+  posState.selectedTableId = tableId ? parseInt(tableId, 10) : null;
+  const btn = document.getElementById("btnTable");
+  if (btn) btn.innerHTML = `<i class="fas fa-chair"></i> ${tableName}`;
+  updateCartHeader();
+}
+
 /* ─── Boot ─── */
 document.addEventListener("DOMContentLoaded", () => {
   if (document.getElementById("posRoot")) {
     void (async () => {
       await posInit();
+      posTryPreselectTableFromQuery();
       await updateRecallBadge();
+      await posTryRecallFromPath();
       await posTryRecallFromQuery();
     })();
   }

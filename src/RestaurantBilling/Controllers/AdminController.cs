@@ -11,6 +11,7 @@ namespace RestaurantBilling.Controllers;
 public class AdminController(AppDbContext db) : Controller
 {
     [HttpGet("users")]
+    [HttpGet("/master/user")]
     public IActionResult Users()
     {
         ViewBag.UseDataTables = true;

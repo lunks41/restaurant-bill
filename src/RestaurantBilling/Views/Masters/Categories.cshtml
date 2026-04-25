@@ -3,61 +3,125 @@
     var rows = (IEnumerable<Entities.Masters.Category>)ViewBag.Rows;
 }
 <div class="app-module-header">
-    <h1 class="h3 mb-1">Masters</h1>
-    <p class="app-muted mb-0">Manage core menu and taxation setup.</p>
+    <h1 class="h3 mb-1">Categories</h1>
+    <p class="app-muted mb-0">Manage your menu category list and activation status.</p>
 </div>
 
-<nav class="nav app-module-tabs gap-2">
-    <a class="nav-link active" asp-controller="Masters" asp-action="Categories">Categories</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Items">Items</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Tables">Tables</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Customers">Customers</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Suppliers">Suppliers</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Taxes">Taxes</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Units">Units</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Printers">Printers</a>
-</nav>
-
-<div class="app-surface mb-3">
-<form method="post" class="row g-2">
-    @Html.AntiForgeryToken()
-    <input asp-for="CategoryId" type="hidden" />
-    <div class="col-md-5">
-        <input asp-for="CategoryName" class="form-control" placeholder="Category name" />
-    </div>
-    <div class="col-md-2">
-        <input asp-for="SortOrder" class="form-control" placeholder="Sort order" />
-    </div>
-    <div class="col-md-2">
-        <button type="submit" class="btn btn-primary">@(Model.CategoryId.HasValue ? "Update" : "Add")</button>
-        @if (Model.CategoryId.HasValue)
-        {
-            <a class="btn btn-outline-secondary" href="/masters/categories">Cancel</a>
-        }
-    </div>
-</form>
+<div class="app-surface mb-3 d-flex justify-content-end">
+    <button type="button" class="btn-accent" id="openAddCategory">
+        <i class="fas fa-plus"></i> Add Category
+    </button>
 </div>
 
 <div class="app-surface">
-<table class="table table-sm app-table mb-0">
-    <thead>
-    <tr><th>Name</th><th>Sort</th><th></th></tr>
-    </thead>
-    <tbody>
-    @foreach (var row in rows)
-    {
-        <tr>
-            <td>@row.CategoryName</td>
-            <td>@row.SortOrder</td>
-            <td class="d-flex gap-2">
-                <a class="btn btn-sm btn-outline-primary" href="/masters/categories?editId=@row.CategoryId">Edit</a>
-                <form method="post" action="/masters/categories/@row.CategoryId/delete">
-                    @Html.AntiForgeryToken()
-                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
-                </form>
-            </td>
-        </tr>
-    }
-    </tbody>
-</table>
+    <table id="categoriesTable" class="table table-sm app-table mb-0">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Sort</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in rows)
+            {
+                <tr>
+                    <td>@row.CategoryName</td>
+                    <td>@row.SortOrder</td>
+                    <td>
+                        @if (row.IsActive)
+                        {
+                            <span class="badge-custom badge-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge-custom badge-muted">Inactive</span>
+                        }
+                    </td>
+                    <td class="d-flex gap-2">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-primary btn-edit-category"
+                                data-id="@row.CategoryId"
+                                data-name="@row.CategoryName"
+                                data-sort="@row.SortOrder">
+                            Edit
+                        </button>
+                        <form method="post" action="/masters/categories/@row.CategoryId/delete">
+                            @Html.AntiForgeryToken()
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Inactivate</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
 </div>
+
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" id="categoryForm">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="categoryModalTitle">Add Category</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input asp-for="CategoryId" type="hidden" id="modalCategoryId" />
+                    <div class="mb-3">
+                        <label class="form-label">Category name</label>
+                        <input asp-for="CategoryName" class="form-control" id="modalCategoryName" placeholder="Category name" required />
+                    </div>
+                    <div>
+                        <label class="form-label">Sort order</label>
+                        <input asp-for="SortOrder" class="form-control" id="modalSortOrder" placeholder="Sort order" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveCategoryBtn">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(() => {
+  const modalEl = document.getElementById('categoryModal');
+  if (!modalEl || !window.bootstrap) return;
+
+  const modal = new window.bootstrap.Modal(modalEl);
+  const titleEl = document.getElementById('categoryModalTitle');
+  const idEl = document.getElementById('modalCategoryId');
+  const nameEl = document.getElementById('modalCategoryName');
+  const sortEl = document.getElementById('modalSortOrder');
+  const saveBtn = document.getElementById('saveCategoryBtn');
+
+  const openAdd = () => {
+    titleEl.textContent = 'Add Category';
+    saveBtn.textContent = 'Add';
+    idEl.value = '';
+    nameEl.value = '';
+    sortEl.value = '0';
+    modal.show();
+  };
+
+  const openEdit = (btn) => {
+    titleEl.textContent = 'Edit Category';
+    saveBtn.textContent = 'Update';
+    idEl.value = btn.getAttribute('data-id') || '';
+    nameEl.value = btn.getAttribute('data-name') || '';
+    sortEl.value = btn.getAttribute('data-sort') || '0';
+    modal.show();
+  };
+
+  document.getElementById('openAddCategory')?.addEventListener('click', openAdd);
+  document.querySelectorAll('.btn-edit-category').forEach((btn) => {
+    btn.addEventListener('click', () => openEdit(btn));
+  });
+})();
+</script>
+}

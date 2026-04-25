@@ -115,6 +115,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         {
             entity.HasKey(x => x.TableMasterId);
             entity.Property(x => x.TableName).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Area).HasMaxLength(20).IsRequired();
             entity.Property(x => x.RowVersion).IsRowVersion();
             entity.HasQueryFilter(x => !x.IsDeleted);
         });

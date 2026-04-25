@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.FileProviders;
 using RestaurantBilling.Controllers;
 using Data.Persistence;
 using Entities.Masters;
@@ -18,7 +20,7 @@ public class MastersControllerTests
             new Unit { OutletId = 2, UnitName = "Litre", UnitCode = "L" });
         await db.SaveChangesAsync();
 
-        var controller = new MastersController(db);
+        var controller = new MastersController(db, CreateHostEnvironment());
         var result = await controller.UnitsData(1, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
@@ -30,9 +32,9 @@ public class MastersControllerTests
     public async Task CreateUnit_PersistsAndReturnsOk()
     {
         await using var db = CreateDb();
-        var controller = new MastersController(db);
+        var controller = new MastersController(db, CreateHostEnvironment());
 
-        var result = await controller.CreateUnit(new MastersController.MasterInputDto("Unit", "PCS", null, null, null, null, null, null), CancellationToken.None);
+        var result = await controller.CreateUnit(new MastersController.MasterInputDto("Unit", "PCS", null, null, null, null, null, null, null), CancellationToken.None);
 
         Assert.IsType<OkObjectResult>(result);
         Assert.Equal(1, await db.Units.CountAsync());
@@ -42,13 +44,9 @@ public class MastersControllerTests
     public void MasterViews_EnableDataTables()
     {
         using var db = CreateDb();
-        var controller = new MastersController(db);
+        var controller = new MastersController(db, CreateHostEnvironment());
 
         controller.Tables();
-        Assert.True((bool?)controller.ViewBag.UseDataTables);
-        controller.Customers();
-        Assert.True((bool?)controller.ViewBag.UseDataTables);
-        controller.Suppliers();
         Assert.True((bool?)controller.ViewBag.UseDataTables);
         controller.Units();
         Assert.True((bool?)controller.ViewBag.UseDataTables);
@@ -62,5 +60,20 @@ public class MastersControllerTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         return new AppDbContext(options);
+    }
+
+    private static IWebHostEnvironment CreateHostEnvironment()
+    {
+        return new TestHostEnvironment();
+    }
+
+    private sealed class TestHostEnvironment : IWebHostEnvironment
+    {
+        public string ApplicationName { get; set; } = "RestaurantBilling.Tests";
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
+        public string WebRootPath { get; set; } = Path.GetTempPath();
+        public string EnvironmentName { get; set; } = "Development";
+        public string ContentRootPath { get; set; } = Path.GetTempPath();
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 }

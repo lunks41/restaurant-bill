@@ -1,13 +1,10 @@
 @using Microsoft.AspNetCore.Identity
-@using System.Linq
 @inject SignInManager<IdentityUser<int>> SignInManager
 @inject UserManager<IdentityUser<int>> UserManager
 @{
   var path = Context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
   bool IsActive(string prefix) => path.StartsWith(prefix);
   string LinkClass(string prefix) => IsActive(prefix) ? "nav-link-item active" : "nav-link-item";
-  string ParentClass(params string[] prefixes) => prefixes.Any(IsActive) ? "nav-link-item open active" : "nav-link-item";
-  string SubClass(params string[] prefixes) => prefixes.Any(IsActive) ? "sub-nav" : "sub-nav d-none";
 }
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
@@ -43,82 +40,31 @@
     </div>
     <nav class="sidebar-nav">
       <div class="nav-group">
-        <div class="nav-group-label">Overview</div>
-        <a class="@LinkClass("/dashboard")" href="/dashboard"><i class="nav-icon fas fa-gauge-high"></i><span class="nav-label">Dashboard</span></a>
+        <div class="nav-group-label">POS</div>
+        <a class="@LinkClass("/fooler")" href="/fooler"><i class="nav-icon fas fa-border-all"></i><span class="nav-label">Floor plan</span></a>
+        <a class="@LinkClass("/takeaway")" href="/takeaway"><i class="nav-icon fas fa-bag-shopping"></i><span class="nav-label">Takeaway</span></a>
       </div>
       <div class="nav-group">
-        <div class="nav-group-label">Orders</div>
-        <div class="nav-item">
-          <div class="@ParentClass("/billing")" data-submenu="billingMenu">
-            <i class="nav-icon fas fa-receipt"></i><span class="nav-label">Billing</span><i class="nav-arrow fas fa-chevron-right"></i>
-          </div>
-          <div class="@SubClass("/billing")" id="billingMenu">
-            <a class="@LinkClass("/billing/dinein")" href="/billing/dinein"><i class="nav-icon fas fa-chair"></i><span class="nav-label">Dine-In POS</span></a>
-            <a class="@LinkClass("/billing/takeaway")" href="/billing/takeaway"><i class="nav-icon fas fa-shopping-bag"></i><span class="nav-label">Takeaway</span></a>
-            <a class="@LinkClass("/billing/quote")" href="/billing/quote"><i class="nav-icon fas fa-file-lines"></i><span class="nav-label">Quote / Estimate</span></a>
-            <a class="@LinkClass("/billing/bills")" href="/billing/bills"><i class="nav-icon fas fa-list-ul"></i><span class="nav-label">All Bills</span></a>
-          </div>
-        </div>
-        <div class="nav-item">
-          <div class="@ParentClass("/kitchen")" data-submenu="kitchenMenu">
-            <i class="nav-icon fas fa-fire-burner"></i><span class="nav-label">Kitchen</span><i class="nav-arrow fas fa-chevron-right"></i>
-          </div>
-          <div class="@SubClass("/kitchen")" id="kitchenMenu">
-            <a class="@LinkClass("/kitchen/kotlist")" href="/kitchen/kotlist"><i class="nav-icon fas fa-ticket"></i><span class="nav-label">KOT List</span></a>
-            <a class="@LinkClass("/kitchen/kdsscreen")" href="/kitchen/kdsscreen" target="_blank"><i class="nav-icon fas fa-display"></i><span class="nav-label">KDS Screen ↗</span></a>
-          </div>
-        </div>
+        <div class="nav-group-label">Service</div>
+        <a class="@LinkClass("/kot")" href="/kot"><i class="nav-icon fas fa-hat-chef"></i><span class="nav-label">Kitchen (KOT)</span></a>
       </div>
       <div class="nav-group">
-        <div class="nav-group-label">Stock</div>
-        <div class="nav-item">
-          <div class="@ParentClass("/stock")" data-submenu="stockMenu">
-            <i class="nav-icon fas fa-boxes-stacked"></i><span class="nav-label">Stock</span><i class="nav-arrow fas fa-chevron-right"></i>
-          </div>
-          <div class="@SubClass("/stock")" id="stockMenu">
-            <a class="@LinkClass("/stock/balance")" href="/stock/balance"><i class="nav-icon fas fa-warehouse"></i><span class="nav-label">Stock Balance</span></a>
-            <a class="@LinkClass("/stock/purchase")" href="/stock/purchase"><i class="nav-icon fas fa-truck-ramp-box"></i><span class="nav-label">Purchase / GRN</span></a>
-            <a class="@LinkClass("/stock/adjustment")" href="/stock/adjustment"><i class="nav-icon fas fa-sliders"></i><span class="nav-label">Adjustment</span></a>
-            <a class="@LinkClass("/stock/loss")" href="/stock/loss"><i class="nav-icon fas fa-trash-can"></i><span class="nav-label">Stock Loss</span></a>
-          </div>
-        </div>
+        <div class="nav-group-label">Masters</div>
+        <a class="@LinkClass("/master/ctaeorgies")" href="/master/ctaeorgies"><i class="nav-icon fas fa-tags"></i><span class="nav-label">Categories</span></a>
+        <a class="@LinkClass("/master/items")" href="/master/items"><i class="nav-icon fas fa-utensils"></i><span class="nav-label">Menu &amp; items</span></a>
+        <a class="@LinkClass("/master/table")" href="/master/table"><i class="nav-icon fas fa-table-cells"></i><span class="nav-label">Table master</span></a>
+        <a class="@LinkClass("/master/stock")" href="/master/stock"><i class="nav-icon fas fa-boxes-stacked"></i><span class="nav-label">Stock</span></a>
+        <a class="@LinkClass("/master/stockcateogries")" href="/master/stockcateogries"><i class="nav-icon fas fa-layer-group"></i><span class="nav-label">Stock categories</span></a>
+        <a class="@LinkClass("/master/user")" href="/master/user"><i class="nav-icon fas fa-users"></i><span class="nav-label">Users</span></a>
+        <a class="@LinkClass("/setting/info")" href="/setting/info"><i class="nav-icon fas fa-circle-info"></i><span class="nav-label">Info</span></a>
+        <a class="@LinkClass("/setting/printplate")" href="/setting/printplate"><i class="nav-icon fas fa-print"></i><span class="nav-label">Print plate</span></a>
       </div>
       <div class="nav-group">
-        <div class="nav-group-label">Reports</div>
-        <div class="nav-item">
-          <div class="@ParentClass("/reports")" data-submenu="reportsMenu">
-            <i class="nav-icon fas fa-chart-bar"></i><span class="nav-label">Reports</span><i class="nav-arrow fas fa-chevron-right"></i>
-          </div>
-          <div class="@SubClass("/reports")" id="reportsMenu">
-            <a class="@LinkClass("/reports/dailysales")" href="/reports/dailysales"><i class="nav-icon fas fa-calendar-day"></i><span class="nav-label">Daily Sales</span></a>
-            <a class="@LinkClass("/reports/billwise")" href="/reports/billwise"><i class="nav-icon fas fa-file-invoice"></i><span class="nav-label">Bill Wise</span></a>
-            <a class="@LinkClass("/reports/itemwise")" href="/reports/itemwise"><i class="nav-icon fas fa-chart-pie"></i><span class="nav-label">Item Wise</span></a>
-            <a class="@LinkClass("/reports/paymentmode")" href="/reports/paymentmode"><i class="nav-icon fas fa-credit-card"></i><span class="nav-label">Payment Mode</span></a>
-            <a class="@LinkClass("/reports/stockreport")" href="/reports/stockreport"><i class="nav-icon fas fa-boxes-stacked"></i><span class="nav-label">Stock Report</span></a>
-            <a class="@LinkClass("/reports/stockloss")" href="/reports/stockloss"><i class="nav-icon fas fa-arrow-trend-down"></i><span class="nav-label">Stock Loss</span></a>
-          </div>
-        </div>
-      </div>
-      <div class="nav-group">
-        <div class="nav-group-label">Setup</div>
-        <div class="nav-item">
-          <div class="@ParentClass("/masters")" data-submenu="mastersMenu">
-            <i class="nav-icon fas fa-database"></i><span class="nav-label">Masters</span><i class="nav-arrow fas fa-chevron-right"></i>
-          </div>
-          <div class="@SubClass("/masters")" id="mastersMenu">
-            <a class="@LinkClass("/masters/categories")" href="/masters/categories"><i class="nav-icon fas fa-layer-group"></i><span class="nav-label">Categories</span></a>
-            <a class="@LinkClass("/masters/items")" href="/masters/items"><i class="nav-icon fas fa-bowl-food"></i><span class="nav-label">Items</span></a>
-            <a class="@LinkClass("/masters/tables")" href="/masters/tables"><i class="nav-icon fas fa-table-cells-large"></i><span class="nav-label">Tables</span></a>
-            <a class="@LinkClass("/masters/customers")" href="/masters/customers"><i class="nav-icon fas fa-user-group"></i><span class="nav-label">Customers</span></a>
-            <a class="@LinkClass("/masters/suppliers")" href="/masters/suppliers"><i class="nav-icon fas fa-truck"></i><span class="nav-label">Suppliers</span></a>
-            <a class="@LinkClass("/masters/taxes")" href="/masters/taxes"><i class="nav-icon fas fa-percent"></i><span class="nav-label">Taxes</span></a>
-            <a class="@LinkClass("/masters/units")" href="/masters/units"><i class="nav-icon fas fa-ruler"></i><span class="nav-label">Units</span></a>
-            <a class="@LinkClass("/masters/printers")" href="/masters/printers"><i class="nav-icon fas fa-print"></i><span class="nav-label">Printers</span></a>
-          </div>
-        </div>
-        <a class="@LinkClass("/dayclose")" href="/dayclose"><i class="nav-icon fas fa-moon"></i><span class="nav-label">Day Close</span></a>
-        <a class="@LinkClass("/settings")" href="/settings"><i class="nav-icon fas fa-gear"></i><span class="nav-label">Settings</span></a>
-        <a class="@LinkClass("/admin/users")" href="/admin/users"><i class="nav-icon fas fa-users"></i><span class="nav-label">Users</span></a>
+        <div class="nav-group-label">Analytics</div>
+        <a class="@LinkClass("/dashbord")" href="/dashbord"><i class="nav-icon fas fa-table-cells-large"></i><span class="nav-label">Dashboard</span></a>
+        <a class="@LinkClass("/reports")" href="/reports"><i class="nav-icon fas fa-chart-column"></i><span class="nav-label">Reports</span></a>
+        <a class="@LinkClass("/reports/stockreport")" href="/reports/stockreport"><i class="nav-icon fas fa-file-lines"></i><span class="nav-label">Stock report</span></a>
+        <a class="@LinkClass("/dayclose")" href="/dayclose"><i class="nav-icon fas fa-receipt"></i><span class="nav-label">Z-report</span></a>
       </div>
     </nav>
     <div class="sidebar-footer">

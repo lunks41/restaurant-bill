@@ -27,6 +27,7 @@ public class BillingController(
     IHubContext<AlertHub> alertHub) : Controller
 {
     [HttpGet("dinein")]
+    [HttpGet("/fooler")]
     public IActionResult DineIn()
     {
         ViewBag.UseSelect2 = true;
@@ -37,9 +38,23 @@ public class BillingController(
         => await db.DayCloseReports.AnyAsync(x => x.OutletId == outletId && x.BusinessDate == businessDate && x.IsLocked, cancellationToken);
 
     [HttpGet("pos")]
-    public IActionResult Pos() => RedirectToAction(nameof(DineIn));
+    [HttpGet("/pos")]
+    public IActionResult Pos()
+    {
+        ViewBag.UseSelect2 = true;
+        return View("Pos");
+    }
+
+    [HttpGet("pos/order/{billId:long}")]
+    [HttpGet("/pos/order/{billId:long}")]
+    public IActionResult PosOrder(long billId)
+    {
+        ViewBag.UseSelect2 = true;
+        return View("Pos");
+    }
 
     [HttpGet("takeaway")]
+    [HttpGet("/takeaway")]
     public IActionResult Takeaway()
     {
         ViewBag.UseSelect2 = true;
@@ -47,13 +62,10 @@ public class BillingController(
     }
 
     [HttpGet("quote")]
-    public IActionResult Quote()
-    {
-        ViewBag.UseDataTables = true;
-        return View();
-    }
+    public IActionResult Quote() => RedirectToAction(nameof(BillList));
 
     [HttpGet("bills")]
+    [HttpGet("/bills")]
     public IActionResult BillList()
     {
         ViewBag.UseDataTables = true;
@@ -97,89 +109,21 @@ public class BillingController(
             return BadRequest(result.Error);
         }
 
+        var settledBill = await db.Bills
+            .AsNoTracking()
+            .Where(x => x.BillId == result.Value)
+            .Select(x => new { x.OutletId, x.TableName })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (settledBill is not null)
+        {
+            await SetTableOccupiedStateAsync(settledBill.OutletId, settledBill.TableName, false, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         await alertHub.Clients.All.SendAsync("DashboardRefresh", "bill", cancellationToken);
         return Ok(new { billId = result.Value });
     }
 
-    [HttpPost("quote")]
-    public async Task<IActionResult> CreateQuote([FromBody] CreateQuoteRequest request, CancellationToken cancellationToken)
-    {
-        if (await IsBusinessDateLocked(request.OutletId, request.BusinessDate, cancellationToken))
-        {
-            return Conflict("Business date is locked.");
-        }
-        var quoteNo = await numberGeneratorService.GenerateAsync(request.OutletId, NumberSeriesKey.Quote, cancellationToken);
-        var billInputs = request.Items.Select(i => new BillItemInput(i.ItemId, i.ItemName, i.Qty, i.Rate, i.DiscountAmount, i.TaxPercent, i.IsTaxInclusive, i.TaxType)).ToList();
-        var calc = calculatorService.Calculate(billInputs, request.BillLevelDiscount, 0, false, false);
-
-        var quote = new Quotation
-        {
-            OutletId = request.OutletId,
-            QuoteNo = quoteNo,
-            BusinessDate = request.BusinessDate,
-            SubTotal = calc.SubTotal,
-            DiscountAmount = calc.DiscountAmount,
-            TaxAmount = calc.TaxAmount,
-            GrandTotal = calc.GrandTotal
-        };
-
-        quote.Items.AddRange(calc.Lines.Select(x => new QuotationItem
-        {
-            ItemId = x.ItemId,
-            ItemNameSnapshot = x.ItemName,
-            Qty = x.Qty,
-            Rate = x.Rate,
-            DiscountAmount = x.DiscountAmount,
-            TaxAmount = x.TaxAmount,
-            LineTotal = x.LineTotal
-        }));
-
-        db.Quotations.Add(quote);
-        await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { quoteId = quote.QuotationId, quoteNo = quote.QuoteNo });
-    }
-
-    [HttpPost("quote/{quoteId:long}/convert")]
-    public async Task<IActionResult> ConvertQuote(long quoteId, CancellationToken cancellationToken)
-    {
-        var quote = await db.Quotations.Include(x => x.Items).FirstOrDefaultAsync(x => x.QuotationId == quoteId, cancellationToken);
-        if (quote is null)
-        {
-            return NotFound("Quote not found.");
-        }
-
-        if (quote.Status == "Converted")
-        {
-            return BadRequest("Quote already converted.");
-        }
-        if (await IsBusinessDateLocked(quote.OutletId, quote.BusinessDate, cancellationToken))
-        {
-            return Conflict("Business date is locked.");
-        }
-
-        var billNo = await numberGeneratorService.GenerateAsync(quote.OutletId, NumberSeriesKey.Bill, cancellationToken);
-        var bill = new Bill(quote.OutletId, billNo, quote.BusinessDate, BillType.QuoteConverted);
-        foreach (var item in quote.Items)
-        {
-            bill.AddItem(new BillItem(item.ItemId, item.ItemNameSnapshot, item.Qty, item.Rate, item.DiscountAmount, item.TaxAmount));
-        }
-
-        db.Bills.Add(bill);
-        quote.Status = "Converted";
-        await db.SaveChangesAsync(cancellationToken);
-        quote.ConvertedToBillId = bill.BillId;
-        await db.SaveChangesAsync(cancellationToken);
-
-        await auditService.LogAsync(
-            quote.OutletId, 0, "QuoteConverted", nameof(Quotation), quote.QuotationId.ToString(),
-            "{\"status\":\"Draft\"}",
-            $"{{\"status\":\"Converted\",\"billId\":\"{bill.BillId}\"}}",
-            HttpContext.Connection.RemoteIpAddress?.ToString(),
-            Request.Headers.UserAgent.ToString(),
-            cancellationToken);
-
-        return Ok(new { billId = bill.BillId, billNo });
-    }
 
     [HttpPost("hold")]
     public async Task<IActionResult> Hold([FromBody] HoldBillRequest request, CancellationToken cancellationToken)
@@ -201,6 +145,7 @@ public class BillingController(
         }
 
         bill.SetServiceCharge(request.ServiceChargeAmount, request.ServiceChargeOptIn);
+        await SetTableOccupiedStateAsync(request.OutletId, request.TableName, true, cancellationToken);
         db.Bills.Add(bill);
         await db.SaveChangesAsync(cancellationToken);
         return Ok(new { billId = bill.BillId, billNo = bill.BillNo, tableName = bill.TableName, status = "Draft" });
@@ -220,6 +165,7 @@ public class BillingController(
             .Select(p => new Payment(p.Mode, p.Amount, p.ReferenceNo, p.CardLast4, p.UpiTxnId))
             .ToList();
         bill.Settle(payments);
+        await SetTableOccupiedStateAsync(request.OutletId, bill.TableName, false, cancellationToken);
 
         await stockService.DeductSaleStockAsync(request.OutletId, bill.BusinessDate, bill.Items.ToList(), cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
@@ -401,7 +347,8 @@ public class BillingController(
                 name = x.ItemName,
                 categoryId = x.CategoryId,
                 price = x.SalePrice,
-                taxPercent = x.GstPercent
+                taxPercent = x.GstPercent,
+                imagePath = x.ImagePath
             })
             .ToListAsync(cancellationToken);
 
@@ -412,7 +359,9 @@ public class BillingController(
             i.categoryId,
             i.price,
             i.taxPercent,
-            imageUrl = imageMap.TryGetValue(i.name, out var fileName) && !string.IsNullOrWhiteSpace(fileName)
+            imageUrl = !string.IsNullOrWhiteSpace(i.imagePath)
+                ? i.imagePath
+                : imageMap.TryGetValue(i.name, out var fileName) && !string.IsNullOrWhiteSpace(fileName)
                 ? $"{imageBasePath.TrimEnd('/')}/{fileName}"
                 : string.Empty
         });
@@ -425,7 +374,7 @@ public class BillingController(
     {
         var rows = await db.Bills
             .AsNoTracking()
-            .Where(x => x.OutletId == outletId)
+            .Where(x => x.OutletId == outletId && x.Status == BillStatus.Paid)
             .OrderByDescending(x => x.BillDate)
             .Take(500)
             .Select(x => new
@@ -442,23 +391,21 @@ public class BillingController(
         return Ok(rows);
     }
 
-    [HttpGet("quotes-data")]
-    public async Task<IActionResult> QuotesData([FromQuery] int outletId, CancellationToken cancellationToken)
+    private async Task SetTableOccupiedStateAsync(int outletId, string? tableName, bool isOccupied, CancellationToken cancellationToken)
     {
-        var rows = await db.Quotations
-            .Where(x => x.OutletId == outletId)
-            .OrderByDescending(x => x.CreatedAtUtc)
-            .Take(500)
-            .Select(x => new
-            {
-                x.QuotationId,
-                x.QuoteNo,
-                businessDate = x.BusinessDate.ToString("dd-MMM-yyyy"),
-                x.GrandTotal,
-                x.Status
-            })
-            .ToListAsync(cancellationToken);
-        return Ok(rows);
+        if (string.IsNullOrWhiteSpace(tableName)) return;
+        var normalized = tableName.Trim();
+        var table = await db.TableMasters
+            .FirstOrDefaultAsync(
+                x => x.OutletId == outletId
+                     && x.IsActive
+                     && !x.IsDeleted
+                     && x.TableName == normalized,
+                cancellationToken);
+        if (table is null) return;
+        table.IsOccupied = isOccupied;
+        table.UpdatedAtUtc = DateTime.UtcNow;
     }
+
 }
 

@@ -11,6 +11,7 @@ public class DashboardController(AppDbContext db) : Controller
 {
     [HttpGet("/")]
     [HttpGet("/dashboard")]
+    [HttpGet("/dashbord")]
     public IActionResult Index()
     {
         ViewBag.UseCharts = true;

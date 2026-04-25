@@ -7,17 +7,6 @@
     <p class="app-muted mb-0">Manage core menu and taxation setup.</p>
 </div>
 
-<nav class="nav app-module-tabs gap-2">
-    <a class="nav-link" asp-controller="Masters" asp-action="Categories">Categories</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Items">Items</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Tables">Tables</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Customers">Customers</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Suppliers">Suppliers</a>
-    <a class="nav-link active" asp-controller="Masters" asp-action="Taxes">Taxes</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Units">Units</a>
-    <a class="nav-link" asp-controller="Masters" asp-action="Printers">Printers</a>
-</nav>
-
 <div class="app-surface mb-3">
 <form method="post" class="row g-2">
     @Html.AntiForgeryToken()

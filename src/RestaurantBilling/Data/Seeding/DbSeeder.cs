@@ -104,10 +104,14 @@ public static class DbSeeder
         if (!db.TableMasters.Any())
         {
             db.TableMasters.AddRange(
-                new TableMaster { OutletId = outletId, TableName = "T1", Capacity = 2 },
-                new TableMaster { OutletId = outletId, TableName = "T2", Capacity = 4 },
-                new TableMaster { OutletId = outletId, TableName = "T3", Capacity = 4 },
-                new TableMaster { OutletId = outletId, TableName = "Family-1", Capacity = 6 });
+                new TableMaster { OutletId = outletId, TableName = "Ground-1", Area = "Ground", Capacity = 4 },
+                new TableMaster { OutletId = outletId, TableName = "Ground-2", Area = "Ground", Capacity = 6 },
+                new TableMaster { OutletId = outletId, TableName = "AC-1", Area = "AC", Capacity = 2 },
+                new TableMaster { OutletId = outletId, TableName = "AC-2", Area = "AC", Capacity = 4 },
+                new TableMaster { OutletId = outletId, TableName = "NonAC-1", Area = "Non-AC", Capacity = 4 },
+                new TableMaster { OutletId = outletId, TableName = "NonAC-2", Area = "Non-AC", Capacity = 8 },
+                new TableMaster { OutletId = outletId, TableName = "Outdoor-1", Area = "Outdoor", Capacity = 2 },
+                new TableMaster { OutletId = outletId, TableName = "Outdoor-2", Area = "Outdoor", Capacity = 6 });
         }
 
         if (!db.Customers.Any())
@@ -490,9 +494,10 @@ public static class DbSeeder
         if (!db.TableMasters.Any(x => x.OutletId == secondOutletId))
         {
             db.TableMasters.AddRange(
-                new TableMaster { OutletId = secondOutletId, TableName = "D1", Capacity = 2 },
-                new TableMaster { OutletId = secondOutletId, TableName = "D2", Capacity = 2 },
-                new TableMaster { OutletId = secondOutletId, TableName = "D3", Capacity = 4 });
+                new TableMaster { OutletId = secondOutletId, TableName = "D-Ground-1", Area = "Ground", Capacity = 4 },
+                new TableMaster { OutletId = secondOutletId, TableName = "D-AC-1", Area = "AC", Capacity = 2 },
+                new TableMaster { OutletId = secondOutletId, TableName = "D-NonAC-1", Area = "Non-AC", Capacity = 6 },
+                new TableMaster { OutletId = secondOutletId, TableName = "D-Outdoor-1", Area = "Outdoor", Capacity = 4 });
         }
         if (!db.Customers.Any(x => x.OutletId == secondOutletId))
         {

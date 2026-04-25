@@ -10,6 +10,8 @@ namespace RestaurantBilling.Controllers;
 public class SettingsController(AppDbContext db) : Controller
 {
     [HttpGet("/settings")]
+    [HttpGet("/setting/info")]
+    [HttpGet("/setting/printplate")]
     public IActionResult Index()
     {
         ViewBag.UseDataTables = true;

@@ -18,5 +18,6 @@ public class Item : BaseEntity
     public string SacCode { get; set; } = "996331";
     public bool IsStockTracked { get; set; }
     public decimal ReorderLevel { get; set; }
+    public string? ImagePath { get; set; }
 }
 

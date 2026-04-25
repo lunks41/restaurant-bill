@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Entities.Enums;
+using Microsoft.AspNetCore.Http;
 
 namespace RestaurantBilling.Models.Masters;
 
@@ -37,5 +38,8 @@ public class ItemInputModel
 
     [Range(0, 999999)]
     public decimal ReorderLevel { get; set; }
+
+    public string? ImagePath { get; set; }
+    public IFormFile? ImageFile { get; set; }
 }
 
