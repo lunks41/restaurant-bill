@@ -44,6 +44,18 @@
     return state.heldBills.find((b) => ((b.tableName || "").trim().toLowerCase() === matchName));
   };
 
+  /** Order label + print/eye only when a held bill exists for this table. */
+  const floorCardHeadRight = (bill) => {
+    if (!bill) return "";
+    const orderPart =
+      bill.billNo != null && String(bill.billNo).trim() !== ""
+        ? `Order ${esc(bill.billNo)}`
+        : bill.billId != null
+          ? `Order #${esc(String(bill.billId))}`
+          : "Order";
+    return `<span class="order-no">${orderPart}</span><i class="fas fa-print" aria-hidden="true"></i><i class="fas fa-eye" aria-hidden="true"></i>`;
+  };
+
   function render() {
     const host = document.getElementById("floorplanSections");
     if (!host) return;
@@ -78,9 +90,7 @@
                 <div class="head">
                   <span class="icon"><i class="fas fa-chair"></i></span>
                   <span class="head-right">
-                    ${bill?.billNo ? `<span class="order-no">Order ${esc(bill.billNo)}</span>` : `<span class="order-no">New order</span>`}
-                    <i class="fas fa-print"></i>
-                    <i class="fas fa-eye"></i>
+                    ${floorCardHeadRight(bill)}
                   </span>
                 </div>
                 <div class="name">${t.tableName}</div>
@@ -109,10 +119,10 @@
         const tableId = card.getAttribute("data-table-id");
         const bill = billByTable(tableName);
         if (bill?.billId) {
-          window.location.href = `/billing/pos/order/${encodeURIComponent(bill.billId)}`;
+          window.location.href = `/pos/order/${encodeURIComponent(bill.billId)}`;
           return;
         }
-        window.location.href = `/billing/pos?table=${encodeURIComponent(tableName)}&tableId=${encodeURIComponent(tableId)}`;
+        window.location.href = `/pos?table=${encodeURIComponent(tableName)}&tableId=${encodeURIComponent(tableId)}`;
       });
     });
   }
@@ -124,7 +134,7 @@
     try {
       const [tables, heldBills] = await Promise.all([
         getJSON("/masters/tables-data?outletId=1"),
-        getJSON("/billing/held-bills-detail?outletId=1")
+        getJSON("/pos/held-bills-detail?outletId=1")
       ]);
       state.tables = Array.isArray(tables) ? tables : [];
       state.heldBills = Array.isArray(heldBills) ? heldBills : [];

@@ -18,7 +18,7 @@ async function posInit() {
 /* ─── Catalog ─── */
 async function loadCatalog() {
   try {
-    const data = await getJSON("/billing/catalog?outletId=1");
+    const data = await getJSON("/pos/catalog?outletId=1");
     posState.categories = (data.categories || []).map(c => ({ id: c.id, name: c.name, color: c.color }));
     posState.items = (data.items || []).map(i => ({
       id: i.id, name: i.name, categoryId: i.categoryId,
@@ -43,7 +43,7 @@ function renderPosCategories() {
   posState.categories.forEach(c => {
     const el = document.createElement("div");
     el.className = "cat-item" + (posState.selectedCategoryId === c.id ? " active" : "");
-    el.innerHTML = `<span class="cat-dot" style="background:${c.color || '#FF6B35'}"></span>${c.name}`;
+    el.innerHTML = `<span class="cat-dot" style="background:${c.color || '#18181b'}"></span>${c.name}`;
     el.addEventListener("click", () => { posState.selectedCategoryId = c.id; renderPosCategories(); renderPosItems(); });
     host.appendChild(el);
   });
@@ -172,7 +172,6 @@ function bindPosEvents() {
   document.getElementById("btnKot")?.addEventListener("click", generateKot);
   document.getElementById("btnKotPrint")?.addEventListener("click", generateKotAndPrint);
   document.getElementById("btnTable")?.addEventListener("click", openTablePicker);
-  document.getElementById("btnRecall")?.addEventListener("click", openRecallPanel);
   document.getElementById("btnCancelLines")?.addEventListener("click", () => {
     if (!posState.cart.length) return;
     if (!confirm("Clear all line items from current order?")) return;
@@ -186,25 +185,13 @@ function bindPosEvents() {
   });
   document.getElementById("btnBackTables")?.addEventListener("click", async () => {
     await posSaveBeforeBackToTables();
-    window.location.href = "/fooler";
+    window.location.href = "/floor";
   });
 
   // Table picker events
   document.getElementById("tablePanelClose")?.addEventListener("click", closeTablePicker);
   document.getElementById("tablePanelOverlay")?.addEventListener("click", e => { if (e.target.id === "tablePanelOverlay") closeTablePicker(); });
 
-  // Recall panel events
-  document.getElementById("recallPanelClose")?.addEventListener("click", closeRecallPanel);
-  document.getElementById("recallPanelOverlay")?.addEventListener("click", e => { if (e.target.id === "recallPanelOverlay") closeRecallPanel(); });
-
-  // New order button (clears cart + bill reference)
-  document.getElementById("btnNewOrder")?.addEventListener("click", () => {
-    posState.cart = []; posState.currentBillId = null; posState.currentBillNo = null;
-    posState.selectedTableId = null; posState.selectedTableName = null;
-    updateCartHeader(); renderPosCart();
-    const btn = document.getElementById("btnTable");
-    if (btn) btn.innerHTML = `<i class="fas fa-chair"></i> Table`;
-  });
 }
 
 /* ─── Table Picker ─── */
@@ -251,7 +238,7 @@ async function holdBill() {
   const btn = document.getElementById("btnHold");
   if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`; }
   try {
-    const r = await postJSON("/billing/hold", {
+    const r = await postJSON("/pos/hold", {
       outletId: 1, billType: "DineIn",
       businessDate: new Date().toISOString().slice(0, 10),
       items: mapCartItems(), billLevelDiscount: 0,
@@ -262,7 +249,6 @@ async function holdBill() {
     posState.currentBillNo = r.billNo;
     updateCartHeader();
     toastr?.success(`Bill ${r.billNo} held successfully. Use Recall to view all held bills.`);
-    updateRecallBadge();
   } catch { toastr?.error("Failed to hold bill."); }
   finally { if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fas fa-pause"></i> Hold`; } }
 }
@@ -285,7 +271,7 @@ function cancelOrderDraft() {
 async function posSaveBeforeBackToTables() {
   if (!posState.selectedTableName || !posState.cart.length || posState.currentBillId) return;
   try {
-    const r = await postJSON("/billing/hold", {
+    const r = await postJSON("/pos/hold", {
       outletId: 1, billType: "DineIn",
       businessDate: new Date().toISOString().slice(0, 10),
       items: mapCartItems(), billLevelDiscount: 0,
@@ -299,56 +285,6 @@ async function posSaveBeforeBackToTables() {
     // best effort: allow navigation even if autosave fails
   }
 }
-
-async function updateRecallBadge() {
-  try {
-    const bills = await getJSON("/billing/held-bills-detail?outletId=1");
-    const badge = document.getElementById("recallBadge");
-    if (badge) {
-      badge.textContent = bills.length;
-      badge.style.display = bills.length > 0 ? "inline-flex" : "none";
-    }
-  } catch {}
-}
-
-/* ─── Recall Panel ─── */
-async function openRecallPanel() {
-  const overlay = document.getElementById("recallPanelOverlay");
-  if (!overlay) return;
-  overlay.classList.add("show");
-  const list = document.getElementById("recallList");
-  if (!list) return;
-  list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);">Loading held bills...</div>`;
-  try {
-    const bills = await getJSON("/billing/held-bills-detail?outletId=1");
-    if (!bills.length) {
-      list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);"><i class="fas fa-inbox" style="font-size:32px;opacity:0.3;display:block;margin-bottom:8px;"></i>No held bills.</div>`;
-      return;
-    }
-    list.innerHTML = bills.map(b => `
-      <div class="recall-bill-row" data-id="${b.billId}" data-no="${b.billNo}" data-table="${b.tableName || ''}">
-        <div style="flex:1;">
-          <div style="font-weight:700;font-size:14px;color:var(--accent);">${b.billNo}</div>
-          <div style="font-size:12px;color:var(--text-muted);">${b.tableName ? b.tableName + ' · ' : ''}${b.billType} · ${b.billTime}</div>
-          <div style="font-size:12px;margin-top:2px;">${(b.items || []).map(i => `${i.name} ×${i.qty}`).join(", ")}</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-weight:700;font-size:15px;">${fmtINR(b.grandTotal)}</div>
-          <button class="btn-accent recall-load-btn" style="font-size:11px;padding:4px 12px;margin-top:6px;" data-bill='${JSON.stringify(b)}'>
-            <i class="fas fa-rotate-left"></i> Recall
-          </button>
-        </div>
-      </div>`).join("");
-    list.querySelectorAll(".recall-load-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const b = JSON.parse(btn.dataset.bill);
-        recallBill(b);
-        closeRecallPanel();
-      });
-    });
-  } catch { list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--danger);">Failed to load held bills.</div>`; }
-}
-function closeRecallPanel() { document.getElementById("recallPanelOverlay")?.classList.remove("show"); }
 
 function recallBill(b) {
   posState.currentBillId = b.billId;
@@ -373,7 +309,7 @@ async function generateKot() {
   try {
     // Hold first if no bill exists yet
     if (!posState.currentBillId) {
-      const held = await postJSON("/billing/hold", {
+      const held = await postJSON("/pos/hold", {
         outletId: 1, billType: "DineIn",
         businessDate: new Date().toISOString().slice(0, 10),
         items: mapCartItems(), billLevelDiscount: 0,
@@ -384,14 +320,13 @@ async function generateKot() {
       posState.currentBillNo = held.billNo;
       updateCartHeader();
     }
-    const result = await postJSON("/kitchen/generate", {
+    const result = await postJSON("/kot/generate", {
       outletId: 1, billId: posState.currentBillId, captainUserId: 1
     });
     const msg = result.reused
       ? `KOT already exists for this bill.`
       : `KOT sent to kitchen! Bill: ${posState.currentBillNo}`;
     toastr?.success(msg);
-    updateRecallBadge();
   } catch { toastr?.error("Failed to generate KOT."); }
   finally { if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fas fa-paper-plane"></i> Send KOT`; } }
 }
@@ -461,13 +396,13 @@ async function confirmSettle() {
     let result;
     if (posState.currentBillId) {
       // Settle the already-held bill
-      result = await postJSON(`/billing/settle-existing/${posState.currentBillId}`, {
+      result = await postJSON(`/pos/settle-existing/${posState.currentBillId}`, {
         outletId: 1,
         payments: [{ mode: method, amount: grand }]
       });
     } else {
       // Create + settle in one shot (no held bill yet)
-      result = await postJSON("/billing/settle", {
+      result = await postJSON("/pos/settle", {
         outletId: 1, billType: "DineIn",
         businessDate: new Date().toISOString().slice(0, 10),
         isInterState: false, billLevelDiscount: 0,
@@ -486,7 +421,6 @@ async function confirmSettle() {
     renderPosCart();
     const tableBtn = document.getElementById("btnTable");
     if (tableBtn) tableBtn.innerHTML = `<i class="fas fa-chair"></i> Table`;
-    updateRecallBadge();
     toastr?.success(`Bill ${result.billNo || ""} settled!`);
   } catch (_e) {
     toastr?.error("Settlement failed. Please try again.");
@@ -533,7 +467,7 @@ async function posTryRecallFromQuery() {
   const id = new URLSearchParams(window.location.search).get("recall");
   if (!id) return;
   try {
-    const b = await getJSON(`/billing/held-bill/${encodeURIComponent(id)}?outletId=1`);
+    const b = await getJSON(`/pos/held-bill/${encodeURIComponent(id)}?outletId=1`);
     if (b.billType && b.billType !== "DineIn") {
       toastr?.warning("This order is not Dine-In. Open Takeaway POS to continue.");
       return;
@@ -548,11 +482,11 @@ async function posTryRecallFromQuery() {
 }
 
 async function posTryRecallFromPath() {
-  const m = window.location.pathname.match(/\/(?:billing\/)?pos\/order\/(\d+)/i);
+  const m = window.location.pathname.match(/\/pos\/order\/(\d+)/i);
   if (!m || !m[1]) return;
   const id = m[1];
   try {
-    const b = await getJSON(`/billing/held-bill/${encodeURIComponent(id)}?outletId=1`);
+    const b = await getJSON(`/pos/held-bill/${encodeURIComponent(id)}?outletId=1`);
     if (b.billType && b.billType !== "DineIn") {
       toastr?.warning("This order is not Dine-In. Open Takeaway POS to continue.");
       return;
@@ -581,7 +515,6 @@ document.addEventListener("DOMContentLoaded", () => {
     void (async () => {
       await posInit();
       posTryPreselectTableFromQuery();
-      await updateRecallBadge();
       await posTryRecallFromPath();
       await posTryRecallFromQuery();
     })();

@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Entities.Configuration;
 using Entities.Masters;
 using Data.Persistence;
 using RestaurantBilling.Models.Masters;
@@ -15,8 +14,6 @@ namespace RestaurantBilling.Controllers;
 public class MastersController(AppDbContext db, IWebHostEnvironment env) : Controller
 {
     [HttpGet("categories")]
-    [HttpGet("ctaeorgies")]
-    [HttpGet("stockcateogries")]
     public async Task<IActionResult> Categories([FromQuery] int? editId, CancellationToken cancellationToken)
     {
         var categories = await db.Categories
@@ -243,99 +240,6 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         }
     }
 
-    [HttpGet("taxes")]
-    public async Task<IActionResult> Taxes([FromQuery] int? editId, CancellationToken cancellationToken)
-    {
-        var rows = await db.TaxConfigurations
-            .OrderByDescending(x => x.EffectiveFrom)
-            .ToListAsync(cancellationToken);
-        ViewBag.Rows = rows;
-
-        if (editId.HasValue)
-        {
-            var existing = await db.TaxConfigurations.FirstOrDefaultAsync(x => x.TaxConfigurationId == editId.Value, cancellationToken);
-            if (existing is not null)
-            {
-                return View(new TaxConfigurationInputModel
-                {
-                    TaxConfigurationId = existing.TaxConfigurationId,
-                    ScenarioType = existing.ScenarioType,
-                    TotalGstPercent = existing.TotalGstPercent,
-                    CgstPercent = existing.CgstPercent,
-                    SgstPercent = existing.SgstPercent,
-                    IgstPercent = existing.IgstPercent,
-                    IsItcAllowed = existing.IsItcAllowed,
-                    EffectiveFrom = existing.EffectiveFrom
-                });
-            }
-        }
-
-        return View(new TaxConfigurationInputModel());
-    }
-
-    [HttpPost("taxes")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Taxes(TaxConfigurationInputModel model, CancellationToken cancellationToken)
-    {
-        if (!ModelState.IsValid)
-        {
-            return await Taxes(editId: null, cancellationToken);
-        }
-
-        if (model.TaxConfigurationId.HasValue && model.TaxConfigurationId.Value > 0)
-        {
-            var existing = await db.TaxConfigurations.FirstOrDefaultAsync(x => x.TaxConfigurationId == model.TaxConfigurationId.Value, cancellationToken);
-            if (existing is not null)
-            {
-                existing.ScenarioType = model.ScenarioType.Trim();
-                existing.TotalGstPercent = model.TotalGstPercent;
-                existing.CgstPercent = model.CgstPercent;
-                existing.SgstPercent = model.SgstPercent;
-                existing.IgstPercent = model.IgstPercent;
-                existing.IsItcAllowed = model.IsItcAllowed;
-                existing.EffectiveFrom = model.EffectiveFrom;
-            }
-        }
-        else
-        {
-            var outletId = await db.Outlets.Select(x => x.OutletId).FirstAsync(cancellationToken);
-            db.TaxConfigurations.Add(new TaxConfiguration
-            {
-                OutletId = outletId,
-                ScenarioType = model.ScenarioType.Trim(),
-                TotalGstPercent = model.TotalGstPercent,
-                CgstPercent = model.CgstPercent,
-                SgstPercent = model.SgstPercent,
-                IgstPercent = model.IgstPercent,
-                IsItcAllowed = model.IsItcAllowed,
-                EffectiveFrom = model.EffectiveFrom
-            });
-        }
-        await db.SaveChangesAsync(cancellationToken);
-        return RedirectToAction(nameof(Taxes));
-    }
-
-    [HttpPost("taxes/{id:int}/delete")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteTax(int id, CancellationToken cancellationToken)
-    {
-        var row = await db.TaxConfigurations.FirstOrDefaultAsync(x => x.TaxConfigurationId == id, cancellationToken);
-        if (row is not null)
-        {
-            row.IsDeleted = true;
-            row.DeletedAtUtc = DateTime.UtcNow;
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        return RedirectToAction(nameof(Taxes));
-    }
-
-    [HttpGet("printers")]
-    public IActionResult Printers()
-    {
-        ViewBag.UseDataTables = true;
-        return View();
-    }
-
     [HttpGet("tables")]
     [HttpGet("table")]
     public IActionResult Tables()
@@ -345,7 +249,6 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     }
 
     [HttpGet("units")]
-    [HttpGet("stock")]
     public IActionResult Units()
     {
         ViewBag.UseDataTables = true;
@@ -477,62 +380,6 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
             "outdoor" => "Outdoor",
             _ => "Ground"
         };
-    }
-
-    [HttpGet("printers-data")]
-    public async Task<IActionResult> PrintersData([FromQuery] int outletId, CancellationToken cancellationToken)
-    {
-        var rows = await db.PrinterProfiles
-            .Where(x => x.OutletId == outletId)
-            .OrderBy(x => x.PrinterName)
-            .Select(x => new { x.PrinterProfileId, x.PrinterName, x.PrinterType, x.DevicePath, x.IsDefault, x.IsActive })
-            .ToListAsync(cancellationToken);
-        return Ok(rows);
-    }
-
-    [HttpPost("printers-create")]
-    public async Task<IActionResult> CreatePrinter([FromBody] MasterInputDto request, CancellationToken cancellationToken)
-    {
-        db.PrinterProfiles.Add(new PrinterProfile
-        {
-            OutletId = 1,
-            PrinterName = request.Name.Trim(),
-            PrinterType = request.PrinterType?.Trim() ?? "Thermal",
-            DevicePath = request.DevicePath?.Trim(),
-            IsDefault = request.IsDefault ?? false,
-            IsActive = true,
-            IsDeleted = false
-        });
-        await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { status = "Created" });
-    }
-
-    [HttpPost("printers-update/{id:int}")]
-    public async Task<IActionResult> UpdatePrinter(int id, [FromBody] MasterInputDto request, CancellationToken cancellationToken)
-    {
-        var row = await db.PrinterProfiles.FirstOrDefaultAsync(x => x.PrinterProfileId == id, cancellationToken);
-        if (row is null) return NotFound();
-        row.PrinterName = request.Name.Trim();
-        row.PrinterType = request.PrinterType?.Trim() ?? row.PrinterType;
-        row.DevicePath = request.DevicePath?.Trim();
-        row.IsDefault = request.IsDefault ?? row.IsDefault;
-        row.IsActive = true;
-        row.IsDeleted = false;
-        row.UpdatedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { status = "Updated" });
-    }
-
-    [HttpPost("printers-delete/{id:int}")]
-    public async Task<IActionResult> DeletePrinter(int id, CancellationToken cancellationToken)
-    {
-        var row = await db.PrinterProfiles.FirstOrDefaultAsync(x => x.PrinterProfileId == id, cancellationToken);
-        if (row is null) return NotFound();
-        row.IsActive = false;
-        row.IsDeleted = false;
-        row.UpdatedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { status = "Inactivated" });
     }
 
     public sealed record MasterInputDto(

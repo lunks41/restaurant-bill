@@ -4,12 +4,12 @@
     ViewData["Title"] = "Bill Detail";
     var isDraft = Model.Status.ToString() == "Draft";
     var recallPosUrl = Model.BillType == BillType.Takeaway
-        ? $"/billing/takeaway?recall={Model.BillId}"
-        : $"/billing/dinein?recall={Model.BillId}";
+        ? $"/takeaway?recall={Model.BillId}"
+        : $"/pos/order/{Model.BillId}";
 }
 
 <nav class="app-muted mb-3" style="font-size:13px;">
-    <a href="/billing/bills" class="text-decoration-none" style="color:var(--text-muted);"><i class="fas fa-arrow-left me-1"></i>Back to All Bills</a>
+    <a href="/bills" class="text-decoration-none" style="color:var(--text-muted);"><i class="fas fa-arrow-left me-1"></i>Back to All Bills</a>
 </nav>
 
 <div class="page-header" style="flex-wrap:wrap;gap:12px;">
@@ -18,10 +18,10 @@
         <div class="page-sub">@Model.BillNo · @Model.BillType · @Model.Status · @Model.BillDate.ToString("dd-MMM-yyyy hh:mm tt")</div>
     </div>
     <div class="d-flex flex-wrap gap-2 align-items-center">
-        <a class="btn-outline-accent" href="/billing/bills" style="padding:8px 16px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:8px;">
+        <a class="btn-outline-accent" href="/bills" style="padding:8px 16px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:8px;">
             <i class="fas fa-list-ul"></i> All bills
         </a>
-        <a class="btn-outline-accent" href="/kitchen/kotlist" style="padding:8px 16px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:8px;" title="Kitchen tickets">
+        <a class="btn-outline-accent" href="/kot/kotlist" style="padding:8px 16px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:8px;" title="Kitchen tickets">
             <i class="fas fa-ticket"></i> KOT
         </a>
         @if (isDraft)

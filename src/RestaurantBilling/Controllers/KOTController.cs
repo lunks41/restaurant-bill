@@ -1,0 +1,216 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
+using IServices;
+using Entities.Audit;
+using Entities.Enums;
+using Entities.Kitchen;
+using Data.Persistence;
+using RestaurantBilling.Hubs;
+using RestaurantBilling.Models.Kitchen;
+
+namespace RestaurantBilling.Controllers;
+
+[Authorize]
+[Route("kot")]
+public class KOTController(
+    AppDbContext db,
+    INumberGeneratorService numberGeneratorService,
+    IHubContext<KdsHub> kdsHubContext,
+    IHubContext<AlertHub> alertHub) : Controller
+{
+    [HttpGet("display")]
+    public IActionResult Display([FromQuery] int station = 1)
+    {
+        ViewData["Station"] = station;
+        return View();
+    }
+
+    [HttpGet("kots")]
+    public IActionResult Kots() => View();
+
+    [HttpGet("kotlist")]
+    [HttpGet("/kot")]
+    public IActionResult KotList()
+    {
+        ViewBag.UseDataTables = true;
+        return View("KotList");
+    }
+
+    [HttpGet("kdsscreen")]
+    public IActionResult KdsScreen([FromQuery] int station = 1)
+    {
+        ViewData["Station"] = station;
+        ViewBag.UseSignalR = true;
+        return View();
+    }
+
+    [HttpPost("generate")]
+    public async Task<IActionResult> Generate([FromBody] GenerateKotRequest request, CancellationToken cancellationToken)
+    {
+        var bill = await db.Bills.Include(x => x.Items).FirstOrDefaultAsync(x => x.BillId == request.BillId, cancellationToken);
+        if (bill is null)
+        {
+            return NotFound("Bill not found.");
+        }
+
+        var existingKotIds = await db.KotHeaders
+            .Where(x => x.OutletId == request.OutletId && x.BillId == request.BillId && x.Status != "Cancelled")
+            .OrderByDescending(x => x.KotDate)
+            .Select(x => x.KotHeaderId)
+            .ToListAsync(cancellationToken);
+        if (existingKotIds.Count > 0)
+        {
+            return Ok(new { kotIds = existingKotIds, reused = true });
+        }
+
+        var defaultStationId = await db.KitchenStations
+            .Where(x => x.OutletId == request.OutletId)
+            .OrderBy(x => x.SortOrder)
+            .Select(x => x.KitchenStationId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (defaultStationId <= 0)
+        {
+            defaultStationId = 1;
+        }
+
+        var kotNo = await numberGeneratorService.GenerateAsync(request.OutletId, NumberSeriesKey.KOT, cancellationToken);
+        var header = new KotHeader
+        {
+            OutletId = request.OutletId,
+            BillId = request.BillId,
+            KotNo = kotNo,
+            KotDate = DateTime.UtcNow,
+            BusinessDate = bill.BusinessDate,
+            KitchenStationId = defaultStationId,
+            KotEventType = "New",
+            Status = "Pending"
+        };
+
+        db.KotHeaders.Add(header);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var kotItems = bill.Items.Select(i => new KotItem
+        {
+            KotHeaderId = header.KotHeaderId,
+            ItemId = i.ItemId,
+            ItemNameSnapshot = i.ItemNameSnapshot,
+            Qty = i.Qty
+        });
+        db.KotItems.AddRange(kotItems);
+
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { kotIds = new[] { header.KotHeaderId }, reused = false });
+    }
+
+    [HttpPost("status")]
+    public async Task<IActionResult> UpdateStatus([FromBody] KotStatusUpdateRequest request, CancellationToken cancellationToken)
+    {
+        var allowed = new[] { "Pending", "Preparing", "Ready", "Served", "Cancelled" };
+        if (!allowed.Contains(request.Status))
+        {
+            return BadRequest("Invalid status.");
+        }
+
+        var kot = await db.KotHeaders.FirstOrDefaultAsync(x => x.KotHeaderId == request.KotId && x.OutletId == request.OutletId, cancellationToken);
+        if (kot is null)
+        {
+            return NotFound("KOT not found.");
+        }
+
+        kot.Status = request.Status;
+        await db.SaveChangesAsync(cancellationToken);
+
+        await kdsHubContext.Clients.Group($"station:{kot.KitchenStationId}")
+            .SendAsync("KotStatusUpdated", new
+            {
+                kotId = kot.KotHeaderId,
+                status = kot.Status,
+                stationId = kot.KitchenStationId
+            }, cancellationToken);
+
+        await alertHub.Clients.All.SendAsync("DashboardRefresh", "kot", cancellationToken);
+        return Ok(new { status = "Updated" });
+    }
+
+    [HttpGet("kots-data")]
+    public async Task<IActionResult> KotsData([FromQuery] int outletId, [FromQuery] int? stationId, CancellationToken cancellationToken)
+    {
+        var query = db.KotHeaders.Where(x => x.OutletId == outletId);
+        if (stationId.HasValue)
+        {
+            query = query.Where(x => x.KitchenStationId == stationId.Value);
+        }
+
+        var headers = await query
+            .OrderByDescending(x => x.KotDate)
+            .Take(300)
+            .Select(x => new
+            {
+                x.KotHeaderId,
+                x.KotNo,
+                x.BillId,
+                x.KitchenStationId,
+                x.Status,
+                x.KotDate
+            })
+            .ToListAsync(cancellationToken);
+
+        if (headers.Count == 0)
+        {
+            return Ok(Array.Empty<object>());
+        }
+
+        var headerIds = headers.Select(x => x.KotHeaderId).ToList();
+        var billIds = headers.Where(x => x.BillId.HasValue).Select(x => x.BillId!.Value).Distinct().ToList();
+        IReadOnlyDictionary<long, string> billNos = billIds.Count == 0
+            ? new Dictionary<long, string>()
+            : await db.Bills
+                .AsNoTracking()
+                .Where(b => billIds.Contains(b.BillId))
+                .ToDictionaryAsync(b => b.BillId, b => b.BillNo, cancellationToken);
+
+        var itemLookup = await db.KotItems
+            .AsNoTracking()
+            .Where(x => headerIds.Contains(x.KotHeaderId) && !x.IsVoid)
+            .OrderBy(x => x.KotItemId)
+            .Select(x => new
+            {
+                x.KotHeaderId,
+                x.ItemNameSnapshot,
+                x.Qty,
+                x.SpecialInstructions
+            })
+            .ToListAsync(cancellationToken);
+
+        var rows = headers.Select(h =>
+        {
+            var items = itemLookup
+                .Where(i => i.KotHeaderId == h.KotHeaderId)
+                .Select(i => new
+                {
+                    itemName = i.ItemNameSnapshot,
+                    qty = i.Qty,
+                    note = i.SpecialInstructions
+                })
+                .ToList();
+            var billNo = h.BillId.HasValue && billNos.TryGetValue(h.BillId.Value, out var bn) ? bn : null;
+            return new
+            {
+                h.KotHeaderId,
+                h.KotNo,
+                h.BillId,
+                billNo,
+                h.KitchenStationId,
+                h.Status,
+                kotDate = h.KotDate.ToString("dd-MMM-yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+                kotDateIso = h.KotDate,
+                itemCount = items.Count,
+                items
+            };
+        });
+
+        return Ok(rows);
+    }
+}

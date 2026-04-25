@@ -8,148 +8,176 @@
 }
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>@ViewData["Title"] | RestoBill</title>
-  <meta name="theme-color" content="#0F172A"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link rel="stylesheet" href="~/lib/font-awesome/6.5.0/css/all.min.css" asp-append-version="true"/>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet"/>
-  <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet"/>
-  <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css" rel="stylesheet"/>
-  @if (ViewBag.UseSelect2 == true) {
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
-    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet"/>
+  <meta name="theme-color" content="#09090b" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
+    rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="~/lib/font-awesome/6.5.0/css/all.min.css" asp-append-version="true" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
+  <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet" />
+  <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css" rel="stylesheet" />
+  @if (ViewBag.UseSelect2 == true)
+  {
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css"
+      rel="stylesheet" />
   }
-  <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet"/>
-  <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
+  <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
   @await RenderSectionAsync("Styles", required: false)
 </head>
+
 <body>
-@if (SignInManager.IsSignedIn(User))
-{
-<div class="app-shell">
-  <aside class="sidebar" id="appSidebar">
-    <div class="sidebar-logo">
-      <div class="logo-icon"><i class="fas fa-utensils"></i></div>
-      <span class="logo-text">RestoBill</span>
-    </div>
-    <nav class="sidebar-nav">
-      <div class="nav-group">
-        <div class="nav-group-label">POS</div>
-        <a class="@LinkClass("/fooler")" href="/fooler"><i class="nav-icon fas fa-border-all"></i><span class="nav-label">Floor plan</span></a>
-        <a class="@LinkClass("/takeaway")" href="/takeaway"><i class="nav-icon fas fa-bag-shopping"></i><span class="nav-label">Takeaway</span></a>
-      </div>
-      <div class="nav-group">
-        <div class="nav-group-label">Service</div>
-        <a class="@LinkClass("/kot")" href="/kot"><i class="nav-icon fas fa-hat-chef"></i><span class="nav-label">Kitchen (KOT)</span></a>
-      </div>
-      <div class="nav-group">
-        <div class="nav-group-label">Masters</div>
-        <a class="@LinkClass("/master/ctaeorgies")" href="/master/ctaeorgies"><i class="nav-icon fas fa-tags"></i><span class="nav-label">Categories</span></a>
-        <a class="@LinkClass("/master/items")" href="/master/items"><i class="nav-icon fas fa-utensils"></i><span class="nav-label">Menu &amp; items</span></a>
-        <a class="@LinkClass("/master/table")" href="/master/table"><i class="nav-icon fas fa-table-cells"></i><span class="nav-label">Table master</span></a>
-        <a class="@LinkClass("/master/stock")" href="/master/stock"><i class="nav-icon fas fa-boxes-stacked"></i><span class="nav-label">Stock</span></a>
-        <a class="@LinkClass("/master/stockcateogries")" href="/master/stockcateogries"><i class="nav-icon fas fa-layer-group"></i><span class="nav-label">Stock categories</span></a>
-        <a class="@LinkClass("/master/user")" href="/master/user"><i class="nav-icon fas fa-users"></i><span class="nav-label">Users</span></a>
-        <a class="@LinkClass("/setting/info")" href="/setting/info"><i class="nav-icon fas fa-circle-info"></i><span class="nav-label">Info</span></a>
-        <a class="@LinkClass("/setting/printplate")" href="/setting/printplate"><i class="nav-icon fas fa-print"></i><span class="nav-label">Print plate</span></a>
-      </div>
-      <div class="nav-group">
-        <div class="nav-group-label">Analytics</div>
-        <a class="@LinkClass("/dashbord")" href="/dashbord"><i class="nav-icon fas fa-table-cells-large"></i><span class="nav-label">Dashboard</span></a>
-        <a class="@LinkClass("/reports")" href="/reports"><i class="nav-icon fas fa-chart-column"></i><span class="nav-label">Reports</span></a>
-        <a class="@LinkClass("/reports/stockreport")" href="/reports/stockreport"><i class="nav-icon fas fa-file-lines"></i><span class="nav-label">Stock report</span></a>
-        <a class="@LinkClass("/dayclose")" href="/dayclose"><i class="nav-icon fas fa-receipt"></i><span class="nav-label">Z-report</span></a>
-      </div>
-    </nav>
-    <div class="sidebar-footer">
-      <form asp-controller="Account" asp-action="Logout" method="post">
-        @Html.AntiForgeryToken()
-        <button type="submit" class="nav-link-item w-100 border-0" style="text-align:left; background:rgba(239,68,68,0.08); border-radius:var(--radius-sm);">
-          <i class="nav-icon fas fa-right-from-bracket" style="color:#EF4444;"></i>
-          <span class="nav-label" style="color:#EF4444; font-weight:600;">Logout</span>
-        </button>
-      </form>
-    </div>
-  </aside>
-
-  <div class="main-wrapper">
-    <header class="topbar">
-      <button class="topbar-toggle" id="sidebarToggle" title="Toggle sidebar"><i class="fas fa-bars"></i></button>
-      <span class="topbar-title">@(ViewData["Title"] ?? "Dashboard")</span>
-      <div class="topbar-spacer"></div>
-      <div class="topbar-clock" id="liveClock"></div>
-      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme"><i id="themeIcon" class="fas fa-moon"></i></button>
-      <div class="topbar-user" id="userDropdown">
-        <div class="avatar">@(User.Identity?.Name?.Substring(0,1).ToUpper() ?? "A")</div>
-        <span class="uname d-none d-md-inline">@User.Identity?.Name</span>
-      </div>
-    </header>
-    <main class="main-content">
-      @if (TempData["Success"] != null)
-      { <div class="alert-custom success"><i class="fas fa-check-circle"></i> @TempData["Success"]</div> }
-      @if (TempData["Error"] != null)
-      { <div class="alert-custom error"><i class="fas fa-exclamation-circle"></i> @TempData["Error"]</div> }
-      @RenderBody()
-    </main>
-  </div>
-</div>
-}
-else
-{
-  <div class="container py-4">@RenderBody()</div>
-}
-
-@{
-  var toastMessage = TempData["ToastMessage"] as string;
-  var toastType = TempData["ToastType"] as string ?? "info";
-  var toastClass = toastType switch
+  @if (SignInManager.IsSignedIn(User))
   {
-    "success" => "text-bg-success",
-    "danger" => "text-bg-danger",
-    "warning" => "text-bg-warning",
-    _ => "text-bg-primary"
-  };
-}
-@if (!string.IsNullOrWhiteSpace(toastMessage))
-{
-  <div class="toast-container position-fixed top-0 end-0 p-3">
-    <div id="app-toast" class="toast @toastClass border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="3500">
-      <div class="d-flex">
-        <div class="toast-body">@toastMessage</div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    <div class="app-shell">
+      <aside class="sidebar" id="appSidebar">
+        <div class="sidebar-logo">
+          <div class="logo-icon"><i class="fas fa-utensils"></i></div>
+          <span class="logo-text">RestoBill</span>
+        </div>
+        <nav class="sidebar-nav">
+          <div class="nav-group">
+            <div class="nav-group-label">POS</div>
+            <a class="@LinkClass("/floor")" href="/floor"><i class="nav-icon fas fa-border-all"></i><span
+                class="nav-label">Floor plan</span></a>
+            <a class="@LinkClass("/takeaway")" href="/takeaway"><i class="nav-icon fas fa-bag-shopping"></i><span
+                class="nav-label">Takeaway</span></a>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-label">Service</div>
+            <a class="@LinkClass("/kot")" href="/kot"><i class="nav-icon fas fa-hat-chef"></i><span
+                class="nav-label">Kitchen (KOT)</span></a>
+            <a class="@LinkClass("/bills")" href="/bills"><i class="nav-icon fas fa-clock-rotate-left"></i><span
+                class="nav-label">Order History</span></a>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-label">Masters</div>
+            <a class="@LinkClass("/master/categories")" href="/master/categories"><i
+                class="nav-icon fas fa-tags"></i><span class="nav-label">Categories</span></a>
+            <a class="@LinkClass("/master/items")" href="/master/items"><i class="nav-icon fas fa-utensils"></i><span
+                class="nav-label">Menu &amp; items</span></a>
+            <a class="@LinkClass("/master/table")" href="/master/table"><i class="nav-icon fas fa-table-cells"></i><span
+                class="nav-label">Table master</span></a>
+            <a class="@LinkClass("/master/user")" href="/master/user"><i class="nav-icon fas fa-users"></i><span
+                class="nav-label">Users</span></a>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-label">Inventory</div>
+            <a class="@LinkClass("/inventory")" href="/inventory"><i class="nav-icon fas fa-boxes-stacked"></i><span
+                class="nav-label">Inventory</span></a>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-label">Analytics</div>
+            <a class="@LinkClass("/dashbord")" href="/dashbord"><i class="nav-icon fas fa-table-cells-large"></i><span
+                class="nav-label">Dashboard</span></a>
+            <a class="@LinkClass("/reports")" href="/reports"><i class="nav-icon fas fa-chart-column"></i><span
+                class="nav-label">Reports</span></a>
+          </div>
+        </nav>
+        <div class="sidebar-footer">
+          <form asp-controller="Account" asp-action="Logout" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="nav-link-item w-100 border-0"
+              style="text-align:left; background:rgba(239,68,68,0.08); border-radius:var(--radius-sm);">
+              <i class="nav-icon fas fa-right-from-bracket" style="color:#EF4444;"></i>
+              <span class="nav-label" style="color:#EF4444; font-weight:600;">Logout</span>
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <div class="main-wrapper">
+        <header class="topbar">
+          <button class="topbar-toggle" id="sidebarToggle" title="Toggle sidebar"><i class="fas fa-bars"></i></button>
+          <span class="topbar-title">@(ViewData["Title"] ?? "Dashboard")</span>
+          <div class="topbar-spacer"></div>
+          <div class="topbar-clock" id="liveClock"></div>
+          <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme"><i id="themeIcon"
+              class="fas fa-moon"></i></button>
+          <div class="topbar-user" id="userDropdown">
+            <div class="avatar">@(User.Identity?.Name?.Substring(0, 1).ToUpper() ?? "A")</div>
+            <span class="uname d-none d-md-inline">@User.Identity?.Name</span>
+          </div>
+        </header>
+        <main class="main-content">
+          @if (TempData["Success"] != null)
+          {
+            <div class="alert-custom success"><i class="fas fa-check-circle"></i> @TempData["Success"]</div>
+          }
+          @if (TempData["Error"] != null)
+          {
+            <div class="alert-custom error"><i class="fas fa-exclamation-circle"></i> @TempData["Error"]</div>
+          }
+          @RenderBody()
+        </main>
       </div>
     </div>
-  </div>
-}
+  }
+  else
+  {
+    <div class="container py-4">@RenderBody()</div>
+  }
 
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
-@if (ViewBag.UseSelect2 == true) {
-  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-}
-@if (ViewBag.UseCharts == true) {
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-}
-@if (ViewBag.UseSignalR == true) {
-  <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
-}
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="~/js/site.js" asp-append-version="true"></script>
-@await RenderSectionAsync("Scripts", required: false)
+  @{
+    var toastMessage = TempData["ToastMessage"] as string;
+    var toastType = TempData["ToastType"] as string ?? "info";
+    var toastClass = toastType switch
+    {
+      "success" => "text-bg-success",
+      "danger" => "text-bg-danger",
+      "warning" => "text-bg-warning",
+      _ => "text-bg-primary"
+    };
+  }
+  @if (!string.IsNullOrWhiteSpace(toastMessage))
+  {
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+      <div id="app-toast" class="toast @toastClass border-0" role="alert" aria-live="assertive" aria-atomic="true"
+        data-bs-delay="3500">
+        <div class="d-flex">
+          <div class="toast-body">@toastMessage</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+            aria-label="Close"></button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+  @if (ViewBag.UseSelect2 == true)
+  {
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  }
+  @if (ViewBag.UseCharts == true)
+  {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  }
+  @if (ViewBag.UseSignalR == true)
+  {
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+  }
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="~/js/site.js" asp-append-version="true"></script>
+  @await RenderSectionAsync("Scripts", required: false)
 </body>
+
 </html>

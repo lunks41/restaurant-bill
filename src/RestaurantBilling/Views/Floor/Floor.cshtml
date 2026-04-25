@@ -1,0 +1,39 @@
+@{
+    ViewData["Title"] = "Floor Plan";
+}
+
+<div id="floorPlanRoot" class="floorplan-wrap">
+    <div class="floorplan-toolbar card">
+        <div class="floorplan-toprow">
+            <div class="floorplan-tabs" id="floorplanTabs">
+                <button class="floorplan-tab active" data-zone="all">All</button>
+                <button class="floorplan-tab" data-zone="ac">AC</button>
+                <button class="floorplan-tab" data-zone="first">First</button>
+                <button class="floorplan-tab" data-zone="ground">Ground</button>
+            </div>
+            <div class="floorplan-actions">
+                <a class="btn-accent btn-sm" href="/master/table"><i class="fas fa-chair"></i> Table</a>
+                <button class="btn-ghost btn-sm" id="floorplanRefresh"><i class="fas fa-rotate"></i></button>
+            </div>
+        </div>
+        <div class="floorplan-legend">
+            <span><i class="dot dot-free"></i> Blank (available)</span>
+            <span><i class="dot dot-running"></i> Running table</span>
+            <span><i class="dot dot-kot"></i> KOT ready</span>
+            <span><i class="dot dot-printed"></i> Bill printed</span>
+            <span><i class="dot dot-progress"></i> Payment in progress</span>
+        </div>
+    </div>
+
+    <div class="floorplan-sections" id="floorplanSections">
+        <div class="floorplan-empty">Loading floor plan...</div>
+    </div>
+</div>
+
+<button type="button" class="float-quick-btn" id="floorQuickBtn" title="Refresh floor plan">
+    <i class="fas fa-arrows-rotate"></i>
+</button>
+
+@section Scripts {
+    <script src="~/js/floorplan.js" asp-append-version="true"></script>
+}

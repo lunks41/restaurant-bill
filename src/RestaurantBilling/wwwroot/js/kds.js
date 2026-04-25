@@ -50,7 +50,7 @@ async function initKds() {
   if (grid && document.body.dataset.kdsStation) {
     try {
       const station = document.body.dataset.kdsStation;
-      const rows = await kdsGetJSON(`/kitchen/kots-data?outletId=1&stationId=${station}`);
+      const rows = await kdsGetJSON(`/kot/kots-data?outletId=1&stationId=${station}`);
       const renderItems = (items) => {
         if (!Array.isArray(items) || items.length === 0) {
           return `<div class="kot-note">No item lines</div>`;
@@ -79,7 +79,7 @@ async function initKds() {
         : `<div class="kot-card"><div class="kot-card-head"><div class="kot-no-label">No active KOT</div></div></div>`;
       grid.querySelectorAll("button[data-id]").forEach(btn => {
         btn.addEventListener("click", async () => {
-          await kdsPostJSON("/kitchen/status", { outletId: 1, kotId: parseInt(btn.dataset.id, 10), status: btn.dataset.status });
+          await kdsPostJSON("/kot/status", { outletId: 1, kotId: parseInt(btn.dataset.id, 10), status: btn.dataset.status });
           if (typeof toastr !== "undefined") toastr.success("KOT status updated.");
         });
       });

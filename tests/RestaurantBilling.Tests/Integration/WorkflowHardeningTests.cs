@@ -14,7 +14,7 @@ public class WorkflowHardeningTests
     public async Task KitchenStatus_ReturnsBadRequest_ForInvalidStatus()
     {
         await using var db = CreateDb();
-        var controller = new KitchenController(
+        var controller = new KOTController(
             db,
             new FakeNumberGenerator(),
             new FakeHubContext<RestaurantBilling.Hubs.KdsHub>(),
@@ -37,7 +37,7 @@ public class WorkflowHardeningTests
 
         var file = Assert.IsType<FileContentResult>(result);
         var content = Encoding.UTF8.GetString(file.FileContents);
-        Assert.Contains("BusinessDate,TotalBills,GrossSales,TotalTax,NetSales", content);
+        Assert.Contains("Date,Bills,GrossSales,TotalTax,NetSales", content);
     }
 
     private static AppDbContext CreateDb()

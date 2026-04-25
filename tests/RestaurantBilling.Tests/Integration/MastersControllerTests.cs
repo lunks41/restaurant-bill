@@ -41,16 +41,16 @@ public class MastersControllerTests
     }
 
     [Fact]
-    public void MasterViews_EnableDataTables()
+    public async Task MasterViews_EnableDataTables()
     {
-        using var db = CreateDb();
+        await using var db = CreateDb();
         var controller = new MastersController(db, CreateHostEnvironment());
 
         controller.Tables();
         Assert.True((bool?)controller.ViewBag.UseDataTables);
         controller.Units();
         Assert.True((bool?)controller.ViewBag.UseDataTables);
-        controller.Printers();
+        _ = await controller.Categories(editId: null, CancellationToken.None);
         Assert.True((bool?)controller.ViewBag.UseDataTables);
     }
 

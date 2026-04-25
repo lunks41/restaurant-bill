@@ -79,17 +79,25 @@ public static class DbSeeder
 
         var requiredCategories = new[]
         {
-            ("Starters", 1),
-            ("Main Course", 2),
-            ("Breads", 3),
-            ("Desserts", 4),
-            ("Beverages", 5)
+            ("Starters", 1, true),
+            ("Main Course", 2, true),
+            ("Breads", 3, true),
+            ("Desserts", 4, true),
+            ("Beverages", 5, true),
+            ("Stock Items", 6, false)
         };
-        foreach (var (name, sort) in requiredCategories)
+        foreach (var (name, sort, isActive) in requiredCategories)
         {
             if (!db.Categories.Any(x => x.OutletId == outletId && x.CategoryName == name))
             {
-                db.Categories.Add(new Category { OutletId = outletId, CategoryName = name, SortOrder = sort });
+                db.Categories.Add(new Category
+                {
+                    OutletId = outletId,
+                    CategoryName = name,
+                    SortOrder = sort,
+                    IsActive = isActive,
+                    IsDeleted = false
+                });
             }
         }
 
@@ -328,13 +336,36 @@ public static class DbSeeder
         {
             new { Category = "Starters", Code = "STR002", Name = "Hara Bhara Kebab", Sale = 240m, Purchase = 130m, Reorder = 10m },
             new { Category = "Starters", Code = "STR003", Name = "Veg Spring Roll", Sale = 180m, Purchase = 95m, Reorder = 14m },
+            new { Category = "Starters", Code = "STR004", Name = "Crispy Corn", Sale = 170m, Purchase = 78m, Reorder = 12m },
+            new { Category = "Starters", Code = "STR005", Name = "Gobi Manchurian", Sale = 190m, Purchase = 92m, Reorder = 11m },
+            new { Category = "Starters", Code = "STR006", Name = "Veg Manchurian Dry", Sale = 210m, Purchase = 105m, Reorder = 11m },
+            new { Category = "Starters", Code = "STR007", Name = "Cheese Corn Balls", Sale = 220m, Purchase = 112m, Reorder = 10m },
+            new { Category = "Starters", Code = "STR008", Name = "Paneer 65", Sale = 250m, Purchase = 135m, Reorder = 9m },
             new { Category = "Main Course", Code = "MNC002", Name = "Paneer Butter Masala", Sale = 280m, Purchase = 155m, Reorder = 8m },
             new { Category = "Main Course", Code = "MNC003", Name = "Dal Tadka", Sale = 160m, Purchase = 70m, Reorder = 16m },
+            new { Category = "Main Course", Code = "MNC004", Name = "Kadai Paneer", Sale = 290m, Purchase = 162m, Reorder = 8m },
+            new { Category = "Main Course", Code = "MNC005", Name = "Palak Paneer", Sale = 275m, Purchase = 150m, Reorder = 8m },
+            new { Category = "Main Course", Code = "MNC006", Name = "Veg Kolhapuri", Sale = 230m, Purchase = 118m, Reorder = 10m },
+            new { Category = "Main Course", Code = "MNC007", Name = "Mix Veg Curry", Sale = 210m, Purchase = 106m, Reorder = 11m },
+            new { Category = "Main Course", Code = "MNC008", Name = "Jeera Rice", Sale = 140m, Purchase = 60m, Reorder = 18m },
+            new { Category = "Main Course", Code = "MNC009", Name = "Steam Rice", Sale = 120m, Purchase = 48m, Reorder = 22m },
             new { Category = "Breads", Code = "BRD002", Name = "Tandoori Roti", Sale = 25m, Purchase = 10m, Reorder = 45m },
             new { Category = "Breads", Code = "BRD003", Name = "Garlic Naan", Sale = 60m, Purchase = 24m, Reorder = 22m },
+            new { Category = "Breads", Code = "BRD004", Name = "Plain Naan", Sale = 40m, Purchase = 16m, Reorder = 34m },
+            new { Category = "Breads", Code = "BRD005", Name = "Lachha Paratha", Sale = 55m, Purchase = 22m, Reorder = 26m },
+            new { Category = "Breads", Code = "BRD006", Name = "Missi Roti", Sale = 45m, Purchase = 18m, Reorder = 24m },
+            new { Category = "Breads", Code = "BRD007", Name = "Butter Roti", Sale = 35m, Purchase = 14m, Reorder = 36m },
             new { Category = "Desserts", Code = "DST002", Name = "Rasmalai", Sale = 110m, Purchase = 52m, Reorder = 12m },
+            new { Category = "Desserts", Code = "DST003", Name = "Kulfi", Sale = 95m, Purchase = 44m, Reorder = 14m },
+            new { Category = "Desserts", Code = "DST004", Name = "Gajar Halwa", Sale = 130m, Purchase = 62m, Reorder = 10m },
+            new { Category = "Desserts", Code = "DST005", Name = "Moong Dal Halwa", Sale = 140m, Purchase = 68m, Reorder = 9m },
+            new { Category = "Desserts", Code = "DST006", Name = "Ice Cream Sundae", Sale = 125m, Purchase = 57m, Reorder = 11m },
             new { Category = "Beverages", Code = "BEV002", Name = "Sweet Lassi", Sale = 70m, Purchase = 28m, Reorder = 20m },
-            new { Category = "Beverages", Code = "BEV003", Name = "Fresh Lime Soda", Sale = 90m, Purchase = 35m, Reorder = 20m }
+            new { Category = "Beverages", Code = "BEV003", Name = "Fresh Lime Soda", Sale = 90m, Purchase = 35m, Reorder = 20m },
+            new { Category = "Beverages", Code = "BEV004", Name = "Cold Coffee", Sale = 120m, Purchase = 52m, Reorder = 16m },
+            new { Category = "Beverages", Code = "BEV005", Name = "Mango Shake", Sale = 130m, Purchase = 58m, Reorder = 14m },
+            new { Category = "Beverages", Code = "BEV006", Name = "Buttermilk", Sale = 45m, Purchase = 16m, Reorder = 26m },
+            new { Category = "Beverages", Code = "BEV007", Name = "Mint Mojito", Sale = 110m, Purchase = 46m, Reorder = 15m }
         };
         foreach (var seed in additionalVegItems)
         {
@@ -361,6 +392,77 @@ public static class DbSeeder
                 IsStockTracked = true,
                 ReorderLevel = seed.Reorder
             });
+        }
+
+        var stockRawItems = new[]
+        {
+            new { Code = "STK001", Name = "Cooking Oil", UnitCode = "LTR", Purchase = 160m, Reorder = 30m },
+            new { Code = "STK002", Name = "Milk", UnitCode = "LTR", Purchase = 58m, Reorder = 40m },
+            new { Code = "STK003", Name = "Rice", UnitCode = "KG", Purchase = 62m, Reorder = 60m },
+            new { Code = "STK004", Name = "Sugar", UnitCode = "KG", Purchase = 48m, Reorder = 35m },
+            new { Code = "STK005", Name = "Salt", UnitCode = "KG", Purchase = 20m, Reorder = 20m },
+            new { Code = "STK006", Name = "Wheat Flour", UnitCode = "KG", Purchase = 46m, Reorder = 55m },
+            new { Code = "STK007", Name = "Onion", UnitCode = "KG", Purchase = 34m, Reorder = 45m },
+            new { Code = "STK008", Name = "Tomato", UnitCode = "KG", Purchase = 38m, Reorder = 42m },
+            new { Code = "STK009", Name = "Potato", UnitCode = "KG", Purchase = 30m, Reorder = 50m },
+            new { Code = "STK010", Name = "Green Chilli", UnitCode = "KG", Purchase = 80m, Reorder = 8m },
+            new { Code = "STK011", Name = "Coriander Leaves", UnitCode = "NOS", Purchase = 120m, Reorder = 6m },
+            new { Code = "STK012", Name = "Capsicum", UnitCode = "KG", Purchase = 64m, Reorder = 18m },
+            new { Code = "STK013", Name = "Carrot", UnitCode = "KG", Purchase = 44m, Reorder = 20m },
+            new { Code = "STK014", Name = "Cabbage", UnitCode = "KG", Purchase = 28m, Reorder = 18m },
+            new { Code = "STK015", Name = "Paneer Block", UnitCode = "KG", Purchase = 300m, Reorder = 12m },
+            new { Code = "STK016", Name = "Curd", UnitCode = "KG", Purchase = 72m, Reorder = 16m },
+            new { Code = "STK017", Name = "Turmeric Powder", UnitCode = "KG", Purchase = 220m, Reorder = 5m },
+            new { Code = "STK018", Name = "Red Chilli Powder", UnitCode = "KG", Purchase = 260m, Reorder = 5m },
+            new { Code = "STK019", Name = "Coriander Powder", UnitCode = "KG", Purchase = 210m, Reorder = 6m },
+            new { Code = "STK020", Name = "Garam Masala", UnitCode = "KG", Purchase = 360m, Reorder = 4m },
+            new { Code = "STK021", Name = "Cumin Seeds", UnitCode = "KG", Purchase = 320m, Reorder = 4m },
+            new { Code = "STK022", Name = "Mustard Seeds", UnitCode = "KG", Purchase = 180m, Reorder = 3m },
+            new { Code = "STK023", Name = "Black Pepper", UnitCode = "KG", Purchase = 680m, Reorder = 2m },
+            new { Code = "STK024", Name = "Cardamom", UnitCode = "KG", Purchase = 1400m, Reorder = 1m }
+        };
+        if (defaultCategories.TryGetValue("Stock Items", out var stockCategoryId))
+        {
+            var unitMap = db.Units
+                .Where(x => x.OutletId == outletId)
+                .ToDictionary(x => x.UnitCode, x => x.UnitId);
+            foreach (var stockSeed in stockRawItems)
+            {
+                unitMap.TryGetValue(stockSeed.UnitCode, out var unitId);
+                var existing = db.Items.FirstOrDefault(x => x.OutletId == outletId && x.ItemCode == stockSeed.Code);
+                if (existing is not null)
+                {
+                    existing.CategoryId = stockCategoryId;
+                    existing.ItemName = stockSeed.Name;
+                    existing.UnitId = unitId > 0 ? unitId : existing.UnitId;
+                    existing.PurchasePrice = stockSeed.Purchase;
+                    existing.SalePrice = stockSeed.Purchase;
+                    existing.ReorderLevel = stockSeed.Reorder;
+                    existing.IsStockTracked = true;
+                    existing.IsActive = true;
+                    existing.IsDeleted = false;
+                    continue;
+                }
+
+                db.Items.Add(new Item
+                {
+                    OutletId = outletId,
+                    CategoryId = stockCategoryId,
+                    UnitId = unitId > 0 ? unitId : null,
+                    ItemCode = stockSeed.Code,
+                    ItemName = stockSeed.Name,
+                    SalePrice = stockSeed.Purchase,
+                    PurchasePrice = stockSeed.Purchase,
+                    GstPercent = 0m,
+                    IsTaxInclusive = false,
+                    TaxType = TaxType.GST,
+                    SacCode = "996331",
+                    IsStockTracked = true,
+                    ReorderLevel = stockSeed.Reorder,
+                    IsActive = true,
+                    IsDeleted = false
+                });
+            }
         }
         await db.SaveChangesAsync();
 

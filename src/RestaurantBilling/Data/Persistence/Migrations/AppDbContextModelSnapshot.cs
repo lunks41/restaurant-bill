@@ -1639,6 +1639,9 @@ namespace Data.Persistence.Migrations
                     b.Property<int>("TaxType")
                         .HasColumnType("int");
 
+                    b.Property<int?>("UnitId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
 
