@@ -5,6 +5,7 @@ const posState = {
   currentBillId: null, currentBillNo: null,
   selectedTableId: null, selectedTableName: null,
   selectedPayMethod: "Cash",
+  partialSplitEnabled: false,
   billLevelDiscount: 0,
   hasPendingKot: false,
   customerName: "",
@@ -548,6 +549,19 @@ async function generateKotAndPrint() {
 
 /* ─── Settle Modal ─── */
 function bindSettleModal() {
+  const partialToggle = document.getElementById("settlePartialSplit");
+  const partialRow = partialToggle?.closest(".settle-split-row");
+  const updatePartialSplitState = () => {
+    const isCashOnly = (posState.selectedPayMethod || "Cash") === "Cash";
+    if (!partialToggle) return;
+    partialToggle.disabled = isCashOnly;
+    if (partialRow) partialRow.classList.toggle("disabled", isCashOnly);
+    if (isCashOnly) {
+      partialToggle.checked = false;
+      posState.partialSplitEnabled = false;
+    }
+  };
+
   document.getElementById("settleClose")?.addEventListener("click", closeSettleModal);
   document.getElementById("settleCancelBtn")?.addEventListener("click", closeSettleModal);
   document.getElementById("settleOverlay")?.addEventListener("click", e => { if (e.target === e.currentTarget) closeSettleModal(); });
@@ -557,7 +571,18 @@ function bindSettleModal() {
       document.querySelectorAll(".settle-pay-btn[data-method]").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       posState.selectedPayMethod = btn.dataset.method;
+      updatePartialSplitState();
     }));
+  partialToggle?.addEventListener("change", () => {
+    const checked = Boolean(partialToggle.checked);
+    if (checked && (posState.selectedPayMethod || "Cash") === "Cash") {
+      partialToggle.checked = false;
+      posState.partialSplitEnabled = false;
+      toastr?.info("Choose Card or UPI to enable partial split with cash.");
+      return;
+    }
+    posState.partialSplitEnabled = checked;
+  });
   document.getElementById("settleAmtInput")?.addEventListener("input", () => {
     const grand = calcGrand();
     const paid = parseFloat(document.getElementById("settleAmtInput").value) || 0;
@@ -565,6 +590,7 @@ function bindSettleModal() {
     const due = document.getElementById("settleChangeDue");
     if (row && due) { row.style.display = paid >= grand ? "block" : "none"; due.textContent = fmtINR(Math.max(0, paid - grand)); }
   });
+  updatePartialSplitState();
 }
 
 function openSettleModal() {
@@ -583,6 +609,13 @@ function openSettleModal() {
     <div class="settle-summary-row grand"><span>Grand Total</span><span>${fmtINR(grand)}</span></div>`;
   const amtInput = document.getElementById("settleAmtInput");
   if (amtInput) amtInput.value = grand.toFixed(2);
+  const partialToggle = document.getElementById("settlePartialSplit");
+  if (partialToggle) {
+    partialToggle.checked = false;
+    partialToggle.disabled = (posState.selectedPayMethod || "Cash") === "Cash";
+    partialToggle.closest(".settle-split-row")?.classList.toggle("disabled", partialToggle.disabled);
+  }
+  posState.partialSplitEnabled = false;
   document.getElementById("settleChangeRow").style.display = "none";
   document.getElementById("settleOverlay")?.classList.add("show");
 }
@@ -592,7 +625,23 @@ function closeSettleModal() { document.getElementById("settleOverlay")?.classLis
 async function confirmSettle() {
   const method = posState.selectedPayMethod || "Cash";
   const grand = calcGrand();
-  const amtPaid = parseFloat(document.getElementById("settleAmtInput")?.value || grand);
+  const partialToggle = document.getElementById("settlePartialSplit");
+  const isPartialSplit = Boolean(partialToggle?.checked) && method !== "Cash";
+  const buildPayments = () => {
+    if (!isPartialSplit) {
+      return [{ mode: method, amount: grand }];
+    }
+    const cashAmount = Number((grand / 2).toFixed(2));
+    const digitalAmount = Number((grand - cashAmount).toFixed(2));
+    return [
+      { mode: "Cash", amount: cashAmount },
+      { mode: method, amount: digitalAmount }
+    ];
+  };
+  const payments = buildPayments();
+  const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const typedAmount = parseFloat(document.getElementById("settleAmtInput")?.value || `${totalPaid}`);
+  const amtPaid = Number.isFinite(typedAmount) ? typedAmount : totalPaid;
   const confirmBtn = document.getElementById("settleConfirmBtn");
   if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Processing...`; }
 
@@ -604,7 +653,7 @@ async function confirmSettle() {
         outletId: 1,
         customerName: posState.customerName || null,
         phone: posState.customerPhone || null,
-        payments: [{ mode: method, amount: grand }]
+        payments
       });
     } else {
       // Create + settle in one shot (no held bill yet)
@@ -617,12 +666,12 @@ async function confirmSettle() {
         customerName: posState.customerName || null,
         phone: posState.customerPhone || null,
         items: mapCartItems(),
-        payments: [{ mode: method, amount: grand }]
+        payments
       });
     }
 
     closeSettleModal();
-    printReceipt(result, amtPaid, method);
+    printReceipt(result, amtPaid, method, payments);
 
     posState.cart = []; posState.currentBillId = null; posState.currentBillNo = null; posState.billLevelDiscount = 0; posState.hasPendingKot = false;
     posState.selectedTableId = null; posState.selectedTableName = null;
@@ -638,11 +687,15 @@ async function confirmSettle() {
 }
 
 /* ─── Print ─── */
-function printReceipt(bill, amtPaid, method) {
+function printReceipt(bill, amtPaid, method, payments) {
   const grand = bill?.grandTotal ?? calcGrand();
   const change = Math.max(0, amtPaid - grand);
+  const effectivePayments = Array.isArray(payments) && payments.length ? payments : [{ mode: method, amount: amtPaid }];
   const items = (bill?.items || posState.cart).map(l =>
     `<tr><td>${l.itemName || l.name}</td><td style="text-align:center">${l.qty}</td><td style="text-align:right">${fmtINR((l.rate || l.price) * l.qty)}</td></tr>`
+  ).join("");
+  const paymentRows = effectivePayments.map(p =>
+    `<div style="display:flex;justify-content:space-between;margin-top:4px;"><span>Paid (${p.mode})</span><span>${fmtINR(p.amount || 0)}</span></div>`
   ).join("");
   const tableLine = posState.selectedTableName ? `<div style="font-size:11px;color:#666;">Table: ${posState.selectedTableName}</div>` : "";
   const html = `<div style="font-family:'Courier New',monospace;font-size:12px;max-width:300px;margin:0 auto;padding:10px;">
@@ -660,7 +713,7 @@ function printReceipt(bill, amtPaid, method) {
     </table>
     <hr style="border-top:1px dashed #000;margin:6px 0;"/>
     <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;margin-top:4px;"><span>TOTAL</span><span>${fmtINR(grand)}</span></div>
-    <div style="display:flex;justify-content:space-between;margin-top:4px;"><span>Paid (${method})</span><span>${fmtINR(amtPaid)}</span></div>
+    ${paymentRows}
     ${change > 0 ? `<div style="display:flex;justify-content:space-between;"><span>Change</span><span>${fmtINR(change)}</span></div>` : ""}
     <hr style="border-top:1px dashed #000;margin:8px 0;"/>
     <div style="text-align:center;font-size:11px;color:#666;">Thank you! Visit again.</div>

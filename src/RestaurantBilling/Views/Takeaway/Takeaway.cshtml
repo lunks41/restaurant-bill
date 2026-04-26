@@ -62,6 +62,10 @@
                 <div class="settle-pay-btn" data-tw-method="Card"><i class="fas fa-credit-card"></i><span>Card</span></div>
                 <div class="settle-pay-btn" data-tw-method="UPI"><i class="fas fa-mobile-screen"></i><span>UPI</span></div>
             </div>
+            <div class="settle-split-row">
+                <input type="checkbox" id="twPartialSplit" />
+                <label for="twPartialSplit">Partially (50% Cash + 50% selected mode)</label>
+            </div>
             <div class="form-group-custom">
                 <label class="form-label-custom">Amount Received</label>
                 <input type="number" id="twAmtInput" class="form-control-custom" step="0.01" />
@@ -83,7 +87,7 @@
 <script>
 const twState = {
   categories: [], items: [], cart: [],
-  searchTerm: "", selectedCategoryId: null, payMethod: "Cash",
+  searchTerm: "", selectedCategoryId: null, payMethod: "Cash", partialSplitEnabled: false,
   currentBillId: null, currentBillNo: null, billLevelDiscount: 0, hasPendingKot: false
 };
 const TW_AUTOSAVE_TOAST_KEY = "tw.autosave.toast";
@@ -289,6 +293,9 @@ function twRenderItems() {
         twAdd(i);
       }
     });
+    tile.addEventListener("click", () => {
+      twAdd(i);
+    });
     host.appendChild(tile);
   });
 }
@@ -412,7 +419,30 @@ function twBindEvents() {
       document.querySelectorAll(".settle-pay-btn[data-tw-method]").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       twState.payMethod = btn.dataset.twMethod;
+      const splitToggle = document.getElementById("twPartialSplit");
+      const splitRow = splitToggle?.closest(".settle-split-row");
+      const isCashOnly = (twState.payMethod || "Cash") === "Cash";
+      if (splitToggle) {
+        splitToggle.disabled = isCashOnly;
+        if (isCashOnly) {
+          splitToggle.checked = false;
+          twState.partialSplitEnabled = false;
+        }
+      }
+      splitRow?.classList.toggle("disabled", isCashOnly);
     });
+  });
+
+  const splitToggle = document.getElementById("twPartialSplit");
+  splitToggle?.addEventListener("change", () => {
+    const checked = Boolean(splitToggle.checked);
+    if (checked && (twState.payMethod || "Cash") === "Cash") {
+      splitToggle.checked = false;
+      twState.partialSplitEnabled = false;
+      if (typeof toastr !== "undefined") toastr.info("Choose Card or UPI to enable partial split with cash.");
+      return;
+    }
+    twState.partialSplitEnabled = checked;
   });
 
   const amtInput = document.getElementById("twAmtInput");
@@ -523,6 +553,14 @@ function twOpenSettle() {
     <div class="settle-summary-row grand"><span>Grand Total</span><span>${fmtINR(grand)}</span></div>`;
   document.getElementById("twAmtInput").value = grand.toFixed(2);
   document.getElementById("twChangeRow").style.display = "none";
+  const splitToggle = document.getElementById("twPartialSplit");
+  if (splitToggle) {
+    const isCashOnly = (twState.payMethod || "Cash") === "Cash";
+    splitToggle.checked = false;
+    splitToggle.disabled = isCashOnly;
+    splitToggle.closest(".settle-split-row")?.classList.toggle("disabled", isCashOnly);
+  }
+  twState.partialSplitEnabled = false;
   document.getElementById("twSettleOverlay").classList.add("show");
 }
 function twCloseSettle() { document.getElementById("twSettleOverlay")?.classList.remove("show"); }
@@ -558,6 +596,18 @@ async function twTryRecallFromQuery() {
 
 async function twConfirmSettle() {
   const grand = twCalcGrand();
+  const splitToggle = document.getElementById("twPartialSplit");
+  const isPartialSplit = Boolean(splitToggle?.checked) && (twState.payMethod || "Cash") !== "Cash";
+  const payments = (() => {
+    if (!isPartialSplit) return [{ mode: twState.payMethod, amount: grand }];
+    const cashAmount = Number((grand / 2).toFixed(2));
+    const digitalAmount = Number((grand - cashAmount).toFixed(2));
+    return [
+      { mode: "Cash", amount: cashAmount },
+      { mode: twState.payMethod, amount: digitalAmount }
+    ];
+  })();
+  const paidFromSplit = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
   const btn = document.getElementById("twSettleConfirm");
   if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Processing...`; }
   try {
@@ -565,7 +615,7 @@ async function twConfirmSettle() {
     if (twState.currentBillId) {
       result = await postJSON(`/pos/settle-existing/${twState.currentBillId}`, {
         outletId: 1,
-        payments: [{ mode: twState.payMethod, amount: grand }]
+        payments
       });
     } else {
       result = await postJSON("/pos/settle", {
@@ -578,11 +628,12 @@ async function twConfirmSettle() {
           discountAmount: 0, taxPercent: x.taxPercent || 5,
           isTaxInclusive: false, taxType: "GST", isStockTracked: false
         })),
-        payments: [{ mode: twState.payMethod, amount: grand }]
+        payments
       });
     }
     twCloseSettle();
-    const amtPaid = parseFloat(document.getElementById("twAmtInput")?.value || grand);
+    const amtInput = parseFloat(document.getElementById("twAmtInput")?.value || paidFromSplit);
+    const amtPaid = Number.isFinite(amtInput) ? amtInput : paidFromSplit;
     const change  = Math.max(0, amtPaid - grand);
     const totals  = twGetTotals();
     const sub     = totals.subtotal;
@@ -598,7 +649,7 @@ async function twConfirmSettle() {
       <div style="display:flex;justify-content:space-between;"><span>Discount</span><span>${fmtINR(discAmt)}</span></div>
       <div style="display:flex;justify-content:space-between;"><span>Tax</span><span>${fmtINR(taxAmt)}</span></div>
       <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;margin-top:4px;"><span>TOTAL</span><span>${fmtINR(grand)}</span></div>
-      <div style="display:flex;justify-content:space-between;margin-top:4px;"><span>Paid (${twState.payMethod})</span><span>${fmtINR(amtPaid)}</span></div>
+      ${payments.map(p => `<div style="display:flex;justify-content:space-between;margin-top:4px;"><span>Paid (${p.mode})</span><span>${fmtINR(p.amount || 0)}</span></div>`).join("")}
       ${change>0?`<div style="display:flex;justify-content:space-between;"><span>Change</span><span>${fmtINR(change)}</span></div>`:""}
       <hr style="border-top:1px dashed #000;margin:8px 0;"/><div style="text-align:center;font-size:11px;color:#666;">Thank you! Visit again.</div></div>`;
     document.getElementById("twReceiptWrap").innerHTML = receiptHtml;

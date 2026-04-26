@@ -18,11 +18,8 @@
         <div class="page-sub">@Model.BillNo · @Model.BillType · @Model.Status · @Model.BillDate.ToString("dd-MMM-yyyy hh:mm tt")</div>
     </div>
     <div class="d-flex flex-wrap gap-2 align-items-center">
-        <a class="btn-outline-accent" href="/bills" style="padding:8px 16px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:8px;">
-            <i class="fas fa-list-ul"></i> All bills
-        </a>
-        <a class="btn-outline-accent" href="/kot/kotlist" style="padding:8px 16px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:8px;" title="Kitchen tickets">
-            <i class="fas fa-ticket"></i> KOT
+        <a class="btn-ghost" href="#" onclick="window.print(); return false;" style="padding:8px 16px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:8px;" title="Print bill">
+            <i class="fas fa-print"></i> Print
         </a>
         @if (isDraft)
         {
@@ -33,6 +30,72 @@
         }
     </div>
 </div>
+
+<div class="receipt-wrap" id="billReceiptWrap">
+    <div style="font-family:'Courier New',monospace;font-size:12px;max-width:80mm;margin:0 auto;padding:2mm;">
+        <div style="text-align:center;margin-bottom:10px;">
+            <div style="font-size:18px;font-weight:bold;">RestoBill</div>
+            <div style="font-size:11px;color:#666;">@(Model.BillType == BillType.Takeaway ? "Takeaway Receipt" : "Dine-In Receipt")</div>
+            @if (!string.IsNullOrWhiteSpace(Model.TableName))
+            {
+                <div style="font-size:11px;color:#666;">Table: @Model.TableName</div>
+            }
+            <div style="font-size:11px;color:#666;">@Model.BillDate.ToString("dd-MMM-yyyy hh:mm tt")</div>
+            <div style="font-size:12px;font-weight:bold;margin-top:4px;">Bill: @Model.BillNo</div>
+        </div>
+        <hr style="border-top:1px dashed #000;margin:6px 0;" />
+        <table style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align:left">Item</th>
+                    <th style="text-align:center">Qty</th>
+                    <th style="text-align:right">Amt</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var line in Model.Items)
+            {
+                <tr>
+                    <td>@line.ItemNameSnapshot</td>
+                    <td style="text-align:center">@line.Qty</td>
+                    <td style="text-align:right">₹@line.LineTotal.ToString("N2")</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        <hr style="border-top:1px dashed #000;margin:6px 0;" />
+        <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>₹@Model.SubTotal.ToString("N2")</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Discount</span><span>₹@Model.DiscountAmount.ToString("N2")</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Tax</span><span>₹@Model.TaxAmount.ToString("N2")</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;margin-top:4px;"><span>TOTAL</span><span>₹@Model.GrandTotal.ToString("N2")</span></div>
+        @if (Model.Payments?.Any() == true)
+        {
+            <div style="margin-top:6px;">
+                @foreach (var payment in Model.Payments)
+                {
+                    <div style="display:flex;justify-content:space-between;">
+                        <span>Paid (@payment.PaymentMode)</span>
+                        <span>₹@payment.Amount.ToString("N2")</span>
+                    </div>
+                }
+            </div>
+        }
+        <hr style="border-top:1px dashed #000;margin:8px 0;" />
+        <div style="text-align:center;font-size:11px;color:#666;">Thank you! Visit again.</div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+  (() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('autoprint') !== '1') return;
+    window.addEventListener('load', () => {
+      setTimeout(() => window.print(), 150);
+    }, { once: true });
+  })();
+</script>
+}
 
 <div class="card">
     <div class="card-body-custom">
@@ -54,6 +117,60 @@
         <div class="mt-3 d-flex flex-wrap justify-content-between align-items-center gap-2" style="border-top:1px solid var(--border);padding-top:14px;">
             <div class="app-muted" style="font-size:13px;">Grand total</div>
             <div class="page-title-h mb-0" style="color:var(--accent);">₹@Model.GrandTotal.ToString("N2")</div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header-custom">
+        <div class="card-title-custom"><i class="fas fa-wallet"></i> Payment Summary</div>
+    </div>
+    <div class="card-body-custom">
+        @{
+            var payments = Model.Payments?.ToList() ?? new List<Entities.Sales.Payment>();
+            var paidTotal = payments.Sum(x => x.Amount);
+            var dueAmount = Math.Max(0, Model.GrandTotal - paidTotal);
+        }
+
+        @if (payments.Count == 0)
+        {
+            <div class="text-muted">No payment entries found for this bill yet.</div>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table class="table-custom app-table mb-2">
+                    <thead>
+                        <tr>
+                            <th>Mode</th>
+                            <th>Amount</th>
+                            <th>Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var p in payments)
+                    {
+                        <tr>
+                            <td>@p.PaymentMode</td>
+                            <td>₹@p.Amount.ToString("N2")</td>
+                            <td>@(string.IsNullOrWhiteSpace(p.ReferenceNo) ? "-" : p.ReferenceNo)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="d-flex flex-wrap gap-3 align-items-center mt-2">
+            <span class="badge-custom status-paid">Paid: ₹@paidTotal.ToString("N2")</span>
+            @if (Model.Status == BillStatus.Partial)
+            {
+                <span class="badge-custom status-pending">Partial Due: ₹@dueAmount.ToString("N2")</span>
+            }
+            else if (Model.Status == BillStatus.Paid)
+            {
+                <span class="badge-custom status-paid">Settlement Complete</span>
+            }
         </div>
     </div>
 </div>
