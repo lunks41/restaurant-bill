@@ -22,22 +22,11 @@ public class ItemInputModel
     [Range(0, 999999)]
     public decimal SalePrice { get; set; }
 
-    [Range(0, 999999)]
-    public decimal PurchasePrice { get; set; }
-
     [Range(0, 100)]
     public decimal GstPercent { get; set; }
 
     public bool IsTaxInclusive { get; set; }
     public TaxType TaxType { get; set; } = TaxType.GST;
-
-    [StringLength(10)]
-    public string SacCode { get; set; } = "996331";
-
-    public bool IsStockTracked { get; set; }
-
-    [Range(0, 999999)]
-    public decimal ReorderLevel { get; set; }
 
     public string? ImagePath { get; set; }
     public IFormFile? ImageFile { get; set; }

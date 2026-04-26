@@ -22,6 +22,8 @@ public class Bill : BaseEntity
     public decimal BalanceAmount { get; private set; }
     public BillStatus Status { get; private set; } = BillStatus.Draft;
     public string? TableName { get; private set; }
+    public string? CustomerName { get; private set; }
+    public string? Phone { get; private set; }
 
     private readonly List<BillItem> _items = [];
     public IReadOnlyCollection<BillItem> Items => _items.AsReadOnly();
@@ -67,6 +69,11 @@ public class Bill : BaseEntity
     }
 
     public void SetTableName(string? tableName) => TableName = tableName;
+    public void SetCustomerInfo(string? customerName, string? phone)
+    {
+        CustomerName = string.IsNullOrWhiteSpace(customerName) ? null : customerName.Trim();
+        Phone = string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+    }
 
     public void Cancel()
     {

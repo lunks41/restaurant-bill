@@ -51,10 +51,10 @@ public class DashboardController(AppDbContext db) : Controller
             .Where(x => x.OutletId == outletId && x.Status == BillStatus.Draft)
             .CountAsync(cancellationToken);
 
-        var lowStock = await db.Items
-            .Where(x => x.OutletId == outletId && x.IsStockTracked)
-            .Join(db.StockLedger, i => i.ItemId, s => s.ItemId, (i, s) => new { i, s })
-            .GroupBy(x => new { x.i.ItemId, x.i.ReorderLevel })
+        var lowStock = await db.StockItems
+            .Where(x => x.OutletId == outletId && x.IsActive && !x.IsDeleted)
+            .Join(db.StockLedger, si => si.ItemId, s => s.ItemId, (si, s) => new { si, s })
+            .GroupBy(x => new { x.si.ItemId, x.si.ReorderLevel })
             .Select(g => new { g.Key.ReorderLevel, Balance = g.OrderByDescending(x => x.s.StockLedgerEntryId).Select(x => x.s.RunningBalance).FirstOrDefault() })
             .CountAsync(x => x.Balance <= x.ReorderLevel, cancellationToken);
 
@@ -165,9 +165,9 @@ public class DashboardController(AppDbContext db) : Controller
             })
             .ToListAsync(cancellationToken);
 
-        var rows = await db.Items
-            .Where(x => x.OutletId == outletId && x.IsStockTracked)
-            .Select(x => new { x.ItemId, x.ItemName, x.ReorderLevel })
+        var rows = await db.StockItems
+            .Where(x => x.OutletId == outletId && x.IsActive && !x.IsDeleted)
+            .Join(db.Items, si => si.ItemId, i => i.ItemId, (si, i) => new { i.ItemId, i.ItemName, si.ReorderLevel })
             .ToListAsync(cancellationToken);
 
         var result = rows

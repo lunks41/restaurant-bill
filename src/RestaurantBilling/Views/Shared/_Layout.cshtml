@@ -54,8 +54,8 @@
           </div>
           <div class="nav-group">
             <div class="nav-group-label">Service</div>
-            <a class="@LinkClass("/kot")" href="/kot"><i class="nav-icon fas fa-hat-chef"></i><span
-                class="nav-label">Kitchen (KOT)</span></a>
+            <a class="@LinkClass("/kot")" href="/kot" target="_blank" rel="noopener"><i
+                class="nav-icon fas fa-fire-burner"></i><span class="nav-label">Kitchen (KOT)</span></a>
             <a class="@LinkClass("/bills")" href="/bills"><i class="nav-icon fas fa-clock-rotate-left"></i><span
                 class="nav-label">Order History</span></a>
           </div>
@@ -67,7 +67,10 @@
                 class="nav-label">Menu &amp; items</span></a>
             <a class="@LinkClass("/master/table")" href="/master/table"><i class="nav-icon fas fa-table-cells"></i><span
                 class="nav-label">Table master</span></a>
-            <a class="@LinkClass("/master/user")" href="/master/user"><i class="nav-icon fas fa-users"></i><span
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-label">Admin</div>
+            <a class="@LinkClass("/admin/users")" href="/admin/users"><i class="nav-icon fas fa-users"></i><span
                 class="nav-label">Users</span></a>
           </div>
           <div class="nav-group">
@@ -177,6 +180,23 @@
   }
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="~/js/site.js" asp-append-version="true"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      if (typeof toastr === "undefined") return;
+
+      const successAlert = document.querySelector(".alert-custom.success");
+      if (successAlert) {
+        const text = (successAlert.textContent || "").trim();
+        if (text) toastr.success(text);
+      }
+
+      const errorAlert = document.querySelector(".alert-custom.error");
+      if (errorAlert) {
+        const text = (errorAlert.textContent || "").trim();
+        if (text) toastr.error(text);
+      }
+    });
+  </script>
   @await RenderSectionAsync("Scripts", required: false)
 </body>
 

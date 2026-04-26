@@ -51,17 +51,39 @@
     </div>
 </div>
 
+<div class="modal fade" id="unitConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Inactivate</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Inactivate this unit?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmUnitInactivate">Inactivate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script>
 (() => {
   const modalEl = document.getElementById('unitModal');
   if (!modalEl || !window.bootstrap) return;
   const modal = new window.bootstrap.Modal(modalEl);
+  const confirmModalEl = document.getElementById('unitConfirmModal');
+  const confirmModal = confirmModalEl ? new window.bootstrap.Modal(confirmModalEl) : null;
+  const confirmBtn = document.getElementById('confirmUnitInactivate');
   const idEl = document.getElementById('unitId');
   const nameEl = document.getElementById('unitName');
   const codeEl = document.getElementById('unitCode');
   const titleEl = document.getElementById('unitModalTitle');
   const saveBtnEl = document.getElementById('saveUnit');
+  let pendingDeleteId = null;
 
   const notifySafe = (message, type = 'info') => {
     if (typeof window.notify === 'function') {
@@ -122,15 +144,21 @@
   function bindRowActions() {
     document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => openEdit(btn)));
     document.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', async () => {
-      if (!confirm('Inactivate this unit?')) return;
-      await postJSON(`/masters/units-delete/${btn.getAttribute('data-delete')}`, { name: '' });
-      notifySafe('Unit inactivated', 'success');
-      await load();
+      pendingDeleteId = btn.getAttribute('data-delete');
+      confirmModal?.show();
     }));
   }
 
   document.getElementById('openAddUnit')?.addEventListener('click', openAdd);
   saveBtnEl.addEventListener('click', save);
+  confirmBtn?.addEventListener('click', async () => {
+    if (!pendingDeleteId) return;
+    await postJSON(`/masters/units-delete/${pendingDeleteId}`, { name: '' });
+    notifySafe('Unit inactivated', 'success');
+    confirmModal?.hide();
+    pendingDeleteId = null;
+    await load();
+  });
   document.addEventListener('DOMContentLoaded', load);
 })();
 </script>

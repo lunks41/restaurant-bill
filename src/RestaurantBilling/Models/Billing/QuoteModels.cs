@@ -26,11 +26,25 @@ public sealed record HoldBillRequest(
     decimal BillLevelDiscount,
     bool ServiceChargeOptIn,
     decimal ServiceChargeAmount,
-    string? TableName = null);
+    string? TableName = null,
+    string? CustomerName = null,
+    string? Phone = null);
 
 public sealed record SettleExistingRequest(
     int OutletId,
-    IReadOnlyCollection<SettleExistingPayment> Payments);
+    IReadOnlyCollection<SettleExistingPayment> Payments,
+    string? CustomerName = null,
+    string? Phone = null);
+
+public sealed record UpdateDraftBillRequest(
+    int OutletId,
+    IReadOnlyCollection<QuoteItemInput> Items,
+    decimal BillLevelDiscount,
+    bool ServiceChargeOptIn,
+    decimal ServiceChargeAmount,
+    string? TableName = null,
+    string? CustomerName = null,
+    string? Phone = null);
 
 public sealed record SettleExistingPayment(
     PaymentMode Mode,

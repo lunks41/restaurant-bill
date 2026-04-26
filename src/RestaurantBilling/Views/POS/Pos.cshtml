@@ -1,5 +1,7 @@
 @{
     ViewData["Title"] = "Dine-In POS";
+    var initialTableName = Context?.Request?.Query["table"].ToString();
+    var tableLabel = string.IsNullOrWhiteSpace(initialTableName) ? "Table Name" : initialTableName;
 }
 
 <div id="posRoot" class="pos-layout pos-layout-modern">
@@ -17,29 +19,61 @@
 
     <aside class="pos-cart">
         <div class="cart-header">
-            <div class="cart-header-icon"><i class="fas fa-receipt"></i></div>
-            <div class="cart-header-info">
-                <div class="cart-header-title">Current Bill</div>
-                <div class="cart-bill-no" id="cartBillLabel">Dine-In &mdash; New Order</div>
+            <div class="cart-header-top">
+                <div class="cart-header-icon"><i class="fas fa-receipt"></i></div>
+                <div class="cart-header-info">
+                    <div class="cart-header-row">
+                        <div class="cart-header-title" id="cartHeaderTitle">Order #</div>
+                        <button type="button" class="btn-ghost cart-table-btn" id="btnTable"><i class="fas fa-chair"></i>
+                            @tableLabel</button>
+                    </div>
+                    <div class="cart-order-meta" id="cartOrderMeta">OPEN · dine-in</div>
+                </div>
             </div>
-        </div>
 
-        <div class="pos-cart-toolbar">
-            <button type="button" class="btn-ghost w-100" id="btnTable"><i class="fas fa-chair"></i> Table</button>
+            <section class="cart-customer">
+                <button type="button" class="cart-customer-toggle" id="btnCustomerToggle" aria-expanded="false"
+                    aria-controls="customerCollapse">
+                    <span>Customer info</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="cart-customer-collapse" id="customerCollapse" hidden>
+                    <div class="cart-customer-field">
+                        <label for="customerName">Name</label>
+                        <input id="customerName" type="text" class="form-control-custom"
+                            placeholder="Walk-in / guest" />
+                    </div>
+                    <div class="cart-customer-field">
+                        <label for="customerPhone">Phone</label>
+                        <input id="customerPhone" type="text" class="form-control-custom" placeholder="Optional" />
+                    </div>
+                    <button type="button" class="btn-settle cart-customer-save" id="btnSaveCustomer">Save customer</button>
+                </div>
+            </section>
         </div>
 
         <div class="cart-kot-hint" id="cartKotHint">
             <i class="fas fa-circle-exclamation"></i>
             <span>Kitchen item not sent yet - use Send KOT or KOT &amp; print.</span>
         </div>
+
+
         <div class="cart-items" id="posCartItems"></div>
         <div class="cart-totals">
             <div class="cart-total-row"><span>Subtotal</span><span id="posSubTotal">&#8377;0.00</span></div>
-            <div class="cart-total-row"><span>Tax</span><span id="posTaxTotal">&#8377;0.00</span></div>
-            <div class="cart-total-row grand"><span>Grand Total</span><span class="grand-amt"
-                    id="posGrandTotal">&#8377;0.00</span></div>
+            <div class="cart-total-row"><span id="posTaxLabel">Tax</span><span id="posTaxTotal">&#8377;0.00</span></div>
+            <div class="cart-total-row cart-total-discount">
+                <span>Discount</span>
+                <button type="button" class="cart-discount-btn" id="btnEditDiscount">
+                    <span id="posDiscountTotal">&#8377;0.00</span>
+                </button>
+            </div>
+            <div class="cart-total-row grand"><span>Total</span><span class="grand-amt"
+                    id="posGrandTotal">&#8377;0.00</span>
+            </div>
         </div>
         <div class="cart-actions">
+            <div class="kot-status-badge" id="posKotStatus">Pending KOT</div>
             <button class="btn-kot" id="btnKot"><i class="fas fa-paper-plane"></i> Send KOT</button>
             <button class="btn-kot" id="btnKotPrint"><i class="fas fa-print"></i> KOT &amp; print</button>
             <button class="btn-settle" id="btnSettle"><i class="fas fa-indian-rupee-sign"></i> Bill / Pay</button>

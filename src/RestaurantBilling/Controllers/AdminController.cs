@@ -11,7 +11,6 @@ namespace RestaurantBilling.Controllers;
 public class AdminController(AppDbContext db) : Controller
 {
     [HttpGet("users")]
-    [HttpGet("/master/user")]
     public IActionResult Users()
     {
         ViewBag.UseDataTables = true;
@@ -63,6 +62,45 @@ public class AdminController(AppDbContext db) : Controller
         return Ok(new { status = "Created", userId = user.Id });
     }
 
+    [HttpPost("users-update/{id:int}")]
+    public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (user is null) return NotFound("User not found.");
+
+        var newUserName = request.UserName?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(newUserName)) return BadRequest("Username is required.");
+
+        var duplicate = await db.Users.AnyAsync(x => x.Id != id && x.UserName == newUserName, cancellationToken);
+        if (duplicate) return Conflict("Username already exists.");
+
+        user.UserName = newUserName;
+        user.Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
+        if (!string.IsNullOrWhiteSpace(request.Password))
+        {
+            var hasher = new PasswordHasher<IdentityUser<int>>();
+            user.PasswordHash = hasher.HashPassword(user, request.Password.Trim());
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { status = "Updated" });
+    }
+
+    [HttpPost("users-lock-toggle/{id:int}")]
+    public async Task<IActionResult> ToggleUserLock(int id, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (user is null) return NotFound("User not found.");
+
+        var shouldLock = user.LockoutEnd is null || user.LockoutEnd <= DateTimeOffset.UtcNow;
+        user.LockoutEnabled = true;
+        user.LockoutEnd = shouldLock ? DateTimeOffset.UtcNow.AddYears(50) : null;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { status = shouldLock ? "Locked" : "Unlocked" });
+    }
+
     public sealed record CreateUserRequest(string UserName, string? Email, string? Password);
+    public sealed record UpdateUserRequest(string UserName, string? Email, string? Password);
 }
 

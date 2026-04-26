@@ -16,6 +16,10 @@
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
         <div id="kdsCount" style="font-size:12px;color:#8B949E;"></div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#E6EDF3;cursor:pointer;">
+            <input type="checkbox" id="kdsAudioToggle" checked />
+            Audio alert
+        </label>
         <button onclick="kdsLoadKots()" style="padding:6px 14px;border-radius:8px;border:1px solid #30363D;background:#21262D;color:#E6EDF3;font-size:12px;cursor:pointer;"><i class="fas fa-rotate"></i> Refresh</button>
         <div id="kdsClock" class="kds-clock"></div>
     </div>
@@ -31,8 +35,34 @@
 
 @section Scripts {
 <script>
+function apiGet(url) {
+  return fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+    .then((r) => {
+      if (!r.ok) throw new Error(`Request failed: ${r.status}`);
+      return r.json();
+    });
+}
+
+function apiPost(url, payload) {
+  return fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Requested-With": "XMLHttpRequest",
+      "RequestVerificationToken": document.querySelector('input[name="__RequestVerificationToken"]')?.value || ""
+    },
+    body: JSON.stringify(payload)
+  }).then((r) => {
+    if (!r.ok) throw new Error(`Request failed: ${r.status}`);
+    return r.json();
+  });
+}
+
 let allKots = [];
 let activeFilter = 'all';
+let seenKotIds = new Set();
+let isFirstKdsLoad = true;
+const KDS_AUDIO_PREF_KEY = "kds.audio.enabled";
 
 window.kdsFilter = function(f) {
   activeFilter = f;
@@ -63,6 +93,7 @@ function renderKdsGrid(rows) {
         <div class="kot-card-head">
           <div>
             <div class="kot-no-label">${r.kotNo}</div>
+            ${r.kotEventType === "AddOn" ? `<div class="kot-event-badge">Additional KOT</div>` : ''}
             ${r.tableName ? `<div class="kot-table-label"><i class="fas fa-chair" style="font-size:10px;"></i> ${r.tableName}</div>` : ''}
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
@@ -83,7 +114,7 @@ function renderKdsGrid(rows) {
 
 window.kdsUpdate = async function(kotId, status) {
   try {
-    await postJSON('/kot/status', { outletId: 1, kotId, status });
+    await apiPost('/kot/status', { outletId: 1, kotId, status });
     if (typeof toastr !== 'undefined') toastr.success(`KOT ${status}`);
     await kdsLoadKots();
   } catch { if (typeof toastr !== 'undefined') toastr.error('Update failed'); }
@@ -91,7 +122,8 @@ window.kdsUpdate = async function(kotId, status) {
 
 window.kdsLoadKots = async function() {
   try {
-    const rows = await getJSON('/kot/kots-data?outletId=1');
+    const rows = await apiGet('/kot/kots-data?outletId=1');
+    maybePlayNewKotAlert(rows || []);
     allKots = (rows || []).map(r => ({
       ...r,
       elapsedMin: r.kotDate ? Math.floor((Date.now() - new Date(r.kotDate).getTime()) / 60000) : null
@@ -103,7 +135,55 @@ window.kdsLoadKots = async function() {
   }
 };
 
+function maybePlayNewKotAlert(rows) {
+  const incomingIds = rows
+    .map(r => Number(r.kotHeaderId))
+    .filter(id => Number.isFinite(id) && id > 0);
+  if (isFirstKdsLoad) {
+    incomingIds.forEach(id => seenKotIds.add(id));
+    isFirstKdsLoad = false;
+    return;
+  }
+  const hasNewKot = incomingIds.some(id => !seenKotIds.has(id));
+  incomingIds.forEach(id => seenKotIds.add(id));
+  if (hasNewKot && isKdsAudioEnabled()) {
+    playKdsBeep();
+  }
+}
+
+function isKdsAudioEnabled() {
+  const toggle = document.getElementById("kdsAudioToggle");
+  return toggle ? toggle.checked : true;
+}
+
+function playKdsBeep() {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, audioContext.currentTime);
+    gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.2, audioContext.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.18);
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.2);
+  } catch {
+    // Ignore audio playback errors (browser policy/user settings).
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  const audioToggle = document.getElementById("kdsAudioToggle");
+  if (audioToggle) {
+    const saved = localStorage.getItem(KDS_AUDIO_PREF_KEY);
+    audioToggle.checked = saved !== "0";
+    audioToggle.addEventListener("change", () => {
+      localStorage.setItem(KDS_AUDIO_PREF_KEY, audioToggle.checked ? "1" : "0");
+    });
+  }
   kdsLoadKots();
   setInterval(kdsLoadKots, 30000);
 });

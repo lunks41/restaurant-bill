@@ -26,8 +26,18 @@ public class InventoryController(AppDbContext db) : Controller
         [FromQuery] int outletId,
         [FromQuery] string? search,
         [FromQuery] int? unitId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25)
     {
+        page = page < 1 ? 1 : page;
+        pageSize = pageSize switch
+        {
+            < 1 => 25,
+            > 100 => 100,
+            _ => pageSize
+        };
+
         var stockCategoryId = await db.Categories
             .Where(x => x.OutletId == outletId && x.CategoryName == "Stock Items")
             .Select(x => x.CategoryId)
@@ -35,50 +45,34 @@ public class InventoryController(AppDbContext db) : Controller
 
         if (stockCategoryId <= 0)
         {
-            return Ok(Array.Empty<object>());
+            return Ok(new
+            {
+                Items = Array.Empty<StockItemListRow>(),
+                TotalCount = 0,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = 0
+            });
         }
 
-        var rows = await db.Items
-            .Where(x => x.OutletId == outletId && x.CategoryId == stockCategoryId)
-            .GroupJoin(
-                db.StockItems.Where(s => s.OutletId == outletId),
-                i => i.ItemId,
-                s => s.ItemId,
-                (i, s) => new { Item = i, Stock = s.FirstOrDefault() })
-            .GroupJoin(
-                db.Units.Where(u => u.OutletId == outletId),
-                x => x.Item.UnitId,
-                u => (int?)u.UnitId,
-                (x, u) => new { x.Item, x.Stock, Unit = u.FirstOrDefault() })
-            .OrderBy(x => x.Item.ItemName)
-            .Select(x => new
-            {
-                x.Item.ItemId,
-                x.Item.ItemCode,
-                x.Item.ItemName,
-                x.Item.PurchasePrice,
-                x.Item.ReorderLevel,
-                x.Item.IsActive,
-                UnitId = x.Item.UnitId,
-                UnitName = x.Unit == null ? "" : x.Unit.UnitName,
-                CurrentQty = x.Stock == null ? 0m : x.Stock.CurrentQty
-            })
+        var query = BuildStockItemsQuery(outletId, stockCategoryId, search, unitId);
+        var totalCount = await query.CountAsync(cancellationToken);
+        var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
+        if (totalPages > 0 && page > totalPages) page = totalPages;
+
+        var rows = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        var filtered = rows.AsEnumerable();
-        if (!string.IsNullOrWhiteSpace(search))
+        return Ok(new
         {
-            var term = search.Trim();
-            filtered = filtered.Where(x =>
-                (x.ItemName?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (x.ItemCode?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false));
-        }
-        if (unitId.HasValue && unitId.Value > 0)
-        {
-            filtered = filtered.Where(x => x.UnitId == unitId.Value);
-        }
-
-        return Ok(filtered);
+            Items = rows,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = totalPages
+        });
     }
 
     [HttpGet("stock-items-export")]
@@ -88,20 +82,21 @@ public class InventoryController(AppDbContext db) : Controller
         [FromQuery] int? unitId,
         CancellationToken cancellationToken)
     {
-        var dataResult = await StockItemsData(outletId, search, unitId, cancellationToken);
-        if (dataResult is not OkObjectResult ok || ok.Value is null)
+        var stockCategoryId = await db.Categories
+            .Where(x => x.OutletId == outletId && x.CategoryName == "Stock Items")
+            .Select(x => x.CategoryId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (stockCategoryId <= 0)
         {
             return BadRequest("Unable to export stock items.");
         }
 
-        var rows = ((IEnumerable<object>)ok.Value).ToList();
+        var rows = await BuildStockItemsQuery(outletId, stockCategoryId, search, unitId).ToListAsync(cancellationToken);
         var csv = new StringBuilder("Code,Name,Unit,PurchaseRate,CurrentQty,ReorderLevel,Status\n");
         foreach (var row in rows)
         {
-            var props = row.GetType().GetProperties();
-            string Get(string key) => props.FirstOrDefault(p => p.Name == key)?.GetValue(row)?.ToString() ?? string.Empty;
-            var status = Get("IsActive") == "True" ? "Active" : "Inactive";
-            csv.AppendLine($"{Escape(Get("ItemCode"))},{Escape(Get("ItemName"))},{Escape(Get("UnitName"))},{Get("PurchasePrice")},{Get("CurrentQty")},{Get("ReorderLevel")},{status}");
+            var status = row.IsActive ? "Active" : "Inactive";
+            csv.AppendLine($"{Escape(row.ItemCode ?? string.Empty)},{Escape(row.ItemName)},{Escape(row.UnitName ?? string.Empty)},{row.PurchasePrice},{row.CurrentQty},{row.ReorderLevel},{status}");
         }
         var fileName = $"stock-items-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
         return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", fileName);
@@ -142,13 +137,9 @@ public class InventoryController(AppDbContext db) : Controller
             ItemCode = itemCode,
             ItemName = name,
             SalePrice = purchaseRate,
-            PurchasePrice = purchaseRate,
             GstPercent = 0m,
             IsTaxInclusive = false,
             TaxType = TaxType.GST,
-            SacCode = "996331",
-            IsStockTracked = true,
-            ReorderLevel = reorderLevel,
             IsActive = true,
             IsDeleted = false
         };
@@ -177,9 +168,7 @@ public class InventoryController(AppDbContext db) : Controller
         item.ItemCode = request.Code?.Trim() ?? item.ItemCode;
         item.ItemName = request.Name?.Trim() ?? item.ItemName;
         item.UnitId = request.UnitId;
-        item.PurchasePrice = request.PurchasePrice ?? item.PurchasePrice;
-        item.SalePrice = item.PurchasePrice;
-        item.ReorderLevel = request.ReorderLevel ?? item.ReorderLevel;
+        item.SalePrice = request.PurchasePrice ?? item.SalePrice;
         item.UpdatedAtUtc = DateTime.UtcNow;
 
         var stock = await db.StockItems.FirstOrDefaultAsync(x => x.ItemId == id && x.OutletId == item.OutletId, cancellationToken);
@@ -189,8 +178,8 @@ public class InventoryController(AppDbContext db) : Controller
             {
                 OutletId = item.OutletId,
                 ItemId = item.ItemId,
-                CurrentQty = request.CurrentQty ?? item.ReorderLevel,
-                ReorderLevel = item.ReorderLevel,
+                CurrentQty = request.CurrentQty ?? (request.ReorderLevel ?? 0m),
+                ReorderLevel = request.ReorderLevel ?? 0m,
                 IsActive = true,
                 IsDeleted = false
             };
@@ -199,7 +188,7 @@ public class InventoryController(AppDbContext db) : Controller
         else
         {
             stock.CurrentQty = request.CurrentQty ?? stock.CurrentQty;
-            stock.ReorderLevel = item.ReorderLevel;
+            stock.ReorderLevel = request.ReorderLevel ?? stock.ReorderLevel;
             stock.UpdatedAtUtc = DateTime.UtcNow;
         }
 
@@ -274,6 +263,57 @@ public class InventoryController(AppDbContext db) : Controller
         decimal? PurchasePrice,
         decimal? ReorderLevel,
         decimal? CurrentQty);
+
+    private IQueryable<StockItemListRow> BuildStockItemsQuery(int outletId, int stockCategoryId, string? search, int? unitId)
+    {
+        var query =
+            from item in db.Items
+            where item.OutletId == outletId && item.CategoryId == stockCategoryId
+            join stock in db.StockItems.Where(s => s.OutletId == outletId) on item.ItemId equals stock.ItemId into stockJoin
+            from stock in stockJoin.DefaultIfEmpty()
+            join unit in db.Units.Where(u => u.OutletId == outletId) on item.UnitId equals (int?)unit.UnitId into unitJoin
+            from unit in unitJoin.DefaultIfEmpty()
+            select new StockItemListRow
+            {
+                ItemId = item.ItemId,
+                ItemCode = item.ItemCode,
+                ItemName = item.ItemName,
+                PurchasePrice = item.SalePrice,
+                ReorderLevel = stock == null ? 0m : stock.ReorderLevel,
+                IsActive = item.IsActive,
+                UnitId = item.UnitId,
+                UnitName = unit == null ? string.Empty : unit.UnitName,
+                CurrentQty = stock == null ? 0m : stock.CurrentQty
+            };
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = $"%{search.Trim()}%";
+            query = query.Where(x =>
+                EF.Functions.Like(x.ItemName, term) ||
+                EF.Functions.Like(x.ItemCode ?? string.Empty, term));
+        }
+
+        if (unitId.HasValue && unitId.Value > 0)
+        {
+            query = query.Where(x => x.UnitId == unitId.Value);
+        }
+
+        return query.OrderBy(x => x.ItemName);
+    }
+
+    private sealed class StockItemListRow
+    {
+        public int ItemId { get; set; }
+        public string? ItemCode { get; set; }
+        public string ItemName { get; set; } = string.Empty;
+        public decimal PurchasePrice { get; set; }
+        public decimal ReorderLevel { get; set; }
+        public bool IsActive { get; set; }
+        public int? UnitId { get; set; }
+        public string? UnitName { get; set; }
+        public decimal CurrentQty { get; set; }
+    }
 
     private static string Escape(string value)
     {

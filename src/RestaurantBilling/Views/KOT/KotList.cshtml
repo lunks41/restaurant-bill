@@ -1,119 +1,181 @@
 @{
+    Layout = "_LayoutKds";
     ViewData["Title"] = "KOT List";
 }
 
-<nav class="nav app-module-tabs gap-1">
-    <a class="nav-link active" asp-controller="KOT" asp-action="KotList"><i class="fas fa-ticket"></i> KOT List</a>
-    <a class="nav-link" asp-controller="KOT" asp-action="KdsScreen" target="_blank"><i class="fas fa-display"></i> KDS Screen <i class="fas fa-arrow-up-right-from-square" style="font-size:10px;"></i></a>
-</nav>
-
-<div class="card">
-    <div class="card-header-custom">
-        <div class="card-title-custom"><i class="fas fa-ticket"></i> Active KOTs</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-            <div id="kotStatusFilter" style="display:flex;gap:6px;">
-                <button class="btn-ghost kot-filter-btn active" data-filter="all" style="font-size:12px;padding:5px 12px;">All</button>
-                <button class="btn-ghost kot-filter-btn" data-filter="Pending" style="font-size:12px;padding:5px 12px;color:var(--warning);">Pending</button>
-                <button class="btn-ghost kot-filter-btn" data-filter="Preparing" style="font-size:12px;padding:5px 12px;color:var(--info);">Preparing</button>
-                <button class="btn-ghost kot-filter-btn" data-filter="Ready" style="font-size:12px;padding:5px 12px;color:var(--success);">Ready</button>
-            </div>
-            <button class="btn-accent" id="refreshKot" style="padding:6px 14px;font-size:12px;">
-                <i class="fas fa-rotate"></i> Refresh
-            </button>
+<div class="kds-topbar">
+    <div style="display:flex;align-items:center;gap:16px;">
+        <div class="kds-title"><i class="fas fa-ticket" style="color:#a1a1aa;margin-right:8px;"></i>KOT List</div>
+        <div style="display:flex;gap:8px;">
+            <button onclick="setKotStatusFilter('all')" id="kotFilterAll" class="kds-filter-active" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#E6EDF3;font-size:12px;font-weight:600;cursor:pointer;">All</button>
+            <button onclick="setKotStatusFilter('Pending')" id="kotFilterPending" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#F59E0B;font-size:12px;font-weight:600;cursor:pointer;">Pending</button>
+            <button onclick="setKotStatusFilter('Preparing')" id="kotFilterPreparing" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#3B82F6;font-size:12px;font-weight:600;cursor:pointer;">Preparing</button>
+            <button onclick="setKotStatusFilter('Ready')" id="kotFilterReady" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#10B981;font-size:12px;font-weight:600;cursor:pointer;">Ready</button>
         </div>
     </div>
-    <div class="table-scroll">
-        <table class="table-custom">
-            <thead>
-                <tr>
-                    <th>KOT No</th>
-                    <th>Bill No</th>
-                    <th>Station</th>
-                    <th>Items</th>
-                    <th>Status</th>
-                    <th>Time</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="kotRows">
-                <tr><td colspan="7" class="text-center text-muted" style="padding:32px;">No KOT records yet.</td></tr>
-            </tbody>
-        </table>
+    <div style="display:flex;align-items:center;gap:12px;">
+        <select id="kotStationFilter" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #30363D;background:#21262D;color:#E6EDF3;font-size:12px;">
+            <option value="all">All stations</option>
+        </select>
+        <div id="kotCount" style="font-size:12px;color:#8B949E;"></div>
+        <button onclick="loadKots()" style="padding:6px 14px;border-radius:8px;border:1px solid #30363D;background:#21262D;color:#E6EDF3;font-size:12px;cursor:pointer;"><i class="fas fa-rotate"></i> Refresh</button>
+        <a href="/kot/screen" target="_blank" style="padding:6px 12px;border-radius:8px;border:1px solid #30363D;background:#21262D;color:#E6EDF3;font-size:12px;text-decoration:none;"><i class="fas fa-display"></i> KDS Screen</a>
+    </div>
+</div>
+
+<div class="kds-grid" id="kotGrid">
+    <div class="kot-card">
+        <div class="kot-card-head">
+            <div class="kot-no-label" style="display:flex;align-items:center;gap:8px;"><i class="fas fa-spinner fa-spin"></i> Loading KOTs...</div>
+        </div>
     </div>
 </div>
 
 @section Scripts {
 <script>
-let allKots = [];
-let activeFilter = 'all';
+function apiGet(url) {
+  return fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+    .then((r) => {
+      if (!r.ok) throw new Error(`Request failed: ${r.status}`);
+      return r.json();
+    });
+}
 
-const statusConfig = {
-  Pending:   { cls: 'status-pending',   icon: 'fa-clock',           label: 'Pending'   },
-  Preparing: { cls: 'status-preparing', icon: 'fa-fire',            label: 'Preparing' },
-  Ready:     { cls: 'status-ready',     icon: 'fa-bell',            label: 'Ready'     },
-  Served:    { cls: 'status-served',    icon: 'fa-check',           label: 'Served'    },
-  Cancelled: { cls: 'status-cancelled', icon: 'fa-ban',             label: 'Cancelled' }
+function apiPost(url, payload) {
+  return fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Requested-With": "XMLHttpRequest",
+      "RequestVerificationToken": document.querySelector('input[name="__RequestVerificationToken"]')?.value || ""
+    },
+    body: JSON.stringify(payload)
+  }).then((r) => {
+    if (!r.ok) throw new Error(`Request failed: ${r.status}`);
+    return r.json();
+  });
+}
+
+let allKots = [];
+let activeFilter = "all";
+let activeStation = "all";
+
+window.setKotStatusFilter = function(status) {
+  activeFilter = status;
+  document.querySelectorAll('[id^="kotFilter"]').forEach(b => b.classList.remove("kds-filter-active"));
+  const map = {
+    all: "kotFilterAll",
+    Pending: "kotFilterPending",
+    Preparing: "kotFilterPreparing",
+    Ready: "kotFilterReady"
+  };
+  document.getElementById(map[status])?.classList.add("kds-filter-active");
+  renderKotGrid();
 };
 
 async function loadKots() {
   try {
-    allKots = await getJSON('/kot/kots-data?outletId=1') || [];
-    renderKots();
-  } catch { if (typeof toastr !== 'undefined') toastr.error('Failed to load KOTs'); }
+    allKots = await apiGet("/kot/kots-data?outletId=1") || [];
+    syncStationFilter();
+    renderKotGrid();
+  } catch {
+    const grid = document.getElementById("kotGrid");
+    if (grid) grid.innerHTML = `<div class="kot-card"><div class="kot-card-head"><div class="kot-no-label" style="color:#EF4444;"><i class="fas fa-exclamation-triangle"></i> Failed to load</div></div></div>`;
+  }
 }
 
-function renderKots() {
-  const body = document.getElementById('kotRows');
-  const filtered = activeFilter === 'all' ? allKots : allKots.filter(x => x.status === activeFilter);
+function syncStationFilter() {
+  const select = document.getElementById("kotStationFilter");
+  if (!select) return;
+  const prev = activeStation;
+  const stationIds = Array.from(new Set(allKots
+    .map(x => Number(x.kitchenStationId))
+    .filter(x => Number.isFinite(x) && x > 0)))
+    .sort((a, b) => a - b);
+  select.innerHTML = `<option value="all">All stations</option>${stationIds.map(id => `<option value="${id}">Station ${id}</option>`).join("")}`;
+  if (prev === "all" || stationIds.includes(Number(prev))) {
+    select.value = prev;
+  } else {
+    activeStation = "all";
+    select.value = "all";
+  }
+}
+
+function renderKotGrid() {
+  const grid = document.getElementById("kotGrid");
+  if (!grid) return;
+
+  const filtered = allKots.filter(x => {
+    const statusOk = activeFilter === "all" || x.status === activeFilter;
+    const stationOk = activeStation === "all" || String(x.kitchenStationId) === activeStation;
+    return statusOk && stationOk;
+  });
+
+  const count = document.getElementById("kotCount");
+  if (count) count.textContent = `${filtered.length} order${filtered.length !== 1 ? "s" : ""}`;
+
   if (!filtered.length) {
-    body.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">No records.</td></tr>';
+    grid.innerHTML = `<div class="kot-card" style="grid-column:1/-1;"><div class="kot-card-head" style="justify-content:center;padding:32px;"><div style="text-align:center;color:#8B949E;"><i class="fas fa-check-circle" style="font-size:40px;color:#10B981;display:block;margin-bottom:12px;"></i><div style="font-size:16px;font-weight:700;color:#E6EDF3;">All Clear!</div><div style="font-size:13px;margin-top:4px;">No matching KOTs</div></div></div></div>`;
     return;
   }
-  body.innerHTML = filtered.map(x => {
-    const cfg = statusConfig[x.status] || { cls: 'badge-muted', icon: 'fa-circle', label: x.status };
-    const itemCount = (x.itemCount != null) ? x.itemCount : (Array.isArray(x.items) ? x.items.length : 0);
-    const t0 = x.kotDateIso ? new Date(x.kotDateIso) : null;
-    const elapsed = (t0 && !isNaN(t0.getTime())) ? Math.floor((Date.now() - t0.getTime()) / 60000) : null;
-    const timeStr = elapsed != null && elapsed >= 0 ? `${elapsed}m ago` : (x.kotDate || '—');
-    const nextStatus = x.status === 'Pending' ? 'Preparing' : x.status === 'Preparing' ? 'Ready' : x.status === 'Ready' ? 'Served' : null;
-    const actionBtn = nextStatus
-      ? `<button class="btn-accent" style="padding:5px 12px;font-size:12px;" onclick="kotAdvance(${x.kotHeaderId},'${nextStatus}')">
-           <i class="fas ${x.status==='Pending'?'fa-fire':x.status==='Preparing'?'fa-bell':'fa-check'}"></i>
-           ${nextStatus}
-         </button>` : (x.billId ? `<a class="btn-ghost" style="font-size:12px;padding:5px 10px;" href="/bills/${x.billId}" title="Settle in POS from bill">Bill / Pay</a>` : '—');
-    const billCell = x.billId
-      ? `<a href="/bills/${x.billId}" class="text-decoration-none" style="color:var(--accent);font-weight:600;">${x.billNo ? x.billNo : 'View bill'}</a>`
-      : '—';
-    return `<tr>
-      <td><strong>${x.kotNo}</strong></td>
-      <td>${billCell}</td>
-      <td>${x.kitchenStationId || '—'}</td>
-      <td><span style="font-size:12px;color:var(--text-muted);">${itemCount} item${itemCount !== 1 ? 's' : ''}</span></td>
-      <td><span class="badge-custom ${cfg.cls}"><i class="fas ${cfg.icon}"></i> ${cfg.label}</span></td>
-      <td style="font-size:12px;color:var(--text-muted);">${timeStr}</td>
-      <td>${actionBtn}</td>
-    </tr>`;
-  }).join('');
+
+  grid.innerHTML = filtered.map(kot => {
+    const elapsed = kot.kotDateIso ? Math.floor((Date.now() - new Date(kot.kotDateIso).getTime()) / 60000) : null;
+    const timerClass = elapsed > 20 ? "urgent" : elapsed > 10 ? "warn" : "ok";
+    const stationLabel = kot.kitchenStationId ? `Station ${kot.kitchenStationId}` : "Station -";
+    const itemsHtml = (kot.items || []).map(i => `
+      <div class="kot-line">
+        <div class="kot-qty-badge">${i.qty}</div>
+        <div class="kot-item-nm">${i.itemName}</div>
+      </div>`).join("") || `<div style="padding:8px 0;color:#8B949E;font-size:12px;">No item details</div>`;
+    const nextStatus = kot.status === "Pending" ? "Preparing" : kot.status === "Preparing" ? "Ready" : kot.status === "Ready" ? "Served" : null;
+
+    return `
+      <div class="kot-card ${elapsed > 20 ? "alert-urgent" : ""}">
+        <div class="kot-card-head">
+          <div>
+            <div class="kot-no-label">${kot.kotNo}</div>
+            ${kot.kotEventType === "AddOn" ? `<div class="kot-event-badge">Additional KOT</div>` : ''}
+            <div class="kot-table-label"><i class="fas fa-kitchen-set"></i> ${stationLabel}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            <div class="kot-timer ${timerClass}">${elapsed != null && elapsed >= 0 ? `${elapsed}m` : "—"}</div>
+            <div style="font-size:10px;font-weight:700;color:#8B949E;">${kot.status}</div>
+          </div>
+        </div>
+        <div class="kot-items-list">${itemsHtml}</div>
+        <div class="kot-actions">
+          ${nextStatus ? `<button class="btn-kds ${nextStatus === "Preparing" ? "start" : nextStatus === "Ready" ? "ready" : "served"}" onclick="kotAdvance(${kot.kotHeaderId},'${nextStatus}')">${nextStatus}</button>` : ""}
+          ${(kot.status === "Pending" || kot.status === "Preparing") ? `<button class="btn-kds" style="background:#1F2937;color:#9CA3AF;" onclick="kotAdvance(${kot.kotHeaderId},'Cancelled')">Cancel</button>` : ""}
+        </div>
+      </div>`;
+  }).join("");
 }
 
 window.kotAdvance = async function(id, status) {
   try {
-    await postJSON('/kot/status', { outletId: 1, kotId: id, status });
-    if (typeof toastr !== 'undefined') toastr.success(`KOT marked as ${status}`);
+    await apiPost("/kot/status", { outletId: 1, kotId: id, status });
+    if (typeof toastr !== "undefined") toastr.success(`KOT marked ${status}`);
     await loadKots();
-  } catch { if (typeof toastr !== 'undefined') toastr.error('Update failed'); }
+  } catch {
+    if (typeof toastr !== "undefined") toastr.error("Update failed");
+  }
 };
 
-document.querySelectorAll('.kot-filter-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.kot-filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    activeFilter = btn.dataset.filter;
-    renderKots();
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("kotStationFilter")?.addEventListener("change", (e) => {
+    activeStation = e.target.value;
+    renderKotGrid();
   });
+  loadKots();
+  setInterval(loadKots, 30000);
 });
-
-document.getElementById('refreshKot')?.addEventListener('click', loadKots);
-document.addEventListener('DOMContentLoaded', loadKots);
 </script>
+<style>
+.kds-filter-active {
+  background: #fafafa !important;
+  border-color: #fafafa !important;
+  color: #18181b !important;
+}
+</style>
 }

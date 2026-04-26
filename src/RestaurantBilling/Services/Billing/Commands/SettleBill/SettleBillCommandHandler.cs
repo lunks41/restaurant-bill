@@ -46,6 +46,8 @@ public class SettleBillCommandHandler(
             request.IsInterState);
 
         var bill = new Bill(request.OutletId, billNo, request.BusinessDate, request.BillType);
+        bill.SetTableName(request.TableName);
+        bill.SetCustomerInfo(request.CustomerName, request.Phone);
         foreach (var line in computed.Lines)
         {
             bill.AddItem(new BillItem(

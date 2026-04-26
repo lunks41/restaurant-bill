@@ -202,13 +202,9 @@ public static class DbSeeder
                     ItemCode = "STR001",
                     ItemName = "Paneer Tikka",
                     SalePrice = 260m,
-                    PurchasePrice = 150m,
                     GstPercent = 5m,
                     IsTaxInclusive = false,
-                    TaxType = TaxType.GST,
-                    SacCode = "996331",
-                    IsStockTracked = true,
-                    ReorderLevel = 8m
+                    TaxType = TaxType.GST
                 },
                 new Item
                 {
@@ -217,13 +213,9 @@ public static class DbSeeder
                     ItemCode = "MNC001",
                     ItemName = "Veg Biryani",
                     SalePrice = 220m,
-                    PurchasePrice = 120m,
                     GstPercent = 5m,
                     IsTaxInclusive = false,
-                    TaxType = TaxType.GST,
-                    SacCode = "996331",
-                    IsStockTracked = true,
-                    ReorderLevel = 10m
+                    TaxType = TaxType.GST
                 },
                 new Item
                 {
@@ -232,13 +224,9 @@ public static class DbSeeder
                     ItemCode = "BRD001",
                     ItemName = "Butter Naan",
                     SalePrice = 45m,
-                    PurchasePrice = 18m,
                     GstPercent = 5m,
                     IsTaxInclusive = false,
-                    TaxType = TaxType.GST,
-                    SacCode = "996331",
-                    IsStockTracked = true,
-                    ReorderLevel = 30m
+                    TaxType = TaxType.GST
                 },
                 new Item
                 {
@@ -247,13 +235,9 @@ public static class DbSeeder
                     ItemCode = "DST001",
                     ItemName = "Gulab Jamun",
                     SalePrice = 90m,
-                    PurchasePrice = 35m,
                     GstPercent = 5m,
                     IsTaxInclusive = false,
-                    TaxType = TaxType.GST,
-                    SacCode = "996331",
-                    IsStockTracked = true,
-                    ReorderLevel = 15m
+                    TaxType = TaxType.GST
                 },
                 new Item
                 {
@@ -262,35 +246,31 @@ public static class DbSeeder
                     ItemCode = "BEV001",
                     ItemName = "Masala Chai",
                     SalePrice = 35m,
-                    PurchasePrice = 12m,
                     GstPercent = 5m,
                     IsTaxInclusive = false,
-                    TaxType = TaxType.GST,
-                    SacCode = "996331",
-                    IsStockTracked = true,
-                    ReorderLevel = 25m
+                    TaxType = TaxType.GST
                 });
             await db.SaveChangesAsync();
         }
 
         if (!db.StockItems.Any())
         {
-            var trackedItems = db.Items.Where(x => x.OutletId == outletId && x.IsStockTracked).ToList();
+            var trackedItems = db.Items.Where(x => x.OutletId == outletId).ToList();
             db.StockItems.AddRange(trackedItems.Select(i => new StockItem
             {
                 OutletId = outletId,
                 ItemId = i.ItemId,
-                CurrentQty = i.ReorderLevel + 20m,
-                ReorderLevel = i.ReorderLevel
+                CurrentQty = 30m,
+                ReorderLevel = 10m
             }));
         }
 
         if (!db.StockLedger.Any())
         {
-            var trackedItems = db.Items.Where(x => x.OutletId == outletId && x.IsStockTracked).ToList();
+            var trackedItems = db.Items.Where(x => x.OutletId == outletId).ToList();
             foreach (var item in trackedItems)
             {
-                var openingQty = item.ReorderLevel + 20m;
+                var openingQty = 30m;
                 db.StockLedger.Add(StockLedgerEntry.Add(
                     outletId,
                     item.ItemId,
@@ -298,7 +278,7 @@ public static class DbSeeder
                     StockReferenceType.Adjustment,
                     0,
                     openingQty,
-                    item.PurchasePrice,
+                    item.SalePrice,
                     0m,
                     "Opening stock seeded"));
                 db.StockLedger.Add(StockLedgerEntry.Deduct(
@@ -308,7 +288,7 @@ public static class DbSeeder
                     StockReferenceType.Sale,
                     0,
                     2m,
-                    item.PurchasePrice,
+                    item.SalePrice,
                     openingQty,
                     "Sample consumption seeded"));
             }
@@ -316,16 +296,16 @@ public static class DbSeeder
 
         if (!db.StockLots.Any())
         {
-            var trackedItems = db.Items.Where(x => x.OutletId == outletId && x.IsStockTracked).ToList();
+            var trackedItems = db.Items.Where(x => x.OutletId == outletId).ToList();
             db.StockLots.AddRange(trackedItems.Select(i => new StockLot
             {
                 OutletId = outletId,
                 ItemId = i.ItemId,
                 ReceivedOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-1)),
                 ExpiryOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(30)),
-                QtyReceived = i.ReorderLevel + 20m,
-                QtyRemaining = i.ReorderLevel + 18m,
-                CostPerUnit = i.PurchasePrice
+                QtyReceived = 30m,
+                QtyRemaining = 28m,
+                CostPerUnit = i.SalePrice
             }));
         }
 
@@ -384,13 +364,9 @@ public static class DbSeeder
                 ItemCode = seed.Code,
                 ItemName = seed.Name,
                 SalePrice = seed.Sale,
-                PurchasePrice = seed.Purchase,
                 GstPercent = 5m,
                 IsTaxInclusive = false,
-                TaxType = TaxType.GST,
-                SacCode = "996331",
-                IsStockTracked = true,
-                ReorderLevel = seed.Reorder
+                TaxType = TaxType.GST
             });
         }
 
@@ -435,10 +411,7 @@ public static class DbSeeder
                     existing.CategoryId = stockCategoryId;
                     existing.ItemName = stockSeed.Name;
                     existing.UnitId = unitId > 0 ? unitId : existing.UnitId;
-                    existing.PurchasePrice = stockSeed.Purchase;
                     existing.SalePrice = stockSeed.Purchase;
-                    existing.ReorderLevel = stockSeed.Reorder;
-                    existing.IsStockTracked = true;
                     existing.IsActive = true;
                     existing.IsDeleted = false;
                     continue;
@@ -452,13 +425,9 @@ public static class DbSeeder
                     ItemCode = stockSeed.Code,
                     ItemName = stockSeed.Name,
                     SalePrice = stockSeed.Purchase,
-                    PurchasePrice = stockSeed.Purchase,
                     GstPercent = 0m,
                     IsTaxInclusive = false,
                     TaxType = TaxType.GST,
-                    SacCode = "996331",
-                    IsStockTracked = true,
-                    ReorderLevel = stockSeed.Reorder,
                     IsActive = true,
                     IsDeleted = false
                 });
@@ -466,7 +435,7 @@ public static class DbSeeder
         }
         await db.SaveChangesAsync();
 
-        var trackedDefaultItems = db.Items.Where(x => x.OutletId == outletId && x.IsStockTracked).ToList();
+        var trackedDefaultItems = db.Items.Where(x => x.OutletId == outletId).ToList();
         var existingStockItemIds = db.StockItems.Where(x => x.OutletId == outletId).Select(x => x.ItemId).ToHashSet();
         var missingStockItems = trackedDefaultItems.Where(x => !existingStockItemIds.Contains(x.ItemId)).ToList();
         if (missingStockItems.Count > 0)
@@ -475,8 +444,8 @@ public static class DbSeeder
             {
                 OutletId = outletId,
                 ItemId = i.ItemId,
-                CurrentQty = i.ReorderLevel + 20m,
-                ReorderLevel = i.ReorderLevel
+                CurrentQty = 30m,
+                ReorderLevel = 10m
             }));
             db.StockLots.AddRange(missingStockItems.Select(i => new StockLot
             {
@@ -484,9 +453,9 @@ public static class DbSeeder
                 ItemId = i.ItemId,
                 ReceivedOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-1)),
                 ExpiryOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(30)),
-                QtyReceived = i.ReorderLevel + 20m,
-                QtyRemaining = i.ReorderLevel + 20m,
-                CostPerUnit = i.PurchasePrice
+                QtyReceived = 30m,
+                QtyRemaining = 30m,
+                CostPerUnit = i.SalePrice
             }));
             await db.SaveChangesAsync();
         }
@@ -639,9 +608,9 @@ public static class DbSeeder
         {
             var categories2 = db.Categories.Where(x => x.OutletId == secondOutletId).ToDictionary(x => x.CategoryName, x => x.CategoryId);
             db.Items.AddRange(
-                new Item { OutletId = secondOutletId, CategoryId = categories2["Quick Bites"], ItemCode = "QBK001", ItemName = "Veg Sandwich", SalePrice = 120m, PurchasePrice = 55m, GstPercent = 5m, TaxType = TaxType.GST, IsStockTracked = true, ReorderLevel = 12m },
-                new Item { OutletId = secondOutletId, CategoryId = categories2["Combos"], ItemCode = "COM001", ItemName = "Burger Combo", SalePrice = 199m, PurchasePrice = 95m, GstPercent = 5m, TaxType = TaxType.GST, IsStockTracked = true, ReorderLevel = 8m },
-                new Item { OutletId = secondOutletId, CategoryId = categories2["Mocktails"], ItemCode = "MOC001", ItemName = "Virgin Mojito", SalePrice = 140m, PurchasePrice = 45m, GstPercent = 5m, TaxType = TaxType.GST, IsStockTracked = true, ReorderLevel = 20m });
+                new Item { OutletId = secondOutletId, CategoryId = categories2["Quick Bites"], ItemCode = "QBK001", ItemName = "Veg Sandwich", SalePrice = 120m, GstPercent = 5m, TaxType = TaxType.GST },
+                new Item { OutletId = secondOutletId, CategoryId = categories2["Combos"], ItemCode = "COM001", ItemName = "Burger Combo", SalePrice = 199m, GstPercent = 5m, TaxType = TaxType.GST },
+                new Item { OutletId = secondOutletId, CategoryId = categories2["Mocktails"], ItemCode = "MOC001", ItemName = "Virgin Mojito", SalePrice = 140m, GstPercent = 5m, TaxType = TaxType.GST });
             await db.SaveChangesAsync();
         }
 
@@ -670,16 +639,13 @@ public static class DbSeeder
                 ItemCode = seed.Code,
                 ItemName = seed.Name,
                 SalePrice = seed.Sale,
-                PurchasePrice = seed.Purchase,
                 GstPercent = 5m,
-                TaxType = TaxType.GST,
-                IsStockTracked = true,
-                ReorderLevel = seed.Reorder
+                TaxType = TaxType.GST
             });
         }
         await db.SaveChangesAsync();
 
-        var trackedDowntownItems = db.Items.Where(x => x.OutletId == secondOutletId && x.IsStockTracked).ToList();
+        var trackedDowntownItems = db.Items.Where(x => x.OutletId == secondOutletId).ToList();
         var existingDowntownStockItemIds = db.StockItems.Where(x => x.OutletId == secondOutletId).Select(x => x.ItemId).ToHashSet();
         var missingDowntownStockItems = trackedDowntownItems.Where(x => !existingDowntownStockItemIds.Contains(x.ItemId)).ToList();
         if (missingDowntownStockItems.Count > 0)
@@ -688,8 +654,8 @@ public static class DbSeeder
             {
                 OutletId = secondOutletId,
                 ItemId = i.ItemId,
-                CurrentQty = i.ReorderLevel + 15m,
-                ReorderLevel = i.ReorderLevel
+                CurrentQty = 25m,
+                ReorderLevel = 10m
             }));
             db.StockLots.AddRange(missingDowntownStockItems.Select(i => new StockLot
             {
@@ -697,45 +663,45 @@ public static class DbSeeder
                 ItemId = i.ItemId,
                 ReceivedOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-1)),
                 ExpiryOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(20)),
-                QtyReceived = i.ReorderLevel + 15m,
-                QtyRemaining = i.ReorderLevel + 15m,
-                CostPerUnit = i.PurchasePrice
+                QtyReceived = 25m,
+                QtyRemaining = 25m,
+                CostPerUnit = i.SalePrice
             }));
             await db.SaveChangesAsync();
         }
         if (!db.StockItems.Any(x => x.OutletId == secondOutletId))
         {
-            var tracked2 = db.Items.Where(x => x.OutletId == secondOutletId && x.IsStockTracked).ToList();
+            var tracked2 = db.Items.Where(x => x.OutletId == secondOutletId).ToList();
             db.StockItems.AddRange(tracked2.Select(i => new StockItem
             {
                 OutletId = secondOutletId,
                 ItemId = i.ItemId,
-                CurrentQty = i.ReorderLevel + 15m,
-                ReorderLevel = i.ReorderLevel
+                CurrentQty = 25m,
+                ReorderLevel = 10m
             }));
         }
         if (!db.StockLedger.Any(x => x.OutletId == secondOutletId))
         {
-            var tracked2 = db.Items.Where(x => x.OutletId == secondOutletId && x.IsStockTracked).ToList();
+            var tracked2 = db.Items.Where(x => x.OutletId == secondOutletId).ToList();
             foreach (var item in tracked2)
             {
-                var openingQty = item.ReorderLevel + 15m;
-                db.StockLedger.Add(StockLedgerEntry.Add(secondOutletId, item.ItemId, DateOnly.FromDateTime(DateTime.UtcNow.Date), StockReferenceType.Adjustment, 0, openingQty, item.PurchasePrice, 0m, "Opening stock seeded (downtown)"));
-                db.StockLedger.Add(StockLedgerEntry.Deduct(secondOutletId, item.ItemId, DateOnly.FromDateTime(DateTime.UtcNow.Date), StockReferenceType.Sale, 0, 1m, item.PurchasePrice, openingQty, "Sample consumption seeded (downtown)"));
+                var openingQty = 25m;
+                db.StockLedger.Add(StockLedgerEntry.Add(secondOutletId, item.ItemId, DateOnly.FromDateTime(DateTime.UtcNow.Date), StockReferenceType.Adjustment, 0, openingQty, item.SalePrice, 0m, "Opening stock seeded (downtown)"));
+                db.StockLedger.Add(StockLedgerEntry.Deduct(secondOutletId, item.ItemId, DateOnly.FromDateTime(DateTime.UtcNow.Date), StockReferenceType.Sale, 0, 1m, item.SalePrice, openingQty, "Sample consumption seeded (downtown)"));
             }
         }
         if (!db.StockLots.Any(x => x.OutletId == secondOutletId))
         {
-            var tracked2 = db.Items.Where(x => x.OutletId == secondOutletId && x.IsStockTracked).ToList();
+            var tracked2 = db.Items.Where(x => x.OutletId == secondOutletId).ToList();
             db.StockLots.AddRange(tracked2.Select(i => new StockLot
             {
                 OutletId = secondOutletId,
                 ItemId = i.ItemId,
                 ReceivedOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-1)),
                 ExpiryOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(20)),
-                QtyReceived = i.ReorderLevel + 15m,
-                QtyRemaining = i.ReorderLevel + 14m,
-                CostPerUnit = i.PurchasePrice
+                QtyReceived = 25m,
+                QtyRemaining = 24m,
+                CostPerUnit = i.SalePrice
             }));
         }
         var menuImageSettings2 = new Dictionary<string, string>
@@ -907,8 +873,8 @@ public static class DbSeeder
                         GrandTotal = 0m
                     };
                     purchase.Items.AddRange([
-                        new PurchaseItem { ItemId = seedItems[0].ItemId, Qty = 5, Rate = seedItems[0].PurchasePrice, TaxPercent = 0, LineTotal = 5 * seedItems[0].PurchasePrice },
-                        new PurchaseItem { ItemId = seedItems[1].ItemId, Qty = 8, Rate = seedItems[1].PurchasePrice, TaxPercent = 0, LineTotal = 8 * seedItems[1].PurchasePrice }
+                        new PurchaseItem { ItemId = seedItems[0].ItemId, Qty = 5, Rate = seedItems[0].SalePrice, TaxPercent = 0, LineTotal = 5 * seedItems[0].SalePrice },
+                        new PurchaseItem { ItemId = seedItems[1].ItemId, Qty = 8, Rate = seedItems[1].SalePrice, TaxPercent = 0, LineTotal = 8 * seedItems[1].SalePrice }
                     ]);
                     purchase.SubTotal = purchase.Items.Sum(x => x.LineTotal);
                     purchase.GrandTotal = purchase.SubTotal;
@@ -924,7 +890,7 @@ public static class DbSeeder
                     ItemId = seedItems[0].ItemId,
                     BusinessDate = bizDate,
                     Qty = 1m,
-                    Rate = seedItems[0].PurchasePrice,
+                    Rate = seedItems[0].SalePrice,
                     AdjustmentType = "Add",
                     Reason = "Initial calibration seed"
                 });
@@ -938,7 +904,7 @@ public static class DbSeeder
                     ItemId = seedItems[1].ItemId,
                     BusinessDate = bizDate,
                     Qty = 0.5m,
-                    Rate = seedItems[1].PurchasePrice,
+                    Rate = seedItems[1].SalePrice,
                     Reason = "Sample wastage seed"
                 });
             }

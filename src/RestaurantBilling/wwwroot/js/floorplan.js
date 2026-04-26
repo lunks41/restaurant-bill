@@ -17,17 +17,23 @@
   };
 
   const statusFromTable = (table, bill) => {
+    if (bill?.kotStatus === "Ready") return "kot-ready";
+    if (bill?.kotStatus === "Served") return "served";
     if (bill?.items?.length) return "running";
     if (table?.isOccupied) return "running";
     return "available";
   };
 
   const statusText = (status) => {
+    if (status === "kot-ready") return "KOT ready";
+    if (status === "served") return "Served";
     if (status === "running") return "Running";
     return "Available";
   };
 
   const statusClass = (status) => {
+    if (status === "kot-ready") return "kot-ready";
+    if (status === "served") return "served";
     if (status === "running") return "running";
     return "available";
   };

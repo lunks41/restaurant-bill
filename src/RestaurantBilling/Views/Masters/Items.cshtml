@@ -60,18 +60,14 @@
                                 data-name="@row.i.ItemName"
                                 data-category-id="@row.i.CategoryId"
                                 data-sale="@row.i.SalePrice"
-                                data-purchase="@row.i.PurchasePrice"
                                 data-gst="@row.i.GstPercent"
-                                data-sac="@row.i.SacCode"
                                 data-tax-inclusive="@row.i.IsTaxInclusive.ToString().ToLowerInvariant()"
-                                data-stock-tracked="@row.i.IsStockTracked.ToString().ToLowerInvariant()"
-                                data-reorder="@row.i.ReorderLevel"
                                 data-image-path="@row.i.ImagePath">
                             Edit
                         </button>
-                        <form method="post" action="/masters/items/@row.i.ItemId/delete">
+                        <form method="post" action="/masters/items/@row.i.ItemId/delete" class="item-delete-form">
                             @Html.AntiForgeryToken()
-                            <button class="btn btn-sm btn-outline-danger" type="submit">Inactivate</button>
+                            <button class="btn btn-sm btn-outline-danger btn-inactivate-item" type="button">Inactivate</button>
                         </form>
                     </td>
                 </tr>
@@ -117,35 +113,17 @@
                             <input asp-for="SalePrice" class="form-control" id="modalSalePrice" />
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label">Purchase</label>
-                            <input asp-for="PurchasePrice" class="form-control" id="modalPurchasePrice" />
-                        </div>
-                        <div class="col-md-2">
                             <label class="form-label">GST%</label>
                             <input asp-for="GstPercent" class="form-control" id="modalGstPercent" />
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label">SAC</label>
-                            <input asp-for="SacCode" class="form-control" id="modalSacCode" />
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Item image</label>
                             <input asp-for="ImageFile" type="file" class="form-control" id="modalImageFile" accept=".jpg,.jpeg,.png,.webp,.gif" />
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Reorder</label>
-                            <input asp-for="ReorderLevel" class="form-control" id="modalReorderLevel" />
-                        </div>
                         <div class="col-md-3 d-flex align-items-end">
                             <div class="form-check">
                                 <input asp-for="IsTaxInclusive" class="form-check-input" id="modalTaxInclusive" />
                                 <label class="form-check-label" for="modalTaxInclusive">Tax inclusive</label>
-                            </div>
-                        </div>
-                        <div class="col-md-3 d-flex align-items-end">
-                            <div class="form-check">
-                                <input asp-for="IsStockTracked" class="form-check-input" id="modalStockTracked" />
-                                <label class="form-check-label" for="modalStockTracked">Stock tracked</label>
                             </div>
                         </div>
                         <div class="col-12">
@@ -162,12 +140,34 @@
     </div>
 </div>
 
+<div class="modal fade" id="itemConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Inactivate</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Inactivate this item?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmItemInactivate">Inactivate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script>
 (() => {
   const modalEl = document.getElementById('itemModal');
   if (!modalEl || !window.bootstrap) return;
   const modal = new window.bootstrap.Modal(modalEl);
+  const confirmModalEl = document.getElementById('itemConfirmModal');
+  const confirmModal = confirmModalEl ? new window.bootstrap.Modal(confirmModalEl) : null;
+  const confirmBtn = document.getElementById('confirmItemInactivate');
+  let pendingDeleteForm = null;
 
   const titleEl = document.getElementById('itemModalTitle');
   const saveBtn = document.getElementById('saveItemBtn');
@@ -176,12 +176,8 @@
   const nameEl = document.getElementById('modalItemName');
   const categoryEl = document.getElementById('modalCategoryId');
   const saleEl = document.getElementById('modalSalePrice');
-  const purchaseEl = document.getElementById('modalPurchasePrice');
   const gstEl = document.getElementById('modalGstPercent');
-  const sacEl = document.getElementById('modalSacCode');
-  const reorderEl = document.getElementById('modalReorderLevel');
   const taxInclusiveEl = document.getElementById('modalTaxInclusive');
-  const stockTrackedEl = document.getElementById('modalStockTracked');
   const imagePathEl = document.getElementById('modalImagePath');
   const imageFileEl = document.getElementById('modalImageFile');
   const imagePreviewEl = document.getElementById('modalImagePreview');
@@ -204,12 +200,8 @@
     nameEl.value = '';
     categoryEl.value = '';
     saleEl.value = '0';
-    purchaseEl.value = '0';
     gstEl.value = '5';
-    sacEl.value = '996331';
-    reorderEl.value = '0';
     taxInclusiveEl.checked = false;
-    stockTrackedEl.checked = false;
     imagePathEl.value = '';
     imageFileEl.value = '';
     setPreview('');
@@ -224,12 +216,8 @@
     nameEl.value = btn.getAttribute('data-name') || '';
     categoryEl.value = btn.getAttribute('data-category-id') || '';
     saleEl.value = btn.getAttribute('data-sale') || '0';
-    purchaseEl.value = btn.getAttribute('data-purchase') || '0';
     gstEl.value = btn.getAttribute('data-gst') || '0';
-    sacEl.value = btn.getAttribute('data-sac') || '';
-    reorderEl.value = btn.getAttribute('data-reorder') || '0';
     taxInclusiveEl.checked = (btn.getAttribute('data-tax-inclusive') === 'true');
-    stockTrackedEl.checked = (btn.getAttribute('data-stock-tracked') === 'true');
     imagePathEl.value = btn.getAttribute('data-image-path') || '';
     imageFileEl.value = '';
     setPreview(imagePathEl.value);
@@ -238,6 +226,17 @@
 
   document.getElementById('openAddItem')?.addEventListener('click', openAdd);
   document.querySelectorAll('.btn-edit-item').forEach((btn) => btn.addEventListener('click', () => openEdit(btn)));
+  document.querySelectorAll('.btn-inactivate-item').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      pendingDeleteForm = btn.closest('form');
+      confirmModal?.show();
+    });
+  });
+
+  confirmBtn?.addEventListener('click', () => {
+    if (!pendingDeleteForm) return;
+    pendingDeleteForm.submit();
+  });
 
   imageFileEl?.addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];

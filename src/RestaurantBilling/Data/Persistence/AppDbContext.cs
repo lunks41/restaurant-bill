@@ -146,10 +146,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(x => x.ItemCode).HasMaxLength(30).IsRequired();
             entity.Property(x => x.ItemName).HasMaxLength(200).IsRequired();
             entity.Property(x => x.SalePrice).HasPrecision(18, 4);
-            entity.Property(x => x.PurchasePrice).HasPrecision(18, 4);
             entity.Property(x => x.GstPercent).HasPrecision(5, 2);
-            entity.Property(x => x.ReorderLevel).HasPrecision(18, 4);
-            entity.Property(x => x.SacCode).HasMaxLength(10);
             entity.Property(x => x.RowVersion).IsRowVersion();
             entity.HasQueryFilter(x => !x.IsDeleted);
         });
@@ -158,6 +155,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         {
             entity.HasKey(x => x.BillId);
             entity.Property(x => x.BillNo).HasMaxLength(16).IsRequired();
+            entity.Property(x => x.CustomerName).HasMaxLength(160);
+            entity.Property(x => x.Phone).HasMaxLength(20);
+            entity.Property(x => x.TableName).HasMaxLength(40);
             entity.Property(x => x.SubTotal).HasPrecision(18, 2);
             entity.Property(x => x.DiscountAmount).HasPrecision(18, 2);
             entity.Property(x => x.TaxAmount).HasPrecision(18, 2);
@@ -239,6 +239,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(x => x.KotNo).HasMaxLength(20).IsRequired();
             entity.Property(x => x.KotEventType).HasMaxLength(20);
             entity.Property(x => x.Status).HasMaxLength(20);
+            entity.Property(x => x.ServedByUserId).HasMaxLength(100);
             entity.Property(x => x.RowVersion).IsRowVersion();
             entity.HasQueryFilter(x => !x.IsDeleted);
         });

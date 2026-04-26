@@ -45,6 +45,20 @@
                 <tr><td colspan="8" class="text-center text-muted">No stock items found.</td></tr>
             </tbody>
         </table>
+        <div class="d-flex align-items-center justify-content-between mt-3">
+            <div class="text-muted small" id="stockPageInfo">Page 1 of 1</div>
+            <div class="d-flex align-items-center gap-2">
+                <label class="small text-muted mb-0" for="stockPageSize">Rows</label>
+                <select id="stockPageSize" class="form-select form-select-sm" style="width:90px;">
+                    <option value="10">10</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="stockPrevPage">Prev</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="stockNextPage">Next</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -112,6 +126,13 @@
   const unitFilterEl = document.getElementById('stockUnitFilter');
   const titleEl = document.getElementById('stockItemModalTitle');
   const saveBtnEl = document.getElementById('saveStockItem');
+  const pageInfoEl = document.getElementById('stockPageInfo');
+  const pageSizeEl = document.getElementById('stockPageSize');
+  const prevBtnEl = document.getElementById('stockPrevPage');
+  const nextBtnEl = document.getElementById('stockNextPage');
+  let currentPage = 1;
+  let totalPages = 1;
+  let pageSize = parseInt(pageSizeEl?.value || '25', 10);
 
   const notifySafe = (message, type = 'info') => {
     if (typeof window.notify === 'function') {
@@ -129,11 +150,31 @@
     unitFilterEl.innerHTML = '<option value="">All units</option>' + rows.map(u => `<option value="${u.unitId}">${u.unitName} (${u.unitCode})</option>`).join('');
   }
 
-  async function loadItems() {
+  async function loadItems(resetPage = false) {
+    if (resetPage) currentPage = 1;
     const q = new URLSearchParams({ outletId: '1' });
     if (searchEl.value.trim()) q.set('search', searchEl.value.trim());
     if (unitFilterEl.value) q.set('unitId', unitFilterEl.value);
-    const rows = await getJSON(`/master/stock-items-data?${q.toString()}`);
+    q.set('page', String(currentPage));
+    q.set('pageSize', String(pageSize));
+    const result = await getJSON(`/master/stock-items-data?${q.toString()}`);
+    const rows = Array.isArray(result) ? result : (result.items || []);
+    if (!Array.isArray(result)) {
+      currentPage = result.page || 1;
+      totalPages = result.totalPages || 0;
+      pageSize = result.pageSize || pageSize;
+      if (pageSizeEl && String(pageSizeEl.value) !== String(pageSize)) {
+        pageSizeEl.value = String(pageSize);
+      }
+      if (pageInfoEl) {
+        const totalCount = result.totalCount || 0;
+        pageInfoEl.textContent = totalCount
+          ? `Page ${currentPage} of ${Math.max(totalPages, 1)} (${totalCount} items)`
+          : 'No records';
+      }
+      if (prevBtnEl) prevBtnEl.disabled = currentPage <= 1;
+      if (nextBtnEl) nextBtnEl.disabled = totalPages === 0 || currentPage >= totalPages;
+    }
     document.getElementById('stockItemsBody').innerHTML = rows.length
       ? rows.map(x => `<tr><td>${x.itemCode || ''}</td><td>${x.itemName}</td><td>${x.unitName || '-'}</td><td>${x.purchasePrice ?? 0}</td><td>${x.currentQty ?? 0}</td><td>${x.reorderLevel ?? 0}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.itemId}" data-code="${x.itemCode || ''}" data-name="${x.itemName}" data-unit-id="${x.unitId || ''}" data-rate="${x.purchasePrice ?? 0}" data-current-qty="${x.currentQty ?? 0}" data-reorder="${x.reorderLevel ?? 0}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.itemId}">Delete</button></td></tr>`).join('')
       : '<tr><td colspan="8" class="text-center text-muted">No stock items found.</td></tr>';
@@ -218,8 +259,22 @@
 
   document.getElementById('openAddStockItem')?.addEventListener('click', openAdd);
   saveBtnEl.addEventListener('click', save);
-  searchEl.addEventListener('input', () => loadItems());
-  unitFilterEl.addEventListener('change', () => loadItems());
+  searchEl.addEventListener('input', () => loadItems(true));
+  unitFilterEl.addEventListener('change', () => loadItems(true));
+  pageSizeEl?.addEventListener('change', () => {
+    pageSize = parseInt(pageSizeEl.value || '25', 10);
+    loadItems(true);
+  });
+  prevBtnEl?.addEventListener('click', () => {
+    if (currentPage <= 1) return;
+    currentPage -= 1;
+    loadItems();
+  });
+  nextBtnEl?.addEventListener('click', () => {
+    if (currentPage >= totalPages) return;
+    currentPage += 1;
+    loadItems();
+  });
   document.getElementById('exportStockItems')?.addEventListener('click', () => {
     const q = new URLSearchParams({ outletId: '1' });
     if (searchEl.value.trim()) q.set('search', searchEl.value.trim());

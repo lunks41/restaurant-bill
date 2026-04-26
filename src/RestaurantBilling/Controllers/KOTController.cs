@@ -22,13 +22,11 @@ public class KOTController(
 {
     [HttpGet("display")]
     public IActionResult Display([FromQuery] int station = 1)
-    {
-        ViewData["Station"] = station;
-        return View();
-    }
+        => RedirectToAction(nameof(KdsScreen), new { station });
 
     [HttpGet("kots")]
-    public IActionResult Kots() => View();
+    public IActionResult Kots()
+        => RedirectToAction(nameof(KotList));
 
     [HttpGet("kotlist")]
     [HttpGet("/kot")]
@@ -38,6 +36,7 @@ public class KOTController(
         return View("KotList");
     }
 
+    [HttpGet("screen")]
     [HttpGet("kdsscreen")]
     public IActionResult KdsScreen([FromQuery] int station = 1)
     {
@@ -56,7 +55,7 @@ public class KOTController(
         }
 
         var existingKotIds = await db.KotHeaders
-            .Where(x => x.OutletId == request.OutletId && x.BillId == request.BillId && x.Status != "Cancelled")
+            .Where(x => x.OutletId == request.OutletId && x.BillId == request.BillId && x.Status != "Cancelled" && x.Status != "Served")
             .OrderByDescending(x => x.KotDate)
             .Select(x => x.KotHeaderId)
             .ToListAsync(cancellationToken);
@@ -64,6 +63,9 @@ public class KOTController(
         {
             return Ok(new { kotIds = existingKotIds, reused = true });
         }
+
+        var hasPreviousKotForBill = await db.KotHeaders
+            .AnyAsync(x => x.OutletId == request.OutletId && x.BillId == request.BillId, cancellationToken);
 
         var defaultStationId = await db.KitchenStations
             .Where(x => x.OutletId == request.OutletId)
@@ -84,7 +86,7 @@ public class KOTController(
             KotDate = DateTime.UtcNow,
             BusinessDate = bill.BusinessDate,
             KitchenStationId = defaultStationId,
-            KotEventType = "New",
+            KotEventType = hasPreviousKotForBill ? "AddOn" : "New",
             Status = "Pending"
         };
 
@@ -104,6 +106,7 @@ public class KOTController(
         return Ok(new { kotIds = new[] { header.KotHeaderId }, reused = false });
     }
 
+    [Authorize(Roles = "Admin,Kitchen,Captain")]
     [HttpPost("status")]
     public async Task<IActionResult> UpdateStatus([FromBody] KotStatusUpdateRequest request, CancellationToken cancellationToken)
     {
@@ -120,6 +123,11 @@ public class KOTController(
         }
 
         kot.Status = request.Status;
+        if (request.Status == "Served")
+        {
+            kot.ServedAtUtc ??= DateTime.UtcNow;
+            kot.ServedByUserId ??= User?.Identity?.Name;
+        }
         await db.SaveChangesAsync(cancellationToken);
 
         await kdsHubContext.Clients.Group($"station:{kot.KitchenStationId}")
@@ -132,6 +140,27 @@ public class KOTController(
 
         await alertHub.Clients.All.SendAsync("DashboardRefresh", "kot", cancellationToken);
         return Ok(new { status = "Updated" });
+    }
+
+    [HttpPost("mark-printed")]
+    public async Task<IActionResult> MarkPrinted([FromBody] MarkKotPrintedRequest request, CancellationToken cancellationToken)
+    {
+        if (request.KotIds is null || request.KotIds.Count == 0) return BadRequest("No KOT ids provided.");
+
+        var kotIds = request.KotIds.Distinct().ToList();
+        var headers = await db.KotHeaders
+            .Where(x => x.OutletId == request.OutletId && kotIds.Contains(x.KotHeaderId))
+            .ToListAsync(cancellationToken);
+        if (headers.Count == 0) return NotFound("KOT not found.");
+
+        var now = DateTime.UtcNow;
+        foreach (var h in headers)
+        {
+            h.KotPrintedAtUtc ??= now;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { updated = headers.Count });
     }
 
     [HttpGet("kots-data")]
@@ -152,6 +181,7 @@ public class KOTController(
                 x.KotNo,
                 x.BillId,
                 x.KitchenStationId,
+                x.KotEventType,
                 x.Status,
                 x.KotDate
             })
@@ -163,14 +193,6 @@ public class KOTController(
         }
 
         var headerIds = headers.Select(x => x.KotHeaderId).ToList();
-        var billIds = headers.Where(x => x.BillId.HasValue).Select(x => x.BillId!.Value).Distinct().ToList();
-        IReadOnlyDictionary<long, string> billNos = billIds.Count == 0
-            ? new Dictionary<long, string>()
-            : await db.Bills
-                .AsNoTracking()
-                .Where(b => billIds.Contains(b.BillId))
-                .ToDictionaryAsync(b => b.BillId, b => b.BillNo, cancellationToken);
-
         var itemLookup = await db.KotItems
             .AsNoTracking()
             .Where(x => headerIds.Contains(x.KotHeaderId) && !x.IsVoid)
@@ -195,14 +217,12 @@ public class KOTController(
                     note = i.SpecialInstructions
                 })
                 .ToList();
-            var billNo = h.BillId.HasValue && billNos.TryGetValue(h.BillId.Value, out var bn) ? bn : null;
             return new
             {
                 h.KotHeaderId,
                 h.KotNo,
-                h.BillId,
-                billNo,
                 h.KitchenStationId,
+                kotEventType = h.KotEventType,
                 h.Status,
                 kotDate = h.KotDate.ToString("dd-MMM-yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture),
                 kotDateIso = h.KotDate,

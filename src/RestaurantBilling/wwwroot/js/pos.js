@@ -4,8 +4,38 @@ const posState = {
   searchTerm: "", selectedCategoryId: null,
   currentBillId: null, currentBillNo: null,
   selectedTableId: null, selectedTableName: null,
-  selectedPayMethod: "Cash"
+  selectedPayMethod: "Cash",
+  billLevelDiscount: 0,
+  hasPendingKot: false,
+  customerName: "",
+  customerPhone: ""
 };
+const POS_AUTOSAVE_TOAST_KEY = "pos.autosave.toast";
+
+function updateKotHintVisibility() {
+  const hint = document.getElementById("cartKotHint");
+  if (!hint) return;
+  hint.style.display = posState.hasPendingKot && posState.cart.length ? "" : "none";
+}
+
+function updateKotActionButtons() {
+  const canSendKot = posState.hasPendingKot && posState.cart.length > 0;
+  const btnKot = document.getElementById("btnKot");
+  const btnKotPrint = document.getElementById("btnKotPrint");
+  const status = document.getElementById("posKotStatus");
+  if (btnKot) btnKot.disabled = !canSendKot;
+  if (btnKotPrint) btnKotPrint.disabled = !canSendKot;
+  if (status) {
+    status.textContent = canSendKot ? "Pending KOT" : "KOT Sent";
+    status.classList.toggle("sent", !canSendKot);
+  }
+}
+
+function markPendingKot() {
+  posState.hasPendingKot = posState.cart.length > 0;
+  updateKotHintVisibility();
+  updateKotActionButtons();
+}
 
 /* ─── Init ─── */
 async function posInit() {
@@ -13,6 +43,7 @@ async function posInit() {
   renderPos();
   bindPosEvents();
   bindSettleModal();
+  updateCartHeader();
 }
 
 /* ─── Catalog ─── */
@@ -67,13 +98,24 @@ function renderPosItems() {
     const tile = document.createElement("div");
     tile.className = "item-tile";
     const badge = i.foodType === "nonveg" ? "nonveg" : i.foodType === "egg" ? "egg" : "veg";
+    const kotLabel = i.isDirectSale ? "Direct" : "KOT";
     const media = i.imageUrl
       ? `<img class="item-tile-img" src="${i.imageUrl}" alt="${i.name}" loading="lazy" />`
       : `<div class="item-tile-img item-tile-img-ph"><i class="fas fa-utensils"></i></div>`;
     tile.innerHTML = `
-      ${media}
-      <div class="item-tile-top"><div class="item-tile-name">${i.name}</div><span class="item-tile-badge ${badge}"></span></div>
-      <div class="item-tile-bottom"><div class="item-tile-price">${fmtINR(i.price)}</div><div class="item-tile-kot">KOT</div></div>`;
+      <div class="item-tile-status">
+        <span class="item-tile-badge ${badge}" aria-hidden="true"></span>
+      </div>
+      <div class="item-tile-main">
+        ${media}
+        <div class="item-tile-content">
+          <div class="item-tile-name">${i.name}</div>
+          <div class="item-tile-bottom">
+            <div class="item-tile-price">${fmtINR(i.price)}</div>
+            <div class="item-tile-kot">${kotLabel}</div>
+          </div>
+        </div>
+      </div>`;
     tile.addEventListener("click", () => addPosItem(i));
     host.appendChild(tile);
   });
@@ -84,21 +126,45 @@ function addPosItem(item) {
   const ex = posState.cart.find(x => x.itemId === item.id);
   if (ex) ex.qty += 1;
   else posState.cart.push({ itemId: item.id, name: item.name, price: item.price, taxPercent: item.taxPercent || 0, qty: 1 });
+  markPendingKot();
   renderPosCart();
 }
 
-function removePosItem(itemId) { posState.cart = posState.cart.filter(x => x.itemId !== itemId); renderPosCart(); }
+function removePosItem(itemId) {
+  posState.cart = posState.cart.filter(x => x.itemId !== itemId);
+  markPendingKot();
+  renderPosCart();
+}
 
 function changePosQty(itemId, delta) {
   const line = posState.cart.find(x => x.itemId === itemId);
   if (!line) return;
   line.qty += delta;
   if (line.qty <= 0) posState.cart = posState.cart.filter(x => x.itemId !== itemId);
+  markPendingKot();
   renderPosCart();
 }
 
+function getPosTotals() {
+  let subtotal = 0;
+  const lines = posState.cart.map(line => {
+    const lineSub = line.qty * line.price;
+    const lineTaxRate = (line.taxPercent || 0) / 100;
+    subtotal += lineSub;
+    return { lineSub, lineTaxRate };
+  });
+  const discount = Math.max(0, Math.min(posState.billLevelDiscount || 0, subtotal));
+  let taxTotal = 0;
+  lines.forEach(l => {
+    const proportionalDiscount = subtotal > 0 ? (discount * l.lineSub) / subtotal : 0;
+    taxTotal += (l.lineSub - proportionalDiscount) * l.lineTaxRate;
+  });
+  const grand = subtotal - discount + taxTotal;
+  return { subtotal, discount, taxTotal, grand };
+}
+
 function calcGrand() {
-  return posState.cart.reduce((s, x) => s + x.qty * x.price * (1 + (x.taxPercent || 0) / 100), 0);
+  return getPosTotals().grand;
 }
 
 function renderPosCart() {
@@ -106,6 +172,8 @@ function renderPosCart() {
   const totalEl = document.getElementById("posGrandTotal");
   const subEl = document.getElementById("posSubTotal");
   const taxEl = document.getElementById("posTaxTotal");
+  const taxLabelEl = document.getElementById("posTaxLabel");
+  const discountEl = document.getElementById("posDiscountTotal");
   if (!host || !totalEl) return;
   host.innerHTML = "";
 
@@ -113,15 +181,19 @@ function renderPosCart() {
     host.innerHTML = `<div class="cart-empty"><div class="cart-empty-icon"><i class="fas fa-shopping-basket"></i></div><p>Cart is empty</p><span>Click any item to add</span></div>`;
     if (subEl) subEl.textContent = fmtINR(0);
     if (taxEl) taxEl.textContent = fmtINR(0);
+    if (taxLabelEl) taxLabelEl.textContent = "Tax (5.00%)";
+    if (discountEl) discountEl.textContent = fmtINR(0);
     totalEl.textContent = fmtINR(0);
+    updateKotHintVisibility();
+    updateKotActionButtons();
     return;
   }
 
-  let subtotal = 0, taxTotal = 0;
+  let subtotal = 0;
   posState.cart.forEach(line => {
     const lineSub = line.qty * line.price;
     const lineTax = lineSub * ((line.taxPercent || 0) / 100);
-    subtotal += lineSub; taxTotal += lineTax;
+    subtotal += lineSub;
     const row = document.createElement("div");
     row.className = "cart-item";
     row.innerHTML = `
@@ -140,19 +212,28 @@ function renderPosCart() {
   host.querySelectorAll(".cart-remove").forEach(btn =>
     btn.addEventListener("click", e => { e.stopPropagation(); removePosItem(parseInt(btn.dataset.remove)); }));
 
-  const grand = subtotal + taxTotal;
+  const totals = getPosTotals();
+  const taxPercents = [...new Set(posState.cart.map(x => Number(x.taxPercent || 0).toFixed(2)))];
+  const taxLabel = taxPercents.length === 1 ? `Tax (${taxPercents[0]}%)` : "Tax";
   if (subEl) subEl.textContent = fmtINR(subtotal);
-  if (taxEl) taxEl.textContent = fmtINR(taxTotal);
-  totalEl.textContent = fmtINR(grand);
+  if (taxEl) taxEl.textContent = fmtINR(totals.taxTotal);
+  if (taxLabelEl) taxLabelEl.textContent = taxLabel;
+  if (discountEl) discountEl.textContent = fmtINR(totals.discount);
+  totalEl.textContent = fmtINR(totals.grand);
+  updateKotHintVisibility();
+  updateKotActionButtons();
 }
 
 function updateCartHeader() {
-  const lbl = document.getElementById("cartBillLabel");
-  if (!lbl) return;
-  const table = posState.selectedTableName ? `${posState.selectedTableName}` : "New Order";
-  const bill = posState.currentBillNo ? ` — ${posState.currentBillNo}` : "";
-  const held = posState.currentBillId ? ` <span style="background:var(--warning);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;vertical-align:middle;">HELD</span>` : "";
-  lbl.innerHTML = `Dine-In — ${table}${bill}${held}`;
+  const title = document.getElementById("cartHeaderTitle");
+  const meta = document.getElementById("cartOrderMeta");
+  const tableBtn = document.getElementById("btnTable");
+  if (title) title.textContent = posState.currentBillNo ? `Order #${posState.currentBillNo}` : "Order #";
+  if (meta) meta.textContent = "OPEN · dine-in";
+  if (tableBtn) {
+    const label = posState.selectedTableName ? posState.selectedTableName : "Table Name";
+    tableBtn.innerHTML = `<i class="fas fa-chair"></i> ${label}`;
+  }
 }
 
 function mapCartItems() {
@@ -160,6 +241,51 @@ function mapCartItems() {
     itemId: x.itemId, itemName: x.name, qty: x.qty, rate: x.price,
     discountAmount: 0, taxPercent: x.taxPercent || 5, isTaxInclusive: false, taxType: "GST"
   }));
+}
+
+function hasUnsavedOrderChanges() {
+  return posState.cart.length > 0 && (posState.hasPendingKot || !posState.currentBillId);
+}
+
+function saveDraftOnUnload() {
+  if (!posState.cart.length) return;
+  if (posState.currentBillId) return; // Existing draft already persisted.
+  if (!posState.selectedTableName) return; // Dine-in draft requires table context.
+
+  const payload = {
+    outletId: 1,
+    billType: "DineIn",
+    businessDate: new Date().toISOString().slice(0, 10),
+    items: mapCartItems(),
+    billLevelDiscount: posState.billLevelDiscount || 0,
+    serviceChargeOptIn: false,
+    serviceChargeAmount: 0,
+    tableName: posState.selectedTableName || null,
+    customerName: posState.customerName || null,
+    phone: posState.customerPhone || null
+  };
+
+  try {
+    return fetch("/pos/hold", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      body: JSON.stringify(payload),
+      keepalive: true
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (json?.billNo) {
+          sessionStorage.setItem(POS_AUTOSAVE_TOAST_KEY, String(json.billNo));
+        }
+      })
+      .catch(() => {});
+  } catch {
+    // Best-effort only; ignore unload-time network errors.
+    return Promise.resolve();
+  }
 }
 
 /* ─── Event Bindings ─── */
@@ -176,6 +302,26 @@ function bindPosEvents() {
     if (!posState.cart.length) return;
     if (!confirm("Clear all line items from current order?")) return;
     posState.cart = [];
+    posState.billLevelDiscount = 0;
+    posState.hasPendingKot = false;
+    renderPosCart();
+  });
+  document.getElementById("btnEditDiscount")?.addEventListener("click", () => {
+    const subtotal = posState.cart.reduce((s, x) => s + x.qty * x.price, 0);
+    if (!subtotal) {
+      toastr?.info("Add items first.");
+      return;
+    }
+    const current = Number(posState.billLevelDiscount || 0).toFixed(2);
+    const raw = prompt(`Enter discount amount (max ${fmtINR(subtotal)})`, current);
+    if (raw === null) return;
+    const next = Number(raw);
+    if (!Number.isFinite(next) || next < 0) {
+      toastr?.warning("Invalid discount amount.");
+      return;
+    }
+    posState.billLevelDiscount = Math.min(next, subtotal);
+    markPendingKot();
     renderPosCart();
   });
   document.getElementById("posQuickBtn")?.addEventListener("click", async () => {
@@ -186,6 +332,18 @@ function bindPosEvents() {
   document.getElementById("btnBackTables")?.addEventListener("click", async () => {
     await posSaveBeforeBackToTables();
     window.location.href = "/floor";
+  });
+  const customerToggle = document.getElementById("btnCustomerToggle");
+  const customerCollapse = document.getElementById("customerCollapse");
+  customerToggle?.addEventListener("click", () => {
+    const isExpanded = customerToggle.getAttribute("aria-expanded") === "true";
+    customerToggle.setAttribute("aria-expanded", String(!isExpanded));
+    if (customerCollapse) customerCollapse.hidden = isExpanded;
+  });
+  document.getElementById("btnSaveCustomer")?.addEventListener("click", () => {
+    posState.customerName = (document.getElementById("customerName")?.value || "").trim();
+    posState.customerPhone = (document.getElementById("customerPhone")?.value || "").trim();
+    toastr?.success("Customer info saved.");
   });
 
   // Table picker events
@@ -222,8 +380,6 @@ async function openTablePicker() {
       tile.addEventListener("click", () => {
         posState.selectedTableId = parseInt(tile.dataset.id);
         posState.selectedTableName = tile.dataset.name;
-        const btn = document.getElementById("btnTable");
-        if (btn) btn.innerHTML = `<i class="fas fa-chair"></i> ${tile.dataset.name}`;
         updateCartHeader();
         closeTablePicker();
       });
@@ -241,9 +397,11 @@ async function holdBill() {
     const r = await postJSON("/pos/hold", {
       outletId: 1, billType: "DineIn",
       businessDate: new Date().toISOString().slice(0, 10),
-      items: mapCartItems(), billLevelDiscount: 0,
+      items: mapCartItems(), billLevelDiscount: posState.billLevelDiscount || 0,
       serviceChargeOptIn: false, serviceChargeAmount: 0,
-      tableName: posState.selectedTableName || null
+      tableName: posState.selectedTableName || null,
+      customerName: posState.customerName || null,
+      phone: posState.customerPhone || null
     });
     posState.currentBillId = r.billId;
     posState.currentBillNo = r.billNo;
@@ -261,10 +419,11 @@ function cancelOrderDraft() {
   posState.currentBillNo = null;
   posState.selectedTableId = null;
   posState.selectedTableName = null;
+  posState.billLevelDiscount = 0;
+  posState.hasPendingKot = false;
   updateCartHeader();
   renderPosCart();
-  const btn = document.getElementById("btnTable");
-  if (btn) btn.innerHTML = `<i class="fas fa-chair"></i> Table`;
+  updateCartHeader();
   toastr?.info("Order cancelled.");
 }
 
@@ -274,9 +433,11 @@ async function posSaveBeforeBackToTables() {
     const r = await postJSON("/pos/hold", {
       outletId: 1, billType: "DineIn",
       businessDate: new Date().toISOString().slice(0, 10),
-      items: mapCartItems(), billLevelDiscount: 0,
+      items: mapCartItems(), billLevelDiscount: posState.billLevelDiscount || 0,
       serviceChargeOptIn: false, serviceChargeAmount: 0,
-      tableName: posState.selectedTableName || null
+      tableName: posState.selectedTableName || null,
+      customerName: posState.customerName || null,
+      phone: posState.customerPhone || null
     });
     posState.currentBillId = r.billId;
     posState.currentBillNo = r.billNo;
@@ -290,12 +451,20 @@ function recallBill(b) {
   posState.currentBillId = b.billId;
   posState.currentBillNo = b.billNo;
   posState.selectedTableName = b.tableName || null;
+  posState.billLevelDiscount = Number(b.discountAmount || 0);
+  if (typeof b.hasPendingKot === "boolean") posState.hasPendingKot = b.hasPendingKot;
+  else if (typeof b.hasAnyKot === "boolean") posState.hasPendingKot = !b.hasAnyKot;
+  else posState.hasPendingKot = true;
+  posState.customerName = b.customerName || "";
+  posState.customerPhone = b.phone || "";
   posState.cart = (b.items || []).map(i => ({
     itemId: i.itemId, name: i.name, price: i.rate,
     taxPercent: i.taxPercent || 5, qty: i.qty
   }));
-  const tableBtn = document.getElementById("btnTable");
-  if (tableBtn && b.tableName) tableBtn.innerHTML = `<i class="fas fa-chair"></i> ${b.tableName}`;
+  const customerNameEl = document.getElementById("customerName");
+  const customerPhoneEl = document.getElementById("customerPhone");
+  if (customerNameEl) customerNameEl.value = posState.customerName;
+  if (customerPhoneEl) customerPhoneEl.value = posState.customerPhone;
   updateCartHeader();
   renderPosCart();
   toastr?.info(`Bill ${b.billNo} recalled.`);
@@ -307,18 +476,31 @@ async function generateKot() {
   const btn = document.getElementById("btnKot");
   if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending...`; }
   try {
-    // Hold first if no bill exists yet
+    // Hold first if no bill exists yet; otherwise sync current draft changes before KOT.
     if (!posState.currentBillId) {
       const held = await postJSON("/pos/hold", {
         outletId: 1, billType: "DineIn",
         businessDate: new Date().toISOString().slice(0, 10),
-        items: mapCartItems(), billLevelDiscount: 0,
+        items: mapCartItems(), billLevelDiscount: posState.billLevelDiscount || 0,
         serviceChargeOptIn: false, serviceChargeAmount: 0,
-        tableName: posState.selectedTableName || null
+        tableName: posState.selectedTableName || null,
+        customerName: posState.customerName || null,
+        phone: posState.customerPhone || null
       });
       posState.currentBillId = held.billId;
       posState.currentBillNo = held.billNo;
       updateCartHeader();
+    } else {
+      await postJSON(`/pos/update-draft/${posState.currentBillId}`, {
+        outletId: 1,
+        items: mapCartItems(),
+        billLevelDiscount: posState.billLevelDiscount || 0,
+        serviceChargeOptIn: false,
+        serviceChargeAmount: 0,
+        tableName: posState.selectedTableName || null,
+        customerName: posState.customerName || null,
+        phone: posState.customerPhone || null
+      });
     }
     const result = await postJSON("/kot/generate", {
       outletId: 1, billId: posState.currentBillId, captainUserId: 1
@@ -326,9 +508,19 @@ async function generateKot() {
     const msg = result.reused
       ? `KOT already exists for this bill.`
       : `KOT sent to kitchen! Bill: ${posState.currentBillNo}`;
+    posState.hasPendingKot = false;
+    updateKotHintVisibility();
+    updateKotActionButtons();
     toastr?.success(msg);
-  } catch { toastr?.error("Failed to generate KOT."); }
-  finally { if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fas fa-paper-plane"></i> Send KOT`; } }
+    return { ok: true, kotIds: Array.isArray(result.kotIds) ? result.kotIds : [] };
+  } catch {
+    toastr?.error("Failed to generate KOT.");
+    return { ok: false, kotIds: [] };
+  }
+  finally {
+    if (btn) btn.innerHTML = `<i class="fas fa-paper-plane"></i> Send KOT`;
+    updateKotActionButtons();
+  }
 }
 
 async function generateKotAndPrint() {
@@ -337,12 +529,21 @@ async function generateKotAndPrint() {
     printBtn.disabled = true;
     printBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Printing...`;
   }
-  await generateKot();
-  if (posState.currentBillNo) window.print();
+  const result = await generateKot();
+  if (result.ok) {
+    if (result.kotIds.length) {
+      try {
+        await postJSON("/kot/mark-printed", { outletId: 1, kotIds: result.kotIds });
+      } catch {
+        // Non-blocking: print should still proceed.
+      }
+    }
+    printKotSlip();
+  }
   if (printBtn) {
-    printBtn.disabled = false;
     printBtn.innerHTML = `<i class="fas fa-print"></i> KOT & print`;
   }
+  updateKotActionButtons();
 }
 
 /* ─── Settle Modal ─── */
@@ -368,13 +569,16 @@ function bindSettleModal() {
 
 function openSettleModal() {
   if (!posState.cart.length) { toastr?.warning("Cart is empty."); return; }
-  const grand = calcGrand();
-  const sub = posState.cart.reduce((s, x) => s + x.qty * x.price, 0);
-  const tax = grand - sub;
+  const totals = getPosTotals();
+  const grand = totals.grand;
+  const sub = totals.subtotal;
+  const tax = totals.taxTotal;
+  const discount = totals.discount;
   const summaryEl = document.getElementById("settleSummary");
   if (summaryEl) summaryEl.innerHTML = `
     ${posState.cart.map(l => `<div class="settle-summary-row"><span>${l.name} ×${l.qty}</span><span>${fmtINR(l.qty * l.price)}</span></div>`).join("")}
     <div class="settle-summary-row" style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;"><span>Subtotal</span><span>${fmtINR(sub)}</span></div>
+    <div class="settle-summary-row"><span>Discount</span><span>${fmtINR(discount)}</span></div>
     <div class="settle-summary-row"><span>Tax</span><span>${fmtINR(tax)}</span></div>
     <div class="settle-summary-row grand"><span>Grand Total</span><span>${fmtINR(grand)}</span></div>`;
   const amtInput = document.getElementById("settleAmtInput");
@@ -398,6 +602,8 @@ async function confirmSettle() {
       // Settle the already-held bill
       result = await postJSON(`/pos/settle-existing/${posState.currentBillId}`, {
         outletId: 1,
+        customerName: posState.customerName || null,
+        phone: posState.customerPhone || null,
         payments: [{ mode: method, amount: grand }]
       });
     } else {
@@ -405,8 +611,11 @@ async function confirmSettle() {
       result = await postJSON("/pos/settle", {
         outletId: 1, billType: "DineIn",
         businessDate: new Date().toISOString().slice(0, 10),
-        isInterState: false, billLevelDiscount: 0,
+        isInterState: false, billLevelDiscount: posState.billLevelDiscount || 0,
         serviceChargeOptIn: false, serviceChargeAmount: 0,
+        tableName: posState.selectedTableName || null,
+        customerName: posState.customerName || null,
+        phone: posState.customerPhone || null,
         items: mapCartItems(),
         payments: [{ mode: method, amount: grand }]
       });
@@ -415,12 +624,11 @@ async function confirmSettle() {
     closeSettleModal();
     printReceipt(result, amtPaid, method);
 
-    posState.cart = []; posState.currentBillId = null; posState.currentBillNo = null;
+    posState.cart = []; posState.currentBillId = null; posState.currentBillNo = null; posState.billLevelDiscount = 0; posState.hasPendingKot = false;
     posState.selectedTableId = null; posState.selectedTableName = null;
     updateCartHeader();
     renderPosCart();
-    const tableBtn = document.getElementById("btnTable");
-    if (tableBtn) tableBtn.innerHTML = `<i class="fas fa-chair"></i> Table`;
+    updateCartHeader();
     toastr?.success(`Bill ${result.billNo || ""} settled!`);
   } catch (_e) {
     toastr?.error("Settlement failed. Please try again.");
@@ -459,6 +667,37 @@ function printReceipt(bill, amtPaid, method) {
   </div>`;
   const wrap = document.getElementById("receiptWrap");
   if (wrap) wrap.innerHTML = html;
+  window.print();
+}
+
+function printKotSlip() {
+  const wrap = document.getElementById("receiptWrap");
+  if (!wrap) {
+    window.print();
+    return;
+  }
+  const tableLine = posState.selectedTableName ? `<div style="font-size:11px;color:#666;">Table: ${posState.selectedTableName}</div>` : "";
+  const lines = posState.cart.map((l) => `
+    <tr>
+      <td>${l.name}</td>
+      <td style="text-align:center">${l.qty}</td>
+    </tr>`).join("");
+  wrap.innerHTML = `<div style="font-family:'Courier New',monospace;font-size:12px;max-width:300px;margin:0 auto;padding:10px;">
+    <div style="text-align:center;margin-bottom:10px;">
+      <div style="font-size:18px;font-weight:bold;">RestoBill</div>
+      <div style="font-size:11px;color:#666;">Kitchen Order Ticket</div>
+      ${tableLine}
+      <div style="font-size:11px;color:#666;">${new Date().toLocaleString("en-IN")}</div>
+      <div style="font-size:12px;font-weight:bold;margin-top:4px;">KOT for Bill: ${posState.currentBillNo || "---"}</div>
+    </div>
+    <hr style="border-top:1px dashed #000;margin:6px 0;"/>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr><th style="text-align:left">Item</th><th style="text-align:center">Qty</th></tr></thead>
+      <tbody>${lines}</tbody>
+    </table>
+    <hr style="border-top:1px dashed #000;margin:8px 0;"/>
+    <div style="text-align:center;font-size:11px;color:#666;">KITCHEN COPY</div>
+  </div>`;
   window.print();
 }
 
@@ -504,14 +743,31 @@ function posTryPreselectTableFromQuery() {
   if (!tableName) return;
   posState.selectedTableName = tableName;
   posState.selectedTableId = tableId ? parseInt(tableId, 10) : null;
-  const btn = document.getElementById("btnTable");
-  if (btn) btn.innerHTML = `<i class="fas fa-chair"></i> ${tableName}`;
   updateCartHeader();
 }
 
 /* ─── Boot ─── */
 document.addEventListener("DOMContentLoaded", () => {
   if (document.getElementById("posRoot")) {
+    const autoSavedBillNo = sessionStorage.getItem(POS_AUTOSAVE_TOAST_KEY);
+    if (autoSavedBillNo) {
+      toastr?.info(`Draft auto-saved (${autoSavedBillNo}).`);
+      sessionStorage.removeItem(POS_AUTOSAVE_TOAST_KEY);
+    }
+
+    window.addEventListener("beforeunload", (e) => {
+      if (!hasUnsavedOrderChanges()) return;
+      saveDraftOnUnload();
+      e.preventDefault();
+      e.returnValue = "";
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "hidden") return;
+      if (!hasUnsavedOrderChanges()) return;
+      saveDraftOnUnload();
+    });
+
     void (async () => {
       await posInit();
       posTryPreselectTableFromQuery();

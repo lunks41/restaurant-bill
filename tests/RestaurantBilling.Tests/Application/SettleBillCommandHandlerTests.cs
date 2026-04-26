@@ -36,6 +36,9 @@ public class SettleBillCommandHandlerTests
             0,
             false,
             0,
+            null,
+            null,
+            null,
             [new SettleBillItemInput(1, "Item", 1, 100, 0, 5, false, TaxType.GST, false)],
             [new SettleBillPaymentInput(PaymentMode.Cash, 105, null, null, null)]);
 

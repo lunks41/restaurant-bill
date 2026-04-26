@@ -13,5 +13,8 @@ public class KotHeader : BaseEntity
     public int KitchenStationId { get; set; }
     public string KotEventType { get; set; } = "New";
     public string Status { get; set; } = "Pending";
+    public DateTime? KotPrintedAtUtc { get; set; }
+    public DateTime? ServedAtUtc { get; set; }
+    public string? ServedByUserId { get; set; }
 }
 

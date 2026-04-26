@@ -92,18 +92,50 @@ public class POSController(
         var bill = new Bill(request.OutletId, billNo, request.BusinessDate, request.BillType);
         if (!string.IsNullOrWhiteSpace(request.TableName))
             bill.SetTableName(request.TableName);
+        bill.SetCustomerInfo(request.CustomerName, request.Phone);
 
-        foreach (var item in request.Items)
+        var calcInput = request.Items
+            .Select(item => new BillItemInput(
+                item.ItemId,
+                item.ItemName,
+                item.Qty,
+                item.Rate,
+                item.DiscountAmount,
+                item.TaxPercent,
+                item.IsTaxInclusive,
+                item.TaxType))
+            .ToList();
+        var computed = calculatorService.Calculate(
+            calcInput,
+            request.BillLevelDiscount,
+            request.ServiceChargeAmount,
+            request.ServiceChargeOptIn,
+            false);
+
+        foreach (var line in computed.Lines)
         {
-            var calcLine = calculatorService.Calculate([new BillItemInput(item.ItemId, item.ItemName, item.Qty, item.Rate, item.DiscountAmount, item.TaxPercent, item.IsTaxInclusive, item.TaxType)], 0, 0, false, false).Lines.First();
-            bill.AddItem(new BillItem(calcLine.ItemId, calcLine.ItemName, calcLine.Qty, calcLine.Rate, calcLine.DiscountAmount, calcLine.TaxAmount));
+            bill.AddItem(new BillItem(
+                line.ItemId,
+                line.ItemName,
+                line.Qty,
+                line.Rate,
+                line.DiscountAmount,
+                line.TaxAmount));
         }
 
         bill.SetServiceCharge(request.ServiceChargeAmount, request.ServiceChargeOptIn);
         await SetTableOccupiedStateAsync(request.OutletId, request.TableName, true, cancellationToken);
         db.Bills.Add(bill);
         await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { billId = bill.BillId, billNo = bill.BillNo, tableName = bill.TableName, status = "Draft" });
+        return Ok(new
+        {
+            billId = bill.BillId,
+            billNo = bill.BillNo,
+            tableName = bill.TableName,
+            customerName = bill.CustomerName,
+            phone = bill.Phone,
+            status = "Draft"
+        });
     }
 
     [HttpPost("settle-existing/{billId:long}")]
@@ -119,6 +151,7 @@ public class POSController(
         var payments = request.Payments
             .Select(p => new Payment(p.Mode, p.Amount, p.ReferenceNo, p.CardLast4, p.UpiTxnId))
             .ToList();
+        bill.SetCustomerInfo(request.CustomerName, request.Phone);
         bill.Settle(payments);
         await SetTableOccupiedStateAsync(request.OutletId, bill.TableName, false, cancellationToken);
 
@@ -133,6 +166,55 @@ public class POSController(
         return Ok(new { billId = bill.BillId, billNo = bill.BillNo, grandTotal = bill.GrandTotal });
     }
 
+    [HttpPost("update-draft/{billId:long}")]
+    public async Task<IActionResult> UpdateDraft(long billId, [FromBody] UpdateDraftBillRequest request, CancellationToken cancellationToken)
+    {
+        var bill = await db.Bills
+            .Include(x => x.Items)
+            .FirstOrDefaultAsync(x => x.BillId == billId && x.OutletId == request.OutletId, cancellationToken);
+        if (bill is null) return NotFound("Bill not found.");
+        if (bill.Status != BillStatus.Draft) return BadRequest("Only draft bills can be updated.");
+        if (request.Items is null || request.Items.Count == 0) return BadRequest("At least one item is required.");
+
+        var calcInput = request.Items
+            .Select(item => new BillItemInput(
+                item.ItemId,
+                item.ItemName,
+                item.Qty,
+                item.Rate,
+                item.DiscountAmount,
+                item.TaxPercent,
+                item.IsTaxInclusive,
+                item.TaxType))
+            .ToList();
+        var computed = calculatorService.Calculate(
+            calcInput,
+            request.BillLevelDiscount,
+            request.ServiceChargeAmount,
+            request.ServiceChargeOptIn,
+            false);
+
+        db.BillItems.RemoveRange(bill.Items);
+        await db.SaveChangesAsync(cancellationToken);
+
+        foreach (var line in computed.Lines)
+        {
+            bill.AddItem(new BillItem(
+                line.ItemId,
+                line.ItemName,
+                line.Qty,
+                line.Rate,
+                line.DiscountAmount,
+                line.TaxAmount));
+        }
+        bill.SetServiceCharge(request.ServiceChargeAmount, request.ServiceChargeOptIn);
+        bill.SetTableName(request.TableName);
+        bill.SetCustomerInfo(request.CustomerName, request.Phone);
+
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { billId = bill.BillId, billNo = bill.BillNo, grandTotal = bill.GrandTotal, status = "Updated" });
+    }
+
     [HttpGet("held-bill/{billId:long}")]
     public async Task<IActionResult> HeldBill(long billId, [FromQuery] int outletId, CancellationToken cancellationToken)
     {
@@ -144,7 +226,10 @@ public class POSController(
                 x.BillId,
                 x.BillNo,
                 x.GrandTotal,
+                x.DiscountAmount,
                 x.TableName,
+                x.CustomerName,
+                x.Phone,
                 billType = x.BillType.ToString(),
                 billTime = x.BillDate.ToString("HH:mm"),
                 items = x.Items.Select(i => new
@@ -158,7 +243,36 @@ public class POSController(
             })
             .FirstOrDefaultAsync(cancellationToken);
         if (row is null) return NotFound("Draft bill not found.");
-        return Ok(row);
+
+        var kotStatuses = await db.KotHeaders
+            .AsNoTracking()
+            .Where(x => x.OutletId == outletId && x.BillId == billId && x.Status != "Cancelled")
+            .OrderByDescending(x => x.KotDate)
+            .Select(x => x.Status)
+            .ToListAsync(cancellationToken);
+
+        var latestKotStatus = kotStatuses.FirstOrDefault();
+        var hasAnyKot = kotStatuses.Count > 0;
+        var hasActiveKot = kotStatuses.Any(s => s != "Served");
+        var hasPendingKot = !hasAnyKot;
+
+        return Ok(new
+        {
+            row.BillId,
+            row.BillNo,
+            row.GrandTotal,
+            row.DiscountAmount,
+            row.TableName,
+            row.CustomerName,
+            row.Phone,
+            row.billType,
+            row.billTime,
+            row.items,
+            kotStatus = latestKotStatus,
+            hasAnyKot,
+            hasActiveKot,
+            hasPendingKot
+        });
     }
 
     [HttpGet("held-bills-detail")]
@@ -173,7 +287,10 @@ public class POSController(
                 x.BillId,
                 x.BillNo,
                 x.GrandTotal,
+                x.DiscountAmount,
                 x.TableName,
+                x.CustomerName,
+                x.Phone,
                 billType = x.BillType.ToString(),
                 billTime = x.BillDate.ToString("HH:mm"),
                 items = x.Items.Select(i => new
@@ -186,7 +303,58 @@ public class POSController(
                 })
             })
             .ToListAsync(cancellationToken);
-        return Ok(bills);
+
+        if (bills.Count == 0) return Ok(bills);
+
+        var billIds = bills.Select(x => x.BillId).Distinct().ToList();
+        var kotRows = await db.KotHeaders
+            .AsNoTracking()
+            .Where(x => x.OutletId == outletId && x.BillId.HasValue && billIds.Contains(x.BillId.Value) && x.Status != "Cancelled")
+            .Select(x => new { billId = x.BillId!.Value, x.Status, x.KotDate })
+            .ToListAsync(cancellationToken);
+
+        var kotByBill = kotRows
+            .GroupBy(x => x.billId)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                {
+                    var ordered = g.OrderByDescending(x => x.KotDate).ToList();
+                    var latest = ordered.FirstOrDefault();
+                    var hasAny = ordered.Count > 0;
+                    var hasActive = ordered.Any(x => x.Status != "Served");
+                    return new
+                    {
+                        latestStatus = latest?.Status,
+                        hasAnyKot = hasAny,
+                        hasActiveKot = hasActive,
+                        hasPendingKot = !hasAny
+                    };
+                });
+
+        var payload = bills.Select(b =>
+        {
+            var hasKot = kotByBill.TryGetValue(b.BillId, out var k);
+            return new
+            {
+                b.BillId,
+                b.BillNo,
+                b.GrandTotal,
+                b.DiscountAmount,
+                b.TableName,
+                b.CustomerName,
+                b.Phone,
+                b.billType,
+                b.billTime,
+                b.items,
+                kotStatus = hasKot ? k!.latestStatus : null,
+                hasAnyKot = hasKot && k!.hasAnyKot,
+                hasActiveKot = hasKot && k!.hasActiveKot,
+                hasPendingKot = hasKot ? k!.hasPendingKot : true
+            };
+        });
+
+        return Ok(payload);
     }
 
     [HttpGet("recall")]

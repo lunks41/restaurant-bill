@@ -2,9 +2,7 @@
     ViewData["Title"] = "Takeaway";
 }
 
-<div id="twRoot" class="pos-layout">
-    <aside class="pos-cats" id="twCategories"></aside>
-
+<div id="twRoot" class="pos-layout pos-layout-modern">
     <section class="pos-items-panel">
         <div class="pos-search-bar">
             <div class="pos-search-wrap">
@@ -13,6 +11,7 @@
             </div>
             <span class="pos-items-count" id="twItemsCount"></span>
         </div>
+        <div class="pos-cats-inline" id="twCategoryTabs"></div>
         <div class="pos-items-grid" id="twItems"></div>
     </section>
 
@@ -20,17 +19,28 @@
         <div class="cart-header">
             <div class="cart-header-icon"><i class="fas fa-shopping-bag"></i></div>
             <div class="cart-header-info">
-                <div class="cart-header-title">Takeaway Order</div>
-                <div class="cart-bill-no" id="twBillLabel">New Takeaway</div>
+                <div class="cart-header-row">
+                    <div class="cart-header-title" id="twHeaderTitle">Order #</div>
+                </div>
+                <div class="cart-order-meta">OPEN · takeaway</div>
             </div>
         </div>
         <div class="cart-items" id="twCartItems"></div>
         <div class="cart-totals">
             <div class="cart-total-row"><span>Subtotal</span><span id="twSubTotal">&#8377;0.00</span></div>
             <div class="cart-total-row"><span>Tax</span><span id="twTaxTotal">&#8377;0.00</span></div>
+            <div class="cart-total-row cart-total-discount">
+                <span>Discount</span>
+                <button type="button" class="cart-discount-btn" id="twBtnEditDiscount">
+                    <span id="twDiscountTotal">&#8377;0.00</span>
+                </button>
+            </div>
             <div class="cart-total-row grand"><span>Grand Total</span><span class="grand-amt" id="twGrandTotal">&#8377;0.00</span></div>
         </div>
         <div class="cart-actions">
+            <div class="kot-status-badge" id="twKotStatus">Pending KOT</div>
+            <button class="btn-kot" id="twBtnKot"><i class="fas fa-paper-plane"></i> Send KOT</button>
+            <button class="btn-kot" id="twBtnKotPrint"><i class="fas fa-print"></i> KOT &amp; print</button>
             <button class="btn-settle" id="twBtnSettle"><i class="fas fa-indian-rupee-sign"></i> Settle &amp; Print</button>
             <button class="btn-hold" style="grid-column:1/-1" id="twBtnClear"><i class="fas fa-trash"></i> Clear Cart</button>
         </div>
@@ -74,14 +84,120 @@
 const twState = {
   categories: [], items: [], cart: [],
   searchTerm: "", selectedCategoryId: null, payMethod: "Cash",
-  currentBillId: null, currentBillNo: null
+  currentBillId: null, currentBillNo: null, billLevelDiscount: 0, hasPendingKot: false
 };
+const TW_AUTOSAVE_TOAST_KEY = "tw.autosave.toast";
+
+function twHasUnsavedOrderChanges() {
+  return twState.cart.length > 0 && (twState.hasPendingKot || !twState.currentBillId);
+}
+
+function twSaveDraftOnUnload() {
+  if (!twState.cart.length) return;
+  if (twState.currentBillId) return; // Existing draft already persisted.
+
+  const payload = {
+    outletId: 1,
+    billType: "Takeaway",
+    businessDate: new Date().toISOString().slice(0, 10),
+    items: twState.cart.map(x => ({
+      itemId: x.itemId,
+      itemName: x.name,
+      qty: x.qty,
+      rate: x.price,
+      discountAmount: 0,
+      taxPercent: x.taxPercent || 5,
+      isTaxInclusive: false,
+      taxType: "GST"
+    })),
+    billLevelDiscount: twState.billLevelDiscount || 0,
+    serviceChargeOptIn: false,
+    serviceChargeAmount: 0
+  };
+
+  try {
+    return fetch("/pos/hold", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      body: JSON.stringify(payload),
+      keepalive: true
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (json?.billNo) {
+          sessionStorage.setItem(TW_AUTOSAVE_TOAST_KEY, String(json.billNo));
+        }
+      })
+      .catch(() => {});
+  } catch {
+    // Best-effort only; ignore unload-time network errors.
+    return Promise.resolve();
+  }
+}
+
+function twUpdateHeaderLabel() {
+  const title = document.getElementById("twHeaderTitle");
+  if (!title) return;
+  title.textContent = twState.currentBillNo ? `Order #${twState.currentBillNo}` : "Order #";
+}
+
+function twPrintKotSlip() {
+  const wrap = document.getElementById("twReceiptWrap");
+  if (!wrap) {
+    window.print();
+    return;
+  }
+  const lines = twState.cart.map((l) => `
+    <tr>
+      <td>${l.name}</td>
+      <td style="text-align:center">${l.qty}</td>
+    </tr>`).join("");
+  wrap.innerHTML = `<div style="font-family:'Courier New',monospace;font-size:12px;max-width:300px;margin:0 auto;padding:10px;">
+    <div style="text-align:center;margin-bottom:10px;">
+      <div style="font-size:18px;font-weight:bold;">RestoBill</div>
+      <div style="font-size:11px;color:#666;">Kitchen Order Ticket</div>
+      <div style="font-size:11px;color:#666;">Takeaway</div>
+      <div style="font-size:11px;color:#666;">${new Date().toLocaleString("en-IN")}</div>
+      <div style="font-size:12px;font-weight:bold;margin-top:4px;">KOT for Bill: ${twState.currentBillNo || "---"}</div>
+    </div>
+    <hr style="border-top:1px dashed #000;margin:6px 0;"/>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr><th style="text-align:left">Item</th><th style="text-align:center">Qty</th></tr></thead>
+      <tbody>${lines}</tbody>
+    </table>
+    <hr style="border-top:1px dashed #000;margin:8px 0;"/>
+    <div style="text-align:center;font-size:11px;color:#666;">KITCHEN COPY</div>
+  </div>`;
+  window.print();
+}
+
+function twUpdateKotActionButtons() {
+  const canSendKot = twState.hasPendingKot && twState.cart.length > 0;
+  const btnKot = document.getElementById("twBtnKot");
+  const btnKotPrint = document.getElementById("twBtnKotPrint");
+  const status = document.getElementById("twKotStatus");
+  if (btnKot) btnKot.disabled = !canSendKot;
+  if (btnKotPrint) btnKotPrint.disabled = !canSendKot;
+  if (status) {
+    status.textContent = canSendKot ? "Pending KOT" : "KOT Sent";
+    status.classList.toggle("sent", !canSendKot);
+  }
+}
+
+function twMarkPendingKot() {
+  twState.hasPendingKot = twState.cart.length > 0;
+  twUpdateKotActionButtons();
+}
 
 async function twInit() {
   twBindPosItemGrid();
   await twLoadCatalog();
   twRenderAll();
   twBindEvents();
+  twUpdateHeaderLabel();
   await twTryRecallFromQuery();
 }
 
@@ -114,7 +230,7 @@ async function twLoadCatalog() {
 function twRenderAll() { twRenderCats(); twRenderItems(); twRenderCart(); }
 
 function twRenderCats() {
-  const host = document.getElementById("twCategories");
+  const host = document.getElementById("twCategoryTabs") || document.getElementById("twCategories");
   if (!host) return;
   host.innerHTML = "";
   const allEl = document.createElement("div");
@@ -152,13 +268,21 @@ function twRenderItems() {
     tile.setAttribute("role", "button");
     tile.setAttribute("tabindex", "0");
     const badge = i.foodType === "nonveg" ? "nonveg" : i.foodType === "egg" ? "egg" : "veg";
+    const kotLabel = i.isDirectSale ? "Direct" : "KOT";
     tile.innerHTML = `
-      <div class="item-tile-top"><div class="item-tile-name"></div><span class="item-tile-badge ${badge}"></span></div>
-      <div class="item-tile-bottom"><div class="item-tile-price"></div><div class="item-tile-add" aria-hidden="true"><i class="fas fa-plus" style="font-size:11px;"></i></div></div>`;
-    const nameEl = tile.querySelector(".item-tile-name");
-    const priceEl = tile.querySelector(".item-tile-price");
-    if (nameEl) nameEl.textContent = i.name;
-    if (priceEl) priceEl.textContent = fmtINR(i.price);
+      <div class="item-tile-status">
+        <span class="item-tile-badge ${badge}" aria-hidden="true"></span>
+      </div>
+      <div class="item-tile-main">
+        <div class="item-tile-img item-tile-img-ph"><i class="fas fa-utensils"></i></div>
+        <div class="item-tile-content">
+          <div class="item-tile-name">${i.name}</div>
+          <div class="item-tile-bottom">
+            <div class="item-tile-price">${fmtINR(i.price)}</div>
+            <div class="item-tile-kot">${kotLabel}</div>
+          </div>
+        </div>
+      </div>`;
     tile.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter" || ev.key === " ") {
         ev.preventDefault();
@@ -173,12 +297,30 @@ function twAdd(item) {
   const ex = twState.cart.find((x) => x.itemId == item.id);
   if (ex) ex.qty++;
   else twState.cart.push({ itemId: item.id, name: item.name, price: item.price, taxPercent: item.taxPercent || 0, qty: 1 });
+  twMarkPendingKot();
   twRenderCart();
 }
 window.twAdd = function(item) { twAdd(item); };
 
+function twGetTotals() {
+  let subtotal = 0;
+  const lines = twState.cart.map((line) => {
+    const lineSub = line.qty * line.price;
+    subtotal += lineSub;
+    return { lineSub, lineTaxRate: (line.taxPercent || 0) / 100 };
+  });
+  const discount = Math.max(0, Math.min(twState.billLevelDiscount || 0, subtotal));
+  let tax = 0;
+  lines.forEach((l) => {
+    const proportionalDiscount = subtotal > 0 ? (discount * l.lineSub) / subtotal : 0;
+    tax += (l.lineSub - proportionalDiscount) * l.lineTaxRate;
+  });
+  const grand = subtotal - discount + tax;
+  return { subtotal, tax, discount, grand };
+}
+
 function twCalcGrand() {
-  return twState.cart.reduce((s, x) => s + x.qty * x.price * (1 + (x.taxPercent || 0) / 100), 0);
+  return twGetTotals().grand;
 }
 
 function twRenderCart() {
@@ -187,12 +329,15 @@ function twRenderCart() {
   if (!twState.cart.length) {
     host.innerHTML = `<div class="cart-empty"><div class="cart-empty-icon"><i class="fas fa-shopping-bag"></i></div><p>Cart is empty</p><span>Click items to add</span></div>`;
     ["twSubTotal","twTaxTotal","twGrandTotal"].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = fmtINR(0); });
+    const disEl = document.getElementById("twDiscountTotal");
+    if (disEl) disEl.textContent = fmtINR(0);
+    twUpdateKotActionButtons();
     return;
   }
-  let sub = 0, tax = 0;
+  let sub = 0;
   host.innerHTML = twState.cart.map((l, idx) => {
-    const ls = l.qty * l.price; const lt = ls * ((l.taxPercent||0)/100);
-    sub += ls; tax += lt;
+    const ls = l.qty * l.price;
+    sub += ls;
     return `<div class="cart-item">
       <div class="cart-item-info"><div class="cart-item-name">${l.name}</div><div class="cart-item-sub">${fmtINR(l.price)} each</div></div>
       <div class="cart-qty-ctrl">
@@ -204,23 +349,59 @@ function twRenderCart() {
       <span class="cart-remove" onclick="twRemove(${idx})"><i class="fas fa-xmark"></i></span>
     </div>`;
   }).join("");
+  const totals = twGetTotals();
   document.getElementById("twSubTotal").textContent = fmtINR(sub);
-  document.getElementById("twTaxTotal").textContent  = fmtINR(tax);
-  document.getElementById("twGrandTotal").textContent = fmtINR(sub + tax);
+  document.getElementById("twTaxTotal").textContent  = fmtINR(totals.tax);
+  document.getElementById("twGrandTotal").textContent = fmtINR(totals.grand);
+  const disEl = document.getElementById("twDiscountTotal");
+  if (disEl) disEl.textContent = fmtINR(totals.discount);
+  twUpdateKotActionButtons();
 }
 window.twQty = (idx, d) => {
   twState.cart[idx].qty += d;
   if (twState.cart[idx].qty <= 0) twState.cart.splice(idx, 1);
+  twMarkPendingKot();
   twRenderCart();
 };
-window.twRemove = (idx) => { twState.cart.splice(idx, 1); twRenderCart(); };
+window.twRemove = (idx) => {
+  twState.cart.splice(idx, 1);
+  twMarkPendingKot();
+  twRenderCart();
+};
 
 function twBindEvents() {
   const search = document.getElementById("twSearch");
   if (search) { let t; search.addEventListener("input", e => { clearTimeout(t); t = setTimeout(() => { twState.searchTerm = e.target.value.trim().toLowerCase(); twRenderItems(); }, 250); }); }
 
+  document.getElementById("twBtnKot")?.addEventListener("click", twGenerateKot);
+  document.getElementById("twBtnKotPrint")?.addEventListener("click", twGenerateKotAndPrint);
   document.getElementById("twBtnSettle")?.addEventListener("click", twOpenSettle);
-  document.getElementById("twBtnClear")?.addEventListener("click", () => { twState.cart = []; twState.currentBillId = null; twState.currentBillNo = null; twRenderCart(); });
+  document.getElementById("twBtnEditDiscount")?.addEventListener("click", () => {
+    const subtotal = twState.cart.reduce((s, x) => s + x.qty * x.price, 0);
+    if (!subtotal) {
+      if (typeof toastr !== "undefined") toastr.info("Add items first.");
+      return;
+    }
+    const current = Number(twState.billLevelDiscount || 0).toFixed(2);
+    const raw = prompt(`Enter discount amount (max ${fmtINR(subtotal)})`, current);
+    if (raw === null) return;
+    const next = Number(raw);
+    if (!Number.isFinite(next) || next < 0) {
+      if (typeof toastr !== "undefined") toastr.warning("Invalid discount amount.");
+      return;
+    }
+    twState.billLevelDiscount = Math.min(next, subtotal);
+    twRenderCart();
+  });
+  document.getElementById("twBtnClear")?.addEventListener("click", () => {
+    twState.cart = [];
+    twState.currentBillId = null;
+    twState.currentBillNo = null;
+    twState.billLevelDiscount = 0;
+    twState.hasPendingKot = false;
+    twRenderCart();
+    twUpdateHeaderLabel();
+  });
   document.getElementById("twSettleClose")?.addEventListener("click", twCloseSettle);
   document.getElementById("twSettleCancel")?.addEventListener("click", twCloseSettle);
   document.getElementById("twSettleConfirm")?.addEventListener("click", twConfirmSettle);
@@ -243,15 +424,101 @@ function twBindEvents() {
   });
 }
 
+async function twEnsureHeldBill() {
+  const draftPayload = {
+    outletId: 1,
+    items: twState.cart.map(x => ({
+      itemId: x.itemId, itemName: x.name, qty: x.qty, rate: x.price,
+      discountAmount: 0, taxPercent: x.taxPercent || 5, isTaxInclusive: false, taxType: "GST"
+    })),
+    billLevelDiscount: twState.billLevelDiscount || 0,
+    serviceChargeOptIn: false,
+    serviceChargeAmount: 0,
+    customerName: null,
+    phone: null
+  };
+  if (twState.currentBillId) {
+    await postJSON(`/pos/update-draft/${twState.currentBillId}`, draftPayload);
+    return;
+  }
+  const held = await postJSON("/pos/hold", {
+    ...draftPayload,
+    billType: "Takeaway",
+    businessDate: new Date().toISOString().slice(0, 10)
+  });
+  twState.currentBillId = held.billId;
+  twState.currentBillNo = held.billNo;
+  twUpdateHeaderLabel();
+}
+
+async function twGenerateKot() {
+  if (!twState.cart.length) {
+    if (typeof toastr !== "undefined") toastr.warning("Add items before generating KOT.");
+    return;
+  }
+  const btn = document.getElementById("twBtnKot");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending...`;
+  }
+  try {
+    await twEnsureHeldBill();
+    const result = await postJSON("/kot/generate", {
+      outletId: 1, billId: twState.currentBillId, captainUserId: 1
+    });
+    const msg = result.reused
+      ? "KOT already exists for this bill."
+      : `KOT sent to kitchen! Bill: ${twState.currentBillNo}`;
+    twState.hasPendingKot = false;
+    twUpdateKotActionButtons();
+    if (typeof toastr !== "undefined") toastr.success(msg);
+    return { ok: true, kotIds: Array.isArray(result.kotIds) ? result.kotIds : [] };
+  } catch {
+    if (typeof toastr !== "undefined") toastr.error("Failed to generate KOT.");
+    return { ok: false, kotIds: [] };
+  } finally {
+    if (btn) {
+      btn.innerHTML = `<i class="fas fa-paper-plane"></i> Send KOT`;
+    }
+    twUpdateKotActionButtons();
+  }
+}
+
+async function twGenerateKotAndPrint() {
+  const btn = document.getElementById("twBtnKotPrint");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Printing...`;
+  }
+  const result = await twGenerateKot();
+  if (result.ok) {
+    if (result.kotIds.length) {
+      try {
+        await postJSON("/kot/mark-printed", { outletId: 1, kotIds: result.kotIds });
+      } catch {
+        // Non-blocking: print should still proceed.
+      }
+    }
+    twPrintKotSlip();
+  }
+  if (btn) {
+    btn.innerHTML = `<i class="fas fa-print"></i> KOT & print`;
+  }
+  twUpdateKotActionButtons();
+}
+
 function twOpenSettle() {
   if (!twState.cart.length) { if(typeof toastr!=="undefined") toastr.warning("Cart is empty."); return; }
-  const grand = twCalcGrand();
-  const sub   = twState.cart.reduce((s,x) => s + x.qty*x.price, 0);
-  const tax   = grand - sub;
+  const totals = twGetTotals();
+  const grand = totals.grand;
+  const sub = totals.subtotal;
+  const tax = totals.tax;
+  const discount = totals.discount;
   const summaryEl = document.getElementById("twSettleSummary");
   if (summaryEl) summaryEl.innerHTML = `
     ${twState.cart.map(l=>`<div class="settle-summary-row"><span>${l.name} x${l.qty}</span><span>${fmtINR(l.qty*l.price)}</span></div>`).join("")}
     <div class="settle-summary-row" style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;"><span>Subtotal</span><span>${fmtINR(sub)}</span></div>
+    <div class="settle-summary-row"><span>Discount</span><span>${fmtINR(discount)}</span></div>
     <div class="settle-summary-row"><span>Tax</span><span>${fmtINR(tax)}</span></div>
     <div class="settle-summary-row grand"><span>Grand Total</span><span>${fmtINR(grand)}</span></div>`;
   document.getElementById("twAmtInput").value = grand.toFixed(2);
@@ -271,10 +538,15 @@ async function twTryRecallFromQuery() {
     }
     twState.currentBillId = b.billId;
     twState.currentBillNo = b.billNo;
+    twState.billLevelDiscount = Number(b.discountAmount || 0);
+    if (typeof b.hasPendingKot === "boolean") twState.hasPendingKot = b.hasPendingKot;
+    else if (typeof b.hasAnyKot === "boolean") twState.hasPendingKot = !b.hasAnyKot;
+    else twState.hasPendingKot = true;
     twState.cart = (b.items || []).map(i => ({
       itemId: i.itemId, name: i.name, price: i.rate, taxPercent: i.taxPercent || 5, qty: i.qty
     }));
     twRenderCart();
+    twUpdateHeaderLabel();
     if (typeof toastr !== "undefined") toastr.info("Bill " + b.billNo + " loaded.");
     const u = new URL(window.location.href);
     u.searchParams.delete("recall");
@@ -299,7 +571,7 @@ async function twConfirmSettle() {
       result = await postJSON("/pos/settle", {
         outletId: 1, billType: "Takeaway",
         businessDate: new Date().toISOString().slice(0, 10),
-        isInterState: false, billLevelDiscount: 0,
+        isInterState: false, billLevelDiscount: twState.billLevelDiscount || 0,
         serviceChargeOptIn: false, serviceChargeAmount: 0,
         items: twState.cart.map(x => ({
           itemId: x.itemId, itemName: x.name, qty: x.qty, rate: x.price,
@@ -312,8 +584,10 @@ async function twConfirmSettle() {
     twCloseSettle();
     const amtPaid = parseFloat(document.getElementById("twAmtInput")?.value || grand);
     const change  = Math.max(0, amtPaid - grand);
-    const sub     = twState.cart.reduce((s,x) => s+x.qty*x.price, 0);
-    const taxAmt  = grand - sub;
+    const totals  = twGetTotals();
+    const sub     = totals.subtotal;
+    const taxAmt  = totals.tax;
+    const discAmt = totals.discount;
     const receiptHtml = `<div style="font-family:'Courier New',monospace;font-size:12px;max-width:300px;margin:0 auto;padding:10px;">
       <div style="text-align:center;margin-bottom:10px;"><div style="font-size:18px;font-weight:bold;">RestoBill</div><div style="font-size:11px;color:#666;">Takeaway Receipt</div><div style="font-size:11px;color:#666;">${new Date().toLocaleString("en-IN")}</div><div style="font-size:12px;font-weight:bold;margin-top:4px;">Bill: ${result.billNo||"---"}</div></div>
       <hr style="border-top:1px dashed #000;margin:6px 0;"/>
@@ -321,6 +595,7 @@ async function twConfirmSettle() {
       <tbody>${twState.cart.map(l=>`<tr><td>${l.name}</td><td style="text-align:center">${l.qty}</td><td style="text-align:right">${fmtINR(l.qty*l.price)}</td></tr>`).join("")}</tbody></table>
       <hr style="border-top:1px dashed #000;margin:6px 0;"/>
       <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>${fmtINR(sub)}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>Discount</span><span>${fmtINR(discAmt)}</span></div>
       <div style="display:flex;justify-content:space-between;"><span>Tax</span><span>${fmtINR(taxAmt)}</span></div>
       <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;margin-top:4px;"><span>TOTAL</span><span>${fmtINR(grand)}</span></div>
       <div style="display:flex;justify-content:space-between;margin-top:4px;"><span>Paid (${twState.payMethod})</span><span>${fmtINR(amtPaid)}</span></div>
@@ -329,9 +604,12 @@ async function twConfirmSettle() {
     document.getElementById("twReceiptWrap").innerHTML = receiptHtml;
     window.print();
     twState.cart = [];
+    twState.billLevelDiscount = 0;
+    twState.hasPendingKot = false;
     twRenderCart();
     if (typeof toastr !== "undefined") toastr.success(`Takeaway bill ${result.billNo||""} settled!`);
     twState.currentBillId = null; twState.currentBillNo = null;
+    twUpdateHeaderLabel();
   } catch (_e) {
     if (typeof toastr !== "undefined") toastr.error("Settlement failed. Please check items and try again.");
   } finally {
@@ -340,5 +618,24 @@ async function twConfirmSettle() {
 }
 
 document.addEventListener("DOMContentLoaded", twInit);
+document.addEventListener("DOMContentLoaded", () => {
+  const autoSavedBillNo = sessionStorage.getItem(TW_AUTOSAVE_TOAST_KEY);
+  if (autoSavedBillNo) {
+    if (typeof toastr !== "undefined") toastr.info(`Draft auto-saved (${autoSavedBillNo}).`);
+    sessionStorage.removeItem(TW_AUTOSAVE_TOAST_KEY);
+  }
+});
+window.addEventListener("beforeunload", (e) => {
+  if (!twHasUnsavedOrderChanges()) return;
+  twSaveDraftOnUnload();
+  e.preventDefault();
+  e.returnValue = "";
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "hidden") return;
+  if (!twHasUnsavedOrderChanges()) return;
+  twSaveDraftOnUnload();
+});
 </script>
 }

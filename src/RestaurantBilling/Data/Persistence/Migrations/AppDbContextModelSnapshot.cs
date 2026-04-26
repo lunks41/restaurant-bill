@@ -1356,6 +1356,9 @@ namespace Data.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<DateTime?>("KotPrintedAtUtc")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("OutletId")
                         .HasColumnType("int");
 
@@ -1364,6 +1367,13 @@ namespace Data.Persistence.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("ServedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ServedByUserId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1594,9 +1604,6 @@ namespace Data.Persistence.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsStockTracked")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsTaxInclusive")
                         .HasColumnType("bit");
 
@@ -1613,24 +1620,11 @@ namespace Data.Persistence.Migrations
                     b.Property<int>("OutletId")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("PurchasePrice")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<decimal>("ReorderLevel")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
-
-                    b.Property<string>("SacCode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
 
                     b.Property<decimal>("SalePrice")
                         .HasPrecision(18, 4)
@@ -2016,6 +2010,10 @@ namespace Data.Persistence.Migrations
                     b.Property<int>("CreatedBy")
                         .HasColumnType("int");
 
+                    b.Property<string>("CustomerName")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
                     b.Property<DateTime?>("DeletedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -2043,6 +2041,10 @@ namespace Data.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("Phone")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<decimal>("RoundOff")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -2068,7 +2070,8 @@ namespace Data.Persistence.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("TableName")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<decimal>("TaxAmount")
                         .HasPrecision(18, 2)

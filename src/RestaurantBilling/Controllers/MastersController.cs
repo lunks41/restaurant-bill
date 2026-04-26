@@ -112,13 +112,9 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
                     ItemCode = item.ItemCode,
                     ItemName = item.ItemName,
                     SalePrice = item.SalePrice,
-                    PurchasePrice = item.PurchasePrice,
                     GstPercent = item.GstPercent,
                     IsTaxInclusive = item.IsTaxInclusive,
-                    TaxType = item.TaxType,
-                    SacCode = item.SacCode,
-                    IsStockTracked = item.IsStockTracked,
-                    ReorderLevel = item.ReorderLevel
+                    TaxType = item.TaxType
                 });
             }
         }
@@ -146,13 +142,9 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
                 existing.ItemCode = model.ItemCode.Trim();
                 existing.ItemName = model.ItemName.Trim();
                 existing.SalePrice = model.SalePrice;
-                existing.PurchasePrice = model.PurchasePrice;
                 existing.GstPercent = model.GstPercent;
                 existing.IsTaxInclusive = model.IsTaxInclusive;
                 existing.TaxType = model.TaxType;
-                existing.SacCode = model.SacCode.Trim();
-                existing.IsStockTracked = model.IsStockTracked;
-                existing.ReorderLevel = model.ReorderLevel;
                 existing.IsActive = true;
                 if (!string.IsNullOrWhiteSpace(uploadedImagePath))
                 {
@@ -175,13 +167,9 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
                 ItemCode = model.ItemCode.Trim(),
                 ItemName = model.ItemName.Trim(),
                 SalePrice = model.SalePrice,
-                PurchasePrice = model.PurchasePrice,
                 GstPercent = model.GstPercent,
                 IsTaxInclusive = model.IsTaxInclusive,
                 TaxType = model.TaxType,
-                SacCode = model.SacCode.Trim(),
-                IsStockTracked = model.IsStockTracked,
-                ReorderLevel = model.ReorderLevel,
                 ImagePath = uploadedImagePath
             });
         }

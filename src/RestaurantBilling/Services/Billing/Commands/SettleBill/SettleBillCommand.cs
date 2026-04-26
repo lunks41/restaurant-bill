@@ -12,6 +12,9 @@ public sealed record SettleBillCommand(
     decimal BillLevelDiscount,
     bool ServiceChargeOptIn,
     decimal ServiceChargeAmount,
+    string? TableName,
+    string? CustomerName,
+    string? Phone,
     IReadOnlyCollection<SettleBillItemInput> Items,
     IReadOnlyCollection<SettleBillPaymentInput> Payments) : IRequest<Result<long>>;
 
