@@ -210,17 +210,29 @@ function twBindPosItemGrid() {
   if (!host || host.dataset.twGridBound === "1") return;
   host.dataset.twGridBound = "1";
   host.addEventListener("click", (e) => {
-    const tile = e.target.closest(".item-tile");
+    const target = e.target instanceof Element ? e.target : e.target?.parentElement;
+    const tile = target?.closest(".item-tile");
     if (!tile || !host.contains(tile)) return;
     const raw = tile.getAttribute("data-item-id");
     if (raw == null || raw === "") return;
-    const id = Number(raw);
-    const item = twState.items.find((x) => Number(x.id) === id);
+    const item = twGetItemFromTile(raw, tile);
     if (item) {
       e.preventDefault();
       twAdd(item);
     }
   });
+}
+
+function twGetItemFromTile(rawId, tile) {
+  const idNum = Number(rawId);
+  let item = Number.isFinite(idNum)
+    ? twState.items.find((x) => Number(x.id) === idNum)
+    : twState.items.find((x) => String(x.id) === String(rawId));
+  if (!item) {
+    const name = (tile?.getAttribute("data-item-name") || "").trim().toLowerCase();
+    if (name) item = twState.items.find((x) => String(x.name || "").trim().toLowerCase() === name);
+  }
+  return item || null;
 }
 
 async function twLoadCatalog() {
@@ -269,6 +281,7 @@ function twRenderItems() {
     const tile = document.createElement("div");
     tile.className = "item-tile";
     tile.setAttribute("data-item-id", String(i.id));
+    tile.setAttribute("data-item-name", String(i.name || ""));
     tile.setAttribute("role", "button");
     tile.setAttribute("tabindex", "0");
     const badge = i.foodType === "nonveg" ? "nonveg" : i.foodType === "egg" ? "egg" : "veg";
@@ -293,7 +306,9 @@ function twRenderItems() {
         twAdd(i);
       }
     });
-    tile.addEventListener("click", () => {
+    // Direct fallback (same pattern as POS): ensures add works even if delegated lookup fails on some clients.
+    tile.addEventListener("click", (ev) => {
+      ev.stopPropagation();
       twAdd(i);
     });
     host.appendChild(tile);
@@ -307,7 +322,6 @@ function twAdd(item) {
   twMarkPendingKot();
   twRenderCart();
 }
-window.twAdd = function(item) { twAdd(item); };
 
 function twGetTotals() {
   let subtotal = 0;
