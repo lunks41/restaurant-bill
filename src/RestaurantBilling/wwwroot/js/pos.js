@@ -563,31 +563,48 @@ async function generateKot() {
 
 async function generateKotAndPrint() {
   const printBtn = document.getElementById("btnKotPrint");
+  if (!posState.cart.length) {
+    posNotify("warning", "Add items before printing.");
+    return;
+  }
   if (printBtn) {
     printBtn.disabled = true;
     printBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Printing...`;
   }
-  const result = await generateKot();
-  if (result.ok) {
-    if (result.kotIds.length) {
-      try {
-        await postJSON("/kot/mark-printed", { outletId: 1, kotIds: result.kotIds });
-      } catch {
-        // Non-blocking: print should still proceed.
-      }
-    }
-    printKotSlip();
-  }
+  printKotSlip();
   if (printBtn) {
-    printBtn.innerHTML = `<i class="fas fa-print"></i> KOT & print`;
+    printBtn.innerHTML = `<i class="fas fa-print"></i> KOT Print`;
+    printBtn.disabled = false;
   }
-  updateKotActionButtons();
 }
 
 /* ─── Settle Modal ─── */
 function bindSettleModal() {
   const partialToggle = document.getElementById("settlePartialSplit");
   const partialRow = partialToggle?.closest(".settle-split-row");
+  const partialCashGroup = document.getElementById("settlePartialCashGroup");
+  const partialCashInput = document.getElementById("settlePartialCashInput");
+  const partialRemaining = document.getElementById("settlePartialRemaining");
+  const amountInput = document.getElementById("settleAmtInput");
+
+  const updatePartialPaymentUi = () => {
+    const grand = calcGrand();
+    const isPartial = Boolean(partialToggle?.checked) && (posState.selectedPayMethod || "Cash") !== "Cash";
+    if (partialCashGroup) partialCashGroup.style.display = isPartial ? "" : "none";
+    if (!isPartial) {
+      posState.partialSplitEnabled = false;
+      if (partialCashInput) partialCashInput.value = "";
+      if (partialRemaining) partialRemaining.textContent = `Remaining in selected mode: ${fmtINR(grand)}`;
+      return;
+    }
+    posState.partialSplitEnabled = true;
+    const cash = Math.max(0, Number.parseFloat(partialCashInput?.value || "0") || 0);
+    const clampedCash = Math.min(cash, grand);
+    if (partialCashInput && cash !== clampedCash) partialCashInput.value = clampedCash.toFixed(2);
+    const remaining = Math.max(0, grand - clampedCash);
+    if (partialRemaining) partialRemaining.textContent = `Remaining in selected mode: ${fmtINR(remaining)}`;
+  };
+
   const updatePartialSplitState = () => {
     const isCashOnly = (posState.selectedPayMethod || "Cash") === "Cash";
     if (!partialToggle) return;
@@ -597,6 +614,7 @@ function bindSettleModal() {
       partialToggle.checked = false;
       posState.partialSplitEnabled = false;
     }
+    updatePartialPaymentUi();
   };
 
   document.getElementById("settleClose")?.addEventListener("click", closeSettleModal);
@@ -619,10 +637,12 @@ function bindSettleModal() {
       return;
     }
     posState.partialSplitEnabled = checked;
+    updatePartialPaymentUi();
   });
-  document.getElementById("settleAmtInput")?.addEventListener("input", () => {
+  partialCashInput?.addEventListener("input", updatePartialPaymentUi);
+  amountInput?.addEventListener("input", () => {
     const grand = calcGrand();
-    const paid = parseFloat(document.getElementById("settleAmtInput").value) || 0;
+    const paid = parseFloat(amountInput.value) || 0;
     const row = document.getElementById("settleChangeRow");
     const due = document.getElementById("settleChangeDue");
     if (row && due) { row.style.display = paid >= grand ? "block" : "none"; due.textContent = fmtINR(Math.max(0, paid - grand)); }
@@ -647,11 +667,17 @@ function openSettleModal() {
   const amtInput = document.getElementById("settleAmtInput");
   if (amtInput) amtInput.value = grand.toFixed(2);
   const partialToggle = document.getElementById("settlePartialSplit");
+  const partialCashInput = document.getElementById("settlePartialCashInput");
+  const partialCashGroup = document.getElementById("settlePartialCashGroup");
+  const partialRemaining = document.getElementById("settlePartialRemaining");
   if (partialToggle) {
     partialToggle.checked = false;
     partialToggle.disabled = (posState.selectedPayMethod || "Cash") === "Cash";
     partialToggle.closest(".settle-split-row")?.classList.toggle("disabled", partialToggle.disabled);
   }
+  if (partialCashGroup) partialCashGroup.style.display = "none";
+  if (partialCashInput) partialCashInput.value = "";
+  if (partialRemaining) partialRemaining.textContent = `Remaining in selected mode: ${fmtINR(grand)}`;
   posState.partialSplitEnabled = false;
   document.getElementById("settleChangeRow").style.display = "none";
   document.getElementById("settleOverlay")?.classList.add("show");
@@ -664,11 +690,13 @@ async function confirmSettle() {
   const grand = calcGrand();
   const partialToggle = document.getElementById("settlePartialSplit");
   const isPartialSplit = Boolean(partialToggle?.checked) && method !== "Cash";
+  const partialCashInput = document.getElementById("settlePartialCashInput");
   const buildPayments = () => {
     if (!isPartialSplit) {
       return [{ mode: method, amount: grand }];
     }
-    const cashAmount = Number((grand / 2).toFixed(2));
+    const enteredCash = Math.max(0, Number.parseFloat(partialCashInput?.value || "0") || 0);
+    const cashAmount = Number(Math.min(enteredCash, grand).toFixed(2));
     const digitalAmount = Number((grand - cashAmount).toFixed(2));
     return [
       { mode: "Cash", amount: cashAmount },
@@ -792,10 +820,13 @@ function printKotSlip() {
 }
 
 function posPrintNow() {
-  // Give the browser one paint cycle so receipt HTML is ready in print preview.
-  requestAnimationFrame(() => {
-    setTimeout(() => window.print(), 40);
-  });
+  // Call print directly from user-triggered flow to avoid popup blocking.
+  try {
+    window.print();
+  } catch {
+    // Fallback if direct print fails on specific browsers.
+    setTimeout(() => window.print(), 0);
+  }
 }
 
 /* ─── Recall from bill detail / query string ─── */

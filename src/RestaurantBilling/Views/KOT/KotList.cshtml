@@ -136,6 +136,8 @@ function renderKotGrid() {
           <div>
             <div class="kot-no-label">${kot.kotNo}</div>
             ${kot.kotEventType === "AddOn" ? `<div class="kot-event-badge">Additional KOT</div>` : ''}
+            ${kot.billNo ? `<div class="kot-table-label"><i class="fas fa-receipt"></i> Order: ${kot.billNo}</div>` : ''}
+            ${kot.tableName ? `<div class="kot-table-label"><i class="fas fa-chair"></i> Table: ${kot.tableName}</div>` : `<div class="kot-table-label"><i class="fas fa-chair"></i> Table: -</div>`}
             <div class="kot-table-label"><i class="fas fa-kitchen-set"></i> ${stationLabel}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">

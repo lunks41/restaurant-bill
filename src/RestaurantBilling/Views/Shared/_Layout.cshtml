@@ -5,6 +5,7 @@
   var path = Context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
   bool IsActive(string prefix) => path.StartsWith(prefix);
   string LinkClass(string prefix) => IsActive(prefix) ? "nav-link-item active" : "nav-link-item";
+  string TopbarLinkClass(string prefix) => IsActive(prefix) ? "topbar-quick-link active" : "topbar-quick-link";
 }
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
@@ -48,14 +49,14 @@
           <div class="nav-group">
             <div class="nav-group-label">POS</div>
             <a class="@LinkClass("/floor")" href="/floor"><i class="nav-icon fas fa-border-all"></i><span
-                class="nav-label">Floor plan</span></a>
+                class="nav-label">KOT</span></a>
             <a class="@LinkClass("/takeaway")" href="/takeaway"><i class="nav-icon fas fa-bag-shopping"></i><span
                 class="nav-label">Takeaway</span></a>
           </div>
           <div class="nav-group">
             <div class="nav-group-label">Service</div>
             <a class="@LinkClass("/kot")" href="/kot" target="_blank" rel="noopener"><i
-                class="nav-icon fas fa-fire-burner"></i><span class="nav-label">Kitchen (KOT)</span></a>
+                class="nav-icon fas fa-fire-burner"></i><span class="nav-label">KOT View</span></a>
             <a class="@LinkClass("/bills")" href="/bills"><i class="nav-icon fas fa-clock-rotate-left"></i><span
                 class="nav-label">Order History</span></a>
           </div>
@@ -102,6 +103,12 @@
         <header class="topbar">
           <button class="topbar-toggle" id="sidebarToggle" title="Toggle sidebar"><i class="fas fa-bars"></i></button>
           <span class="topbar-title">@(ViewData["Title"] ?? "Dashboard")</span>
+          <nav class="topbar-quick-nav" aria-label="Quick navigation">
+            <a class="@TopbarLinkClass("/floor")" href="/floor"><i class="fas fa-border-all"></i><span>KOT
+              </span></a>
+            <a class="@TopbarLinkClass("/takeaway")" href="/takeaway"><i
+                class="fas fa-bag-shopping"></i><span>Takeaway</span></a>
+          </nav>
           <div class="topbar-spacer"></div>
           <div class="topbar-clock" id="liveClock"></div>
           <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme"><i id="themeIcon"

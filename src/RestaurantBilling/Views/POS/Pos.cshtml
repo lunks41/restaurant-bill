@@ -24,7 +24,8 @@
                 <div class="cart-header-info">
                     <div class="cart-header-row">
                         <div class="cart-header-title" id="cartHeaderTitle">Order #</div>
-                        <button type="button" class="btn-ghost cart-table-btn" id="btnTable"><i class="fas fa-chair"></i>
+                        <button type="button" class="btn-ghost cart-table-btn" id="btnTable"><i
+                                class="fas fa-chair"></i>
                             @tableLabel</button>
                     </div>
                     <div class="cart-order-meta" id="cartOrderMeta">OPEN · dine-in</div>
@@ -47,14 +48,15 @@
                         <label for="customerPhone">Phone</label>
                         <input id="customerPhone" type="text" class="form-control-custom" placeholder="Optional" />
                     </div>
-                    <button type="button" class="btn-settle cart-customer-save" id="btnSaveCustomer">Save customer</button>
+                    <button type="button" class="btn-settle cart-customer-save" id="btnSaveCustomer">Save
+                        customer</button>
                 </div>
             </section>
         </div>
 
         <div class="cart-kot-hint" id="cartKotHint">
             <i class="fas fa-circle-exclamation"></i>
-            <span>Kitchen item not sent yet - use Send KOT or KOT &amp; print.</span>
+            <span>Kitchen item not sent yet - use Send KOT or KOT Print.</span>
         </div>
 
 
@@ -75,7 +77,7 @@
         <div class="cart-actions">
             <div class="kot-status-badge" id="posKotStatus">Pending KOT</div>
             <button class="btn-kot" id="btnKot"><i class="fas fa-paper-plane"></i> Send KOT</button>
-            <button class="btn-kot" id="btnKotPrint"><i class="fas fa-print"></i> KOT &amp; print</button>
+            <button class="btn-kot" id="btnKotPrint"><i class="fas fa-print"></i> KOT Print</button>
             <button class="btn-settle" id="btnSettle"><i class="fas fa-indian-rupee-sign"></i> Bill / Pay</button>
         </div>
         <div class="cart-inline-link-row">
@@ -115,7 +117,13 @@
             </div>
             <div class="settle-split-row">
                 <input type="checkbox" id="settlePartialSplit" />
-                <label for="settlePartialSplit">Partially (50% Cash + 50% selected mode)</label>
+                <label for="settlePartialSplit">Partially (Cash + selected mode)</label>
+            </div>
+            <div class="form-group-custom" id="settlePartialCashGroup" style="display:none;">
+                <label class="form-label-custom">Cash Amount</label>
+                <input type="number" id="settlePartialCashInput" class="form-control-custom" step="0.01" min="0"
+                    placeholder="Enter cash amount" />
+                <div class="app-muted mt-1" id="settlePartialRemaining">Remaining in selected mode: ₹0.00</div>
             </div>
             <div class="form-group-custom">
                 <label class="form-label-custom">Amount Received</label>
@@ -140,7 +148,8 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-circle-exclamation text-warning me-2"></i>Cancel current order?</h5>
+                <h5 class="modal-title"><i class="fas fa-circle-exclamation text-warning me-2"></i>Cancel current order?
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">

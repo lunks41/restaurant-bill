@@ -94,7 +94,9 @@ function renderKdsGrid(rows) {
           <div>
             <div class="kot-no-label">${r.kotNo}</div>
             ${r.kotEventType === "AddOn" ? `<div class="kot-event-badge">Additional KOT</div>` : ''}
-            ${r.tableName ? `<div class="kot-table-label"><i class="fas fa-chair" style="font-size:10px;"></i> ${r.tableName}</div>` : ''}
+            ${r.billNo ? `<div class="kot-table-label"><i class="fas fa-receipt" style="font-size:10px;"></i> Order: ${r.billNo}</div>` : ''}
+            ${r.tableName ? `<div class="kot-table-label"><i class="fas fa-chair" style="font-size:10px;"></i> Table: ${r.tableName}</div>` : ''}
+            ${!r.tableName ? `<div class="kot-table-label"><i class="fas fa-chair" style="font-size:10px;"></i> Table: -</div>` : ''}
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
             <div class="kot-timer ${timerClass}">${r.elapsedMin != null ? r.elapsedMin+'m' : r.kotDate}</div>

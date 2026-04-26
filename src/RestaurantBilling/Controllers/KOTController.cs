@@ -183,6 +183,18 @@ public class KOTController(
         }
 
         var headerIds = headers.Select(x => x.KotHeaderId).ToList();
+        var billIds = headers.Where(x => x.BillId.HasValue).Select(x => x.BillId!.Value).Distinct().ToList();
+        Dictionary<long, (string? BillNo, string? TableName)> billLookup = billIds.Count == 0
+            ? new Dictionary<long, (string? BillNo, string? TableName)>()
+            : await db.Bills
+                .AsNoTracking()
+                .Where(x => billIds.Contains(x.BillId))
+                .Select(x => new { x.BillId, x.BillNo, x.TableName })
+                .ToDictionaryAsync(
+                    x => x.BillId,
+                    x => (BillNo: x.BillNo, TableName: x.TableName),
+                    cancellationToken);
+
         var itemLookup = await db.KotItems
             .AsNoTracking()
             .Where(x => headerIds.Contains(x.KotHeaderId) && !x.IsVoid)
@@ -198,6 +210,7 @@ public class KOTController(
 
         var rows = headers.Select(h =>
         {
+            billLookup.TryGetValue(h.BillId ?? 0, out var billMeta);
             var items = itemLookup
                 .Where(i => i.KotHeaderId == h.KotHeaderId)
                 .Select(i => new
@@ -211,6 +224,9 @@ public class KOTController(
             {
                 h.KotHeaderId,
                 h.KotNo,
+                h.BillId,
+                billNo = billMeta.BillNo,
+                tableName = billMeta.TableName,
                 h.KitchenStationId,
                 kotEventType = h.KotEventType,
                 h.Status,

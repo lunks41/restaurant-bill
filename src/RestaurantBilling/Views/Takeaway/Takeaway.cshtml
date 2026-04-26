@@ -70,7 +70,12 @@
             </div>
             <div class="settle-split-row">
                 <input type="checkbox" id="twPartialSplit" />
-                <label for="twPartialSplit">Partially (50% Cash + 50% selected mode)</label>
+                <label for="twPartialSplit">Partially (Cash + selected mode)</label>
+            </div>
+            <div class="form-group-custom" id="twPartialCashGroup" style="display:none;">
+                <label class="form-label-custom">Cash Amount</label>
+                <input type="number" id="twPartialCashInput" class="form-control-custom" step="0.01" min="0" placeholder="Enter cash amount" />
+                <div class="app-muted mt-1" id="twPartialRemaining">Remaining in selected mode: ₹0.00</div>
             </div>
             <div class="form-group-custom">
                 <label class="form-label-custom">Amount Received</label>
@@ -468,6 +473,7 @@ function twBindEvents() {
       twState.payMethod = btn.dataset.twMethod;
       const splitToggle = document.getElementById("twPartialSplit");
       const splitRow = splitToggle?.closest(".settle-split-row");
+      const partialCashGroup = document.getElementById("twPartialCashGroup");
       const isCashOnly = (twState.payMethod || "Cash") === "Cash";
       if (splitToggle) {
         splitToggle.disabled = isCashOnly;
@@ -477,8 +483,32 @@ function twBindEvents() {
         }
       }
       splitRow?.classList.toggle("disabled", isCashOnly);
+      if (partialCashGroup) partialCashGroup.style.display = (!isCashOnly && splitToggle?.checked) ? "" : "none";
+      twUpdatePartialPaymentUi();
     });
   });
+
+  const twUpdatePartialPaymentUi = () => {
+    const grand = twCalcGrand();
+    const splitToggle = document.getElementById("twPartialSplit");
+    const partialCashGroup = document.getElementById("twPartialCashGroup");
+    const partialCashInput = document.getElementById("twPartialCashInput");
+    const partialRemaining = document.getElementById("twPartialRemaining");
+    const isPartial = Boolean(splitToggle?.checked) && (twState.payMethod || "Cash") !== "Cash";
+    if (partialCashGroup) partialCashGroup.style.display = isPartial ? "" : "none";
+    if (!isPartial) {
+      twState.partialSplitEnabled = false;
+      if (partialCashInput) partialCashInput.value = "";
+      if (partialRemaining) partialRemaining.textContent = `Remaining in selected mode: ${fmtINR(grand)}`;
+      return;
+    }
+    twState.partialSplitEnabled = true;
+    const cash = Math.max(0, Number.parseFloat(partialCashInput?.value || "0") || 0);
+    const clampedCash = Math.min(cash, grand);
+    if (partialCashInput && cash !== clampedCash) partialCashInput.value = clampedCash.toFixed(2);
+    const remaining = Math.max(0, grand - clampedCash);
+    if (partialRemaining) partialRemaining.textContent = `Remaining in selected mode: ${fmtINR(remaining)}`;
+  };
 
   const splitToggle = document.getElementById("twPartialSplit");
   splitToggle?.addEventListener("change", () => {
@@ -490,7 +520,10 @@ function twBindEvents() {
       return;
     }
     twState.partialSplitEnabled = checked;
+    twUpdatePartialPaymentUi();
   });
+
+  document.getElementById("twPartialCashInput")?.addEventListener("input", twUpdatePartialPaymentUi);
 
   const amtInput = document.getElementById("twAmtInput");
   if (amtInput) amtInput.addEventListener("input", () => {
@@ -600,6 +633,9 @@ function twOpenSettle() {
     <div class="settle-summary-row grand"><span>Grand Total</span><span>${fmtINR(grand)}</span></div>`;
   document.getElementById("twAmtInput").value = grand.toFixed(2);
   document.getElementById("twChangeRow").style.display = "none";
+  const twPartialCashGroup = document.getElementById("twPartialCashGroup");
+  const twPartialCashInput = document.getElementById("twPartialCashInput");
+  const twPartialRemaining = document.getElementById("twPartialRemaining");
   const splitToggle = document.getElementById("twPartialSplit");
   if (splitToggle) {
     const isCashOnly = (twState.payMethod || "Cash") === "Cash";
@@ -607,6 +643,9 @@ function twOpenSettle() {
     splitToggle.disabled = isCashOnly;
     splitToggle.closest(".settle-split-row")?.classList.toggle("disabled", isCashOnly);
   }
+  if (twPartialCashGroup) twPartialCashGroup.style.display = "none";
+  if (twPartialCashInput) twPartialCashInput.value = "";
+  if (twPartialRemaining) twPartialRemaining.textContent = `Remaining in selected mode: ${fmtINR(grand)}`;
   twState.partialSplitEnabled = false;
   document.getElementById("twSettleOverlay").classList.add("show");
 }
@@ -645,9 +684,11 @@ async function twConfirmSettle() {
   const grand = twCalcGrand();
   const splitToggle = document.getElementById("twPartialSplit");
   const isPartialSplit = Boolean(splitToggle?.checked) && (twState.payMethod || "Cash") !== "Cash";
+  const twPartialCashInput = document.getElementById("twPartialCashInput");
   const payments = (() => {
     if (!isPartialSplit) return [{ mode: twState.payMethod, amount: grand }];
-    const cashAmount = Number((grand / 2).toFixed(2));
+    const enteredCash = Math.max(0, Number.parseFloat(twPartialCashInput?.value || "0") || 0);
+    const cashAmount = Number(Math.min(enteredCash, grand).toFixed(2));
     const digitalAmount = Number((grand - cashAmount).toFixed(2));
     return [
       { mode: "Cash", amount: cashAmount },
