@@ -254,7 +254,7 @@ async function twLoadCatalog() {
   try {
     const data = await getJSON("/pos/catalog?outletId=1");
     twState.categories = (data.categories || []).map(c => ({ id: c.id, name: c.name, color: c.color }));
-    twState.items = (data.items || []).map(i => ({ id: i.id, name: i.name, categoryId: i.categoryId, price: i.price, taxPercent: i.taxPercent || 0, foodType: i.foodType || "veg" }));
+    twState.items = (data.items || []).map(i => ({ id: i.id, name: i.name, categoryId: i.categoryId, price: i.price, taxPercent: i.taxPercent || 0, foodType: i.foodType || "veg", imageUrl: i.imageUrl || "" }));
   } catch { if (typeof toastr !== "undefined") toastr.error("Unable to load catalog."); }
 }
 
@@ -301,7 +301,24 @@ function twRenderItems() {
     tile.setAttribute("tabindex", "0");
     const badge = i.foodType === "nonveg" ? "nonveg" : i.foodType === "egg" ? "egg" : "veg";
     const kotLabel = i.isDirectSale ? "Direct" : "KOT";
-    tile.innerHTML = `
+    if (i.imageUrl) {
+      tile.classList.add("item-tile-bg");
+      tile.style.backgroundImage = `url("${String(i.imageUrl).replace(/"/g, "&quot;")}")`;
+      tile.innerHTML = `
+      <div class="item-tile-status">
+        <span class="item-tile-badge ${badge}" aria-hidden="true"></span>
+      </div>
+      <div class="item-tile-main">
+        <div class="item-tile-content">
+          <div class="item-tile-name">${i.name}</div>
+          <div class="item-tile-bottom">
+            <div class="item-tile-price">${fmtINR(i.price)}</div>
+            <div class="item-tile-kot">${kotLabel}</div>
+          </div>
+        </div>
+      </div>`;
+    } else {
+      tile.innerHTML = `
       <div class="item-tile-status">
         <span class="item-tile-badge ${badge}" aria-hidden="true"></span>
       </div>
@@ -315,6 +332,7 @@ function twRenderItems() {
           </div>
         </div>
       </div>`;
+    }
     tile.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter" || ev.key === " ") {
         ev.preventDefault();

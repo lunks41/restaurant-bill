@@ -11,6 +11,8 @@ using Data.Persistence;
 using RestaurantBilling.Hubs;
 using RestaurantBilling.Models.Billing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting;
+using System.Text.RegularExpressions;
 
 namespace RestaurantBilling.Controllers;
 
@@ -21,6 +23,7 @@ public class POSController(
     INumberGeneratorService numberGeneratorService,
     IStockService stockService,
     IAuditService auditService,
+    IWebHostEnvironment env,
     AppDbContext db,
     IMediator mediator,
     IHubContext<AlertHub> alertHub) : Controller
@@ -389,27 +392,20 @@ public class POSController(
     [HttpGet("catalog")]
     public async Task<IActionResult> Catalog([FromQuery] int outletId, CancellationToken cancellationToken)
     {
+        var activeItemCategoryIds = await db.Items
+            .Where(x => x.OutletId == outletId && !x.IsDeleted)
+            .Select(x => x.CategoryId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
         var categories = await db.Categories
-            .Where(x => x.OutletId == outletId && x.IsActive && !x.IsDeleted)
+            .Where(x => x.OutletId == outletId && !x.IsDeleted && activeItemCategoryIds.Contains(x.CategoryId))
             .OrderBy(x => x.SortOrder)
             .Select(x => new { id = x.CategoryId, name = x.CategoryName })
             .ToListAsync(cancellationToken);
 
-        var imageBasePath = await db.RestaurantSettings
-            .Where(x => x.OutletId == outletId && x.SettingKey == "MenuImageBasePath")
-            .Select(x => x.SettingValue)
-            .FirstOrDefaultAsync(cancellationToken) ?? "/images/menu";
-
-        var imageMap = await db.RestaurantSettings
-            .Where(x => x.OutletId == outletId && x.SettingKey.StartsWith("MenuImage:"))
-            .Select(x => new { x.SettingKey, x.SettingValue })
-            .ToDictionaryAsync(
-                x => x.SettingKey["MenuImage:".Length..],
-                x => x.SettingValue ?? string.Empty,
-                cancellationToken);
-
-        var items = await db.Items
-            .Where(x => x.OutletId == outletId && x.IsActive && !x.IsDeleted)
+        var rawItems = await db.Items
+            .Where(x => x.OutletId == outletId && !x.IsDeleted)
             .OrderBy(x => x.ItemName)
             .Select(x => new
             {
@@ -422,21 +418,57 @@ public class POSController(
             })
             .ToListAsync(cancellationToken);
 
-        var payload = items.Select(i => new
+        var availableImageNames = GetAvailableMenuImageNames(env);
+        var items = rawItems.Select(x => new
         {
-            i.id,
-            i.name,
-            i.categoryId,
-            i.price,
-            i.taxPercent,
-            imageUrl = !string.IsNullOrWhiteSpace(i.imagePath)
-                ? i.imagePath
-                : imageMap.TryGetValue(i.name, out var fileName) && !string.IsNullOrWhiteSpace(fileName)
-                ? $"{imageBasePath.TrimEnd('/')}/{fileName}"
-                : string.Empty
+            x.id,
+            x.name,
+            x.categoryId,
+            x.price,
+            x.taxPercent,
+            imageUrl = ResolveCatalogImageUrl(x.imagePath, x.name, availableImageNames)
         });
 
-        return Ok(new { categories, items = payload });
+        return Ok(new { categories, items });
+    }
+
+    private static string? ResolveCatalogImageUrl(string? imagePath, string itemName, HashSet<string> availableImageNames)
+    {
+        if (!string.IsNullOrWhiteSpace(imagePath))
+            return imagePath;
+
+        var slug = Slugify(itemName);
+        if (string.IsNullOrWhiteSpace(slug))
+            return null;
+
+        return availableImageNames.Contains(slug)
+            ? $"/images/menu/items/{slug}.jpg"
+            : null;
+    }
+
+    private static HashSet<string> GetAvailableMenuImageNames(IWebHostEnvironment env)
+    {
+        var webRoot = env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var folder = Path.Combine(webRoot, "images", "menu", "items");
+        if (!Directory.Exists(folder))
+            return [];
+
+        return Directory
+            .EnumerateFiles(folder)
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim().ToLowerInvariant())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string Slugify(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        var lower = value.Trim().ToLowerInvariant();
+        var compact = Regex.Replace(lower, @"[^a-z0-9]+", "-");
+        return compact.Trim('-');
     }
 
     private async Task<bool> IsBusinessDateLocked(int outletId, DateOnly businessDate, CancellationToken cancellationToken)

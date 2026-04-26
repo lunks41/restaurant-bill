@@ -104,7 +104,11 @@
   };
 
   async function load() {
-    const rows = await getJSON('/admin/users-data');
+    const rows = await getJSON(`/admin/users-data?_=${Date.now()}`);
+    if (window.jQuery && jQuery.fn.DataTable) {
+      const table = jQuery('#usersTable');
+      if (jQuery.fn.dataTable.isDataTable(table)) table.DataTable().destroy();
+    }
     document.getElementById('usersBody').innerHTML = rows.length
       ? rows.map(x => {
           const isLocked = !!x.lockoutEnabled;
@@ -127,7 +131,6 @@
     bindRowActions();
     if (window.jQuery && jQuery.fn.DataTable) {
       const table = jQuery('#usersTable');
-      if (jQuery.fn.dataTable.isDataTable(table)) table.DataTable().destroy();
       table.DataTable({ pageLength: 10, responsive: true });
     }
   }

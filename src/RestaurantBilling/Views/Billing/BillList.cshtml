@@ -64,6 +64,7 @@
         <tr>
           <th>Bill No</th>
           <th>Type</th>
+          <th>Table</th>
           <th>Date</th>
           <th>Items</th>
           <th>Status</th>
@@ -73,7 +74,7 @@
       </thead>
       <tbody id="billBody">
         <tr>
-          <td colspan="7" class="text-center text-muted" style="padding:32px;">Loading bills...</td>
+          <td colspan="8" class="text-center text-muted" style="padding:32px;">Loading bills...</td>
         </tr>
       </tbody>
     </table>
@@ -115,7 +116,7 @@
       const body = document.getElementById('billBody');
       const filtered = billFilter === 'all' ? allBills : allBills.filter(x => x.status === billFilter);
       if (!filtered.length) {
-        body.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">No bills found.</td></tr>';
+        body.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No bills found.</td></tr>';
         return;
       }
       body.innerHTML = filtered.map(x => {
@@ -123,6 +124,7 @@
         return `<tr>
         <td><strong style="color:var(--accent);">${x.billNo}</strong></td>
         <td><span class="badge-custom badge-muted">${x.billType || 'DineIn'}</span></td>
+        <td style="font-size:12px;">${x.tableName || '-'}</td>
         <td style="font-size:12px;color:var(--text-muted);">${x.billDate}</td>
         <td style="font-size:12px;">${x.itemCount || '-'}</td>
         <td><span class="${cls}">${x.status}</span></td>

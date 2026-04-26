@@ -104,15 +104,14 @@ function renderPosItems() {
     tile.className = "item-tile";
     const badge = i.foodType === "nonveg" ? "nonveg" : i.foodType === "egg" ? "egg" : "veg";
     const kotLabel = i.isDirectSale ? "Direct" : "KOT";
-    const media = i.imageUrl
-      ? `<img class="item-tile-img" src="${i.imageUrl}" alt="${i.name}" loading="lazy" />`
-      : `<div class="item-tile-img item-tile-img-ph"><i class="fas fa-utensils"></i></div>`;
-    tile.innerHTML = `
+    if (i.imageUrl) {
+      tile.classList.add("item-tile-bg");
+      tile.style.backgroundImage = `url("${String(i.imageUrl).replace(/"/g, "&quot;")}")`;
+      tile.innerHTML = `
       <div class="item-tile-status">
         <span class="item-tile-badge ${badge}" aria-hidden="true"></span>
       </div>
       <div class="item-tile-main">
-        ${media}
         <div class="item-tile-content">
           <div class="item-tile-name">${i.name}</div>
           <div class="item-tile-bottom">
@@ -121,6 +120,22 @@ function renderPosItems() {
           </div>
         </div>
       </div>`;
+    } else {
+      tile.innerHTML = `
+      <div class="item-tile-status">
+        <span class="item-tile-badge ${badge}" aria-hidden="true"></span>
+      </div>
+      <div class="item-tile-main">
+        <div class="item-tile-img item-tile-img-ph"><i class="fas fa-utensils"></i></div>
+        <div class="item-tile-content">
+          <div class="item-tile-name">${i.name}</div>
+          <div class="item-tile-bottom">
+            <div class="item-tile-price">${fmtINR(i.price)}</div>
+            <div class="item-tile-kot">${kotLabel}</div>
+          </div>
+        </div>
+      </div>`;
+    }
     tile.addEventListener("click", () => addPosItem(i));
     host.appendChild(tile);
   });
@@ -742,13 +757,13 @@ function printReceipt(bill, amtPaid, method, payments) {
   </div>`;
   const wrap = document.getElementById("receiptWrap");
   if (wrap) wrap.innerHTML = html;
-  window.print();
+  posPrintNow();
 }
 
 function printKotSlip() {
   const wrap = document.getElementById("receiptWrap");
   if (!wrap) {
-    window.print();
+    posPrintNow();
     return;
   }
   const tableLine = posState.selectedTableName ? `<div style="font-size:11px;color:#666;">Table: ${posState.selectedTableName}</div>` : "";
@@ -773,7 +788,14 @@ function printKotSlip() {
     <hr style="border-top:1px dashed #000;margin:8px 0;"/>
     <div style="text-align:center;font-size:11px;color:#666;">KITCHEN COPY</div>
   </div>`;
-  window.print();
+  posPrintNow();
+}
+
+function posPrintNow() {
+  // Give the browser one paint cycle so receipt HTML is ready in print preview.
+  requestAnimationFrame(() => {
+    setTimeout(() => window.print(), 40);
+  });
 }
 
 /* ─── Recall from bill detail / query string ─── */

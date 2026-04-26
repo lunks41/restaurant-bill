@@ -96,6 +96,7 @@ public class BillingController(
                 billDate = x.BillDate.ToString("dd-MMM-yyyy HH:mm"),
                 status = x.Status.ToString(),
                 billType = x.BillType.ToString(),
+                tableName = x.TableName,
                 itemCount = x.Items.Count,
                 x.GrandTotal
             })

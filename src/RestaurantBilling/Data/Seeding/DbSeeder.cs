@@ -38,7 +38,21 @@ public static class DbSeeder
             await db.SaveChangesAsync();
         }
 
-        var outletId = db.Outlets.Select(x => x.OutletId).First();
+        const int outletId = 1;
+        if (!db.Outlets.Any(x => x.OutletId == outletId))
+        {
+            if (!db.Outlets.Any())
+            {
+                db.Outlets.Add(new Outlet
+                {
+                    TenantId = 1,
+                    OutletName = "Default Outlet",
+                    StateCode = "27",
+                    FssaiNumber = "12345678901234"
+                });
+                await db.SaveChangesAsync();
+            }
+        }
 
         if (!db.TaxConfigurations.Any())
         {
@@ -84,7 +98,6 @@ public static class DbSeeder
             ("Breads", 3, true),
             ("Desserts", 4, true),
             ("Beverages", 5, true),
-            ("Stock Items", 6, false)
         };
         foreach (var (name, sort, isActive) in requiredCategories)
         {
@@ -321,6 +334,9 @@ public static class DbSeeder
             new { Category = "Starters", Code = "STR006", Name = "Veg Manchurian Dry", Sale = 210m, Purchase = 105m, Reorder = 11m },
             new { Category = "Starters", Code = "STR007", Name = "Cheese Corn Balls", Sale = 220m, Purchase = 112m, Reorder = 10m },
             new { Category = "Starters", Code = "STR008", Name = "Paneer 65", Sale = 250m, Purchase = 135m, Reorder = 9m },
+            new { Category = "Starters", Code = "STR009", Name = "Mushroom Pepper Fry", Sale = 230m, Purchase = 120m, Reorder = 9m },
+            new { Category = "Starters", Code = "STR010", Name = "Corn Tikki", Sale = 175m, Purchase = 84m, Reorder = 12m },
+            new { Category = "Starters", Code = "STR011", Name = "Baby Corn Chilli", Sale = 205m, Purchase = 98m, Reorder = 11m },
             new { Category = "Main Course", Code = "MNC002", Name = "Paneer Butter Masala", Sale = 280m, Purchase = 155m, Reorder = 8m },
             new { Category = "Main Course", Code = "MNC003", Name = "Dal Tadka", Sale = 160m, Purchase = 70m, Reorder = 16m },
             new { Category = "Main Course", Code = "MNC004", Name = "Kadai Paneer", Sale = 290m, Purchase = 162m, Reorder = 8m },
@@ -329,23 +345,38 @@ public static class DbSeeder
             new { Category = "Main Course", Code = "MNC007", Name = "Mix Veg Curry", Sale = 210m, Purchase = 106m, Reorder = 11m },
             new { Category = "Main Course", Code = "MNC008", Name = "Jeera Rice", Sale = 140m, Purchase = 60m, Reorder = 18m },
             new { Category = "Main Course", Code = "MNC009", Name = "Steam Rice", Sale = 120m, Purchase = 48m, Reorder = 22m },
+            new { Category = "Main Course", Code = "MNC010", Name = "Paneer Lababdar", Sale = 295m, Purchase = 166m, Reorder = 8m },
+            new { Category = "Main Course", Code = "MNC011", Name = "Veg Pulao", Sale = 180m, Purchase = 84m, Reorder = 14m },
             new { Category = "Breads", Code = "BRD002", Name = "Tandoori Roti", Sale = 25m, Purchase = 10m, Reorder = 45m },
             new { Category = "Breads", Code = "BRD003", Name = "Garlic Naan", Sale = 60m, Purchase = 24m, Reorder = 22m },
             new { Category = "Breads", Code = "BRD004", Name = "Plain Naan", Sale = 40m, Purchase = 16m, Reorder = 34m },
             new { Category = "Breads", Code = "BRD005", Name = "Lachha Paratha", Sale = 55m, Purchase = 22m, Reorder = 26m },
             new { Category = "Breads", Code = "BRD006", Name = "Missi Roti", Sale = 45m, Purchase = 18m, Reorder = 24m },
             new { Category = "Breads", Code = "BRD007", Name = "Butter Roti", Sale = 35m, Purchase = 14m, Reorder = 36m },
+            new { Category = "Breads", Code = "BRD008", Name = "Roomali Roti", Sale = 30m, Purchase = 12m, Reorder = 30m },
+            new { Category = "Breads", Code = "BRD009", Name = "Stuffed Kulcha", Sale = 70m, Purchase = 30m, Reorder = 18m },
+            new { Category = "Breads", Code = "BRD010", Name = "Ajwain Paratha", Sale = 52m, Purchase = 21m, Reorder = 20m },
+            new { Category = "Breads", Code = "BRD011", Name = "Methi Thepla", Sale = 48m, Purchase = 19m, Reorder = 22m },
             new { Category = "Desserts", Code = "DST002", Name = "Rasmalai", Sale = 110m, Purchase = 52m, Reorder = 12m },
             new { Category = "Desserts", Code = "DST003", Name = "Kulfi", Sale = 95m, Purchase = 44m, Reorder = 14m },
             new { Category = "Desserts", Code = "DST004", Name = "Gajar Halwa", Sale = 130m, Purchase = 62m, Reorder = 10m },
             new { Category = "Desserts", Code = "DST005", Name = "Moong Dal Halwa", Sale = 140m, Purchase = 68m, Reorder = 9m },
             new { Category = "Desserts", Code = "DST006", Name = "Ice Cream Sundae", Sale = 125m, Purchase = 57m, Reorder = 11m },
+            new { Category = "Desserts", Code = "DST007", Name = "Chocolate Brownie", Sale = 160m, Purchase = 78m, Reorder = 9m },
+            new { Category = "Desserts", Code = "DST008", Name = "Caramel Custard", Sale = 115m, Purchase = 54m, Reorder = 10m },
+            new { Category = "Desserts", Code = "DST009", Name = "Falooda", Sale = 145m, Purchase = 68m, Reorder = 9m },
+            new { Category = "Desserts", Code = "DST010", Name = "Shahi Tukda", Sale = 135m, Purchase = 64m, Reorder = 8m },
+            new { Category = "Desserts", Code = "DST011", Name = "Fruit Cream", Sale = 120m, Purchase = 56m, Reorder = 10m },
             new { Category = "Beverages", Code = "BEV002", Name = "Sweet Lassi", Sale = 70m, Purchase = 28m, Reorder = 20m },
             new { Category = "Beverages", Code = "BEV003", Name = "Fresh Lime Soda", Sale = 90m, Purchase = 35m, Reorder = 20m },
             new { Category = "Beverages", Code = "BEV004", Name = "Cold Coffee", Sale = 120m, Purchase = 52m, Reorder = 16m },
             new { Category = "Beverages", Code = "BEV005", Name = "Mango Shake", Sale = 130m, Purchase = 58m, Reorder = 14m },
             new { Category = "Beverages", Code = "BEV006", Name = "Buttermilk", Sale = 45m, Purchase = 16m, Reorder = 26m },
-            new { Category = "Beverages", Code = "BEV007", Name = "Mint Mojito", Sale = 110m, Purchase = 46m, Reorder = 15m }
+            new { Category = "Beverages", Code = "BEV007", Name = "Mint Mojito", Sale = 110m, Purchase = 46m, Reorder = 15m },
+            new { Category = "Beverages", Code = "BEV008", Name = "Classic Lemonade", Sale = 80m, Purchase = 30m, Reorder = 18m },
+            new { Category = "Beverages", Code = "BEV009", Name = "Watermelon Cooler", Sale = 105m, Purchase = 42m, Reorder = 14m },
+            new { Category = "Beverages", Code = "BEV010", Name = "Iced Tea", Sale = 95m, Purchase = 38m, Reorder = 16m },
+            new { Category = "Beverages", Code = "BEV011", Name = "Masala Soda", Sale = 75m, Purchase = 28m, Reorder = 20m }
         };
         foreach (var seed in additionalVegItems)
         {
@@ -493,245 +524,7 @@ public static class DbSeeder
 
         await db.SaveChangesAsync();
 
-        // Seed a second demo outlet to showcase multi-tenant data isolation.
-        var secondOutlet = db.Outlets.FirstOrDefault(x => x.OutletName == "Downtown Outlet");
-        if (secondOutlet is null)
-        {
-            secondOutlet = new Outlet
-            {
-                TenantId = 1,
-                OutletName = "Downtown Outlet",
-                StateCode = "29",
-                FssaiNumber = "22345678901234"
-            };
-            db.Outlets.Add(secondOutlet);
-            await db.SaveChangesAsync();
-        }
-        var secondOutletId = secondOutlet.OutletId;
-
-        if (!db.TaxConfigurations.Any(x => x.OutletId == secondOutletId))
-        {
-            db.TaxConfigurations.Add(new TaxConfiguration
-            {
-                OutletId = secondOutletId,
-                ScenarioType = "Standalone",
-                TotalGstPercent = 5m,
-                CgstPercent = 2.5m,
-                SgstPercent = 2.5m,
-                IgstPercent = 0m,
-                IsItcAllowed = false,
-                EffectiveFrom = new DateTime(2025, 9, 22)
-            });
-        }
-        if (!db.NumberSeries.Any(x => x.OutletId == secondOutletId))
-        {
-            db.NumberSeries.AddRange(
-                new NumberSeries { OutletId = secondOutletId, SeriesKey = NumberSeriesKey.Bill, Prefix = "DTI", NumberLength = 6 },
-                new NumberSeries { OutletId = secondOutletId, SeriesKey = NumberSeriesKey.Quote, Prefix = "DQT", NumberLength = 5 },
-                new NumberSeries { OutletId = secondOutletId, SeriesKey = NumberSeriesKey.KOT, Prefix = "DKT", NumberLength = 5 });
-        }
-        if (!db.RestaurantSettings.Any(x => x.OutletId == secondOutletId))
-        {
-            db.RestaurantSettings.AddRange(
-                new RestaurantSetting { OutletId = secondOutletId, SettingKey = "RestaurantName", SettingValue = "Downtown Restaurant" },
-                new RestaurantSetting { OutletId = secondOutletId, SettingKey = "FssaiNumber", SettingValue = "22345678901234" },
-                new RestaurantSetting { OutletId = secondOutletId, SettingKey = "ManagerPin", SettingValue = "2468" },
-                new RestaurantSetting { OutletId = secondOutletId, SettingKey = "BillTemplateName", SettingValue = "Downtown Thermal" },
-                new RestaurantSetting { OutletId = secondOutletId, SettingKey = "BillTemplateHeader", SettingValue = "Downtown Outlet | Fast Casual Dining" },
-                new RestaurantSetting { OutletId = secondOutletId, SettingKey = "BillTemplateFooter", SettingValue = "Thank you | Please visit again" },
-                new RestaurantSetting { OutletId = secondOutletId, SettingKey = "MenuImageBasePath", SettingValue = "/images/menu/downtown" });
-        }
-        if (!db.Units.Any(x => x.OutletId == secondOutletId))
-        {
-            db.Units.AddRange(
-                new Unit { OutletId = secondOutletId, UnitName = "Nos", UnitCode = "NOS" },
-                new Unit { OutletId = secondOutletId, UnitName = "Portion", UnitCode = "PORT" },
-                new Unit { OutletId = secondOutletId, UnitName = "Ml", UnitCode = "ML" });
-        }
-        var secondOutletCategories = new[]
-        {
-            ("Quick Bites", 1),
-            ("Combos", 2),
-            ("Mocktails", 3)
-        };
-        foreach (var (name, sort) in secondOutletCategories)
-        {
-            if (!db.Categories.Any(x => x.OutletId == secondOutletId && x.CategoryName == name))
-            {
-                db.Categories.Add(new Category { OutletId = secondOutletId, CategoryName = name, SortOrder = sort });
-            }
-        }
-        await db.SaveChangesAsync();
-        if (!db.TableMasters.Any(x => x.OutletId == secondOutletId))
-        {
-            db.TableMasters.AddRange(
-                new TableMaster { OutletId = secondOutletId, TableName = "D-Ground-1", Area = "Ground", Capacity = 4 },
-                new TableMaster { OutletId = secondOutletId, TableName = "D-AC-1", Area = "AC", Capacity = 2 },
-                new TableMaster { OutletId = secondOutletId, TableName = "D-NonAC-1", Area = "Non-AC", Capacity = 6 },
-                new TableMaster { OutletId = secondOutletId, TableName = "D-Outdoor-1", Area = "Outdoor", Capacity = 4 });
-        }
-        if (!db.Customers.Any(x => x.OutletId == secondOutletId))
-        {
-            db.Customers.AddRange(
-                new Customer { OutletId = secondOutletId, CustomerName = "Downtown Walk-in" },
-                new Customer { OutletId = secondOutletId, CustomerName = "Nisha Rao", Phone = "9001122334" });
-        }
-        if (!db.Suppliers.Any(x => x.OutletId == secondOutletId))
-        {
-            db.Suppliers.AddRange(
-                new Supplier { OutletId = secondOutletId, SupplierName = "City Fresh Produce", ContactNo = "9800011122", Gstin = "29AACCF4444L1Z8" },
-                new Supplier { OutletId = secondOutletId, SupplierName = "Quick Beverage Co", ContactNo = "9700011133", Gstin = "29AADCQ5555M1Z6" });
-        }
-        if (!db.KitchenStations.Any(x => x.OutletId == secondOutletId))
-        {
-            db.KitchenStations.AddRange(
-                new KitchenStation { OutletId = secondOutletId, StationName = "Quick Line", SortOrder = 1 },
-                new KitchenStation { OutletId = secondOutletId, StationName = "Beverage Bar", SortOrder = 2 });
-        }
-        if (!db.TaxMasters.Any(x => x.OutletId == secondOutletId))
-        {
-            db.TaxMasters.Add(new TaxMaster
-            {
-                OutletId = secondOutletId,
-                TaxName = "GST",
-                TaxPercent = 5m,
-                EffectiveFrom = DateTime.UtcNow.Date
-            });
-        }
-        if (!db.PrinterProfiles.Any(x => x.OutletId == secondOutletId))
-        {
-            db.PrinterProfiles.AddRange(
-                new PrinterProfile { OutletId = secondOutletId, PrinterName = "Downtown Thermal", PrinterType = "Thermal", DevicePath = "USB001", IsDefault = true },
-                new PrinterProfile { OutletId = secondOutletId, PrinterName = "Downtown A4", PrinterType = "A4", DevicePath = "Office-A4", IsDefault = false });
-        }
-        if (!db.Items.Any(x => x.OutletId == secondOutletId))
-        {
-            var categories2 = db.Categories.Where(x => x.OutletId == secondOutletId).ToDictionary(x => x.CategoryName, x => x.CategoryId);
-            db.Items.AddRange(
-                new Item { OutletId = secondOutletId, CategoryId = categories2["Quick Bites"], ItemCode = "QBK001", ItemName = "Veg Sandwich", SalePrice = 120m, GstPercent = 5m, TaxType = TaxType.GST },
-                new Item { OutletId = secondOutletId, CategoryId = categories2["Combos"], ItemCode = "COM001", ItemName = "Burger Combo", SalePrice = 199m, GstPercent = 5m, TaxType = TaxType.GST },
-                new Item { OutletId = secondOutletId, CategoryId = categories2["Mocktails"], ItemCode = "MOC001", ItemName = "Virgin Mojito", SalePrice = 140m, GstPercent = 5m, TaxType = TaxType.GST });
-            await db.SaveChangesAsync();
-        }
-
-        var categoriesMap2 = db.Categories.Where(x => x.OutletId == secondOutletId).ToDictionary(x => x.CategoryName, x => x.CategoryId);
-        var downtownVegItems = new[]
-        {
-            new { Category = "Quick Bites", Code = "QBK002", Name = "Corn Cheese Sandwich", Sale = 150m, Purchase = 70m, Reorder = 10m },
-            new { Category = "Quick Bites", Code = "QBK003", Name = "Veg Club Sandwich", Sale = 170m, Purchase = 80m, Reorder = 10m },
-            new { Category = "Combos", Code = "COM002", Name = "Paneer Wrap Combo", Sale = 220m, Purchase = 110m, Reorder = 8m },
-            new { Category = "Mocktails", Code = "MOC002", Name = "Mint Lemon Cooler", Sale = 130m, Purchase = 42m, Reorder = 16m }
-        };
-        foreach (var seed in downtownVegItems)
-        {
-            if (db.Items.Any(x => x.OutletId == secondOutletId && x.ItemCode == seed.Code))
-            {
-                continue;
-            }
-            if (!categoriesMap2.TryGetValue(seed.Category, out var categoryId))
-            {
-                continue;
-            }
-            db.Items.Add(new Item
-            {
-                OutletId = secondOutletId,
-                CategoryId = categoryId,
-                ItemCode = seed.Code,
-                ItemName = seed.Name,
-                SalePrice = seed.Sale,
-                GstPercent = 5m,
-                TaxType = TaxType.GST
-            });
-        }
-        await db.SaveChangesAsync();
-
-        var trackedDowntownItems = db.Items.Where(x => x.OutletId == secondOutletId).ToList();
-        var existingDowntownStockItemIds = db.StockItems.Where(x => x.OutletId == secondOutletId).Select(x => x.ItemId).ToHashSet();
-        var missingDowntownStockItems = trackedDowntownItems.Where(x => !existingDowntownStockItemIds.Contains(x.ItemId)).ToList();
-        if (missingDowntownStockItems.Count > 0)
-        {
-            db.StockItems.AddRange(missingDowntownStockItems.Select(i => new StockItem
-            {
-                OutletId = secondOutletId,
-                ItemId = i.ItemId,
-                CurrentQty = 25m,
-                ReorderLevel = 10m
-            }));
-            db.StockLots.AddRange(missingDowntownStockItems.Select(i => new StockLot
-            {
-                OutletId = secondOutletId,
-                ItemId = i.ItemId,
-                ReceivedOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-1)),
-                ExpiryOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(20)),
-                QtyReceived = 25m,
-                QtyRemaining = 25m,
-                CostPerUnit = i.SalePrice
-            }));
-            await db.SaveChangesAsync();
-        }
-        if (!db.StockItems.Any(x => x.OutletId == secondOutletId))
-        {
-            var tracked2 = db.Items.Where(x => x.OutletId == secondOutletId).ToList();
-            db.StockItems.AddRange(tracked2.Select(i => new StockItem
-            {
-                OutletId = secondOutletId,
-                ItemId = i.ItemId,
-                CurrentQty = 25m,
-                ReorderLevel = 10m
-            }));
-        }
-        if (!db.StockLedger.Any(x => x.OutletId == secondOutletId))
-        {
-            var tracked2 = db.Items.Where(x => x.OutletId == secondOutletId).ToList();
-            foreach (var item in tracked2)
-            {
-                var openingQty = 25m;
-                db.StockLedger.Add(StockLedgerEntry.Add(secondOutletId, item.ItemId, DateOnly.FromDateTime(DateTime.UtcNow.Date), StockReferenceType.Adjustment, 0, openingQty, item.SalePrice, 0m, "Opening stock seeded (downtown)"));
-                db.StockLedger.Add(StockLedgerEntry.Deduct(secondOutletId, item.ItemId, DateOnly.FromDateTime(DateTime.UtcNow.Date), StockReferenceType.Sale, 0, 1m, item.SalePrice, openingQty, "Sample consumption seeded (downtown)"));
-            }
-        }
-        if (!db.StockLots.Any(x => x.OutletId == secondOutletId))
-        {
-            var tracked2 = db.Items.Where(x => x.OutletId == secondOutletId).ToList();
-            db.StockLots.AddRange(tracked2.Select(i => new StockLot
-            {
-                OutletId = secondOutletId,
-                ItemId = i.ItemId,
-                ReceivedOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-1)),
-                ExpiryOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(20)),
-                QtyReceived = 25m,
-                QtyRemaining = 24m,
-                CostPerUnit = i.SalePrice
-            }));
-        }
-        var menuImageSettings2 = new Dictionary<string, string>
-        {
-            ["Veg Sandwich"] = "veg-sandwich.jpg",
-            ["Burger Combo"] = "burger-combo.jpg",
-            ["Virgin Mojito"] = "virgin-mojito.jpg",
-            ["Corn Cheese Sandwich"] = "corn-cheese-sandwich.jpg",
-            ["Veg Club Sandwich"] = "veg-club-sandwich.jpg",
-            ["Paneer Wrap Combo"] = "paneer-wrap-combo.jpg",
-            ["Mint Lemon Cooler"] = "mint-lemon-cooler.jpg"
-        };
-        foreach (var kv in menuImageSettings2)
-        {
-            var key = $"MenuImage:{kv.Key}";
-            if (!db.RestaurantSettings.Any(x => x.OutletId == secondOutletId && x.SettingKey == key))
-            {
-                db.RestaurantSettings.Add(new RestaurantSetting
-                {
-                    OutletId = secondOutletId,
-                    SettingKey = key,
-                    SettingValue = kv.Value
-                });
-            }
-        }
-
-        await db.SaveChangesAsync();
-
         await SeedTransactionalDemoDataAsync(outletId);
-        await SeedTransactionalDemoDataAsync(secondOutletId);
 
         var adminUser = await userManager.FindByNameAsync("Admin")
             ?? await userManager.FindByEmailAsync("admin@restaurant.local");
@@ -793,7 +586,7 @@ public static class DbSeeder
                 var quote = new Quotation
                 {
                     OutletId = outletSeedId,
-                    QuoteNo = outletSeedId == outletId ? "QT00001" : "DQT00001",
+                    QuoteNo = "QT00001",
                     QuoteDate = DateTime.UtcNow,
                     BusinessDate = bizDate,
                     SubTotal = 0m,
@@ -814,7 +607,7 @@ public static class DbSeeder
             Bill? paidBill = null;
             if (!db.Bills.Any(x => x.OutletId == outletSeedId))
             {
-                var billNo = outletSeedId == outletId ? "TI000001" : "DTI000001";
+                var billNo = "TI000001";
                 var bill = new Bill(outletSeedId, billNo, bizDate, BillType.DineIn);
                 bill.AddItem(new BillItem(seedItems[0].ItemId, seedItems[0].ItemName, 1, seedItems[0].SalePrice, 0m, 0m));
                 bill.AddItem(new BillItem(seedItems[1].ItemId, seedItems[1].ItemName, 1, seedItems[1].SalePrice, 0m, 0m));
@@ -839,7 +632,7 @@ public static class DbSeeder
                     var kot = new KotHeader
                     {
                         OutletId = outletSeedId,
-                        KotNo = outletSeedId == outletId ? "KOT00001" : "DKT00001",
+                        KotNo = "KOT00001",
                         KotDate = DateTime.UtcNow,
                         BusinessDate = bizDate,
                         BillId = paidBill.BillId,
@@ -866,7 +659,7 @@ public static class DbSeeder
                     {
                         OutletId = outletSeedId,
                         SupplierId = supplierId,
-                        PurchaseNo = outletSeedId == outletId ? "PO0001" : "DPO0001",
+                        PurchaseNo = "PO0001",
                         BusinessDate = bizDate,
                         SubTotal = 0m,
                         TaxAmount = 0m,

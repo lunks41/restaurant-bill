@@ -109,19 +109,27 @@
   };
 
   async function load() {
-    const rows = await getJSON('/masters/tables-data?outletId=1');
-    document.getElementById('tablesBody').innerHTML = rows.length ? rows.map(x => `<tr><td>${x.tableName}</td><td>${x.area}</td><td>${x.capacity}</td><td>${x.isOccupied ? 'Occupied' : 'Available'}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.tableMasterId}" data-name="${x.tableName}" data-area="${x.area}" data-capacity="${x.capacity}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.tableMasterId}">Inactivate</button></td></tr>`).join('') : '<tr><td colspan="6" class="text-center text-muted">No tables added.</td></tr>';
-    bindRowActions();
+    const rows = await getJSON(`/masters/tables-data?outletId=1&_=${Date.now()}`);
     if (window.jQuery && jQuery.fn.DataTable) {
       const table = jQuery('#tablesTable');
       if (jQuery.fn.dataTable.isDataTable(table)) {
         table.DataTable().destroy();
       }
-      dataTable = table.DataTable({
-        pageLength: 10,
-        responsive: true
-      });
-      applyAreaFilter();
+    }
+    document.getElementById('tablesBody').innerHTML = rows.length ? rows.map(x => `<tr><td>${x.tableName}</td><td>${x.area}</td><td>${x.capacity}</td><td>${x.isOccupied ? 'Occupied' : 'Available'}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.tableMasterId}" data-name="${x.tableName}" data-area="${x.area}" data-capacity="${x.capacity}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.tableMasterId}">Inactivate</button></td></tr>`).join('') : '<tr><td colspan="6" class="text-center text-muted">No tables added.</td></tr>';
+    bindRowActions();
+    if (window.jQuery && jQuery.fn.DataTable) {
+      const table = jQuery('#tablesTable');
+      const hasPlaceholderRow = !!document.querySelector('#tablesBody td[colspan]');
+      if (hasPlaceholderRow) {
+        dataTable = null;
+      } else {
+        dataTable = table.DataTable({
+          pageLength: 10,
+          responsive: true
+        });
+        applyAreaFilter();
+      }
     }
   }
 

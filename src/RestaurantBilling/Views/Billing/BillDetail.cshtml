@@ -90,8 +90,9 @@
   (() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('autoprint') !== '1') return;
+    const printNow = () => requestAnimationFrame(() => setTimeout(() => window.print(), 40));
     window.addEventListener('load', () => {
-      setTimeout(() => window.print(), 150);
+      printNow();
     }, { once: true });
   })();
 </script>

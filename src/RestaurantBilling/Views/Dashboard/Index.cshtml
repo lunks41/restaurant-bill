@@ -1,6 +1,5 @@
 @{
     ViewData["Title"] = "Dashboard";
-    ViewBag.UseCharts = true;
 }
 
 <div class="page-header">
@@ -56,34 +55,6 @@
             <div class="kpi-label">Low Stock</div>
             <div class="kpi-value" id="kpiLowStock">0</div>
             <div class="kpi-sub" id="kpiLowStockSub"></div>
-        </div>
-    </div>
-</div>
-
-<!-- Charts Row -->
-<div class="row g-3 mb-3">
-    <div class="col-lg-8 col-12">
-        <div class="card" style="height:100%;">
-            <div class="card-header-custom">
-                <div class="card-title-custom"><i class="fas fa-chart-column" style="color:var(--accent);"></i> Sales —
-                    Last 7 Days</div>
-                <div id="salesTotal7d" style="font-size:13px;font-weight:700;color:var(--accent);"></div>
-            </div>
-            <div class="card-body-custom">
-                <canvas id="salesTrendChart" height="90"></canvas>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-4 col-12">
-        <div class="card" style="height:100%;">
-            <div class="card-header-custom">
-                <div class="card-title-custom"><i class="fas fa-chart-pie" style="color:var(--info);"></i> Payment
-                    Breakdown</div>
-            </div>
-            <div class="card-body-custom" style="display:flex;flex-direction:column;align-items:center;">
-                <canvas id="paymentChart" height="160" style="max-width:200px;"></canvas>
-                <div id="payLegend" style="width:100%;margin-top:12px;"></div>
-            </div>
         </div>
     </div>
 </div>
@@ -222,19 +193,10 @@
 
 @section Scripts {
     <script>
-        let salesChart = null, payChart = null;
-
-        const chartDefaults = {
-            color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim() || '#64748B',
-            grid: getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#E2E8F0'
-        };
-
         async function loadDashboard() {
             try {
-                const [kpi, sales, payment, bills, kots, lowStock, topItems] = await Promise.all([
+                const [kpi, bills, kots, lowStock, topItems] = await Promise.all([
                     getJSON('/dashboard/kpi'),
-                    getJSON('/dashboard/sales-trend'),
-                    getJSON('/dashboard/payment-breakdown'),
                     getJSON('/dashboard/recent-bills'),
                     getJSON('/kot/kots-data?outletId=1').catch(() => []),
                     getJSON('/dashboard/low-stock'),
@@ -254,54 +216,6 @@
                 }
                 const kotSub = document.getElementById('kpiKotSub');
                 if (kotSub) kotSub.textContent = kpi.pendingKot > 0 ? `${kpi.pendingKot} KOT${kpi.pendingKot > 1 ? 's' : ''} in kitchen` : 'kitchen clear';
-
-                // Sales Trend Chart
-                const salesCtx = document.getElementById('salesTrendChart');
-                if (salesCtx && window.Chart) {
-                    const total7d = (sales || []).reduce((s, x) => s + (x.sales || 0), 0);
-                    document.getElementById('salesTotal7d').textContent = fmtINR(total7d);
-                    if (salesChart) salesChart.destroy();
-                    salesChart = new Chart(salesCtx, {
-                        type: 'bar',
-                        data: {
-                            labels: (sales || []).map(x => x.date),
-                            datasets: [{
-                                label: 'Sales', data: (sales || []).map(x => x.sales),
-                                backgroundColor: 'rgba(24, 24, 27, 0.88)',
-                                borderRadius: 6, borderSkipped: false
-                            }]
-                        },
-                        options: {
-                            responsive: true, maintainAspectRatio: true,
-                            plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtINR(ctx.raw) } } },
-                            scales: {
-                                x: { grid: { display: false }, ticks: { color: chartDefaults.color, font: { size: 11 } } },
-                                y: { grid: { color: chartDefaults.grid }, ticks: { color: chartDefaults.color, font: { size: 11 }, callback: v => '₹' + v.toLocaleString('en-IN') } }
-                            }
-                        }
-                    });
-                }
-
-                // Payment Doughnut
-                const payCtx = document.getElementById('paymentChart');
-                if (payCtx && window.Chart && payment?.length) {
-                    if (payChart) payChart.destroy();
-                    const colors = ['#18181b', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
-                    payChart = new Chart(payCtx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: payment.map(x => x.mode),
-                            datasets: [{ data: payment.map(x => x.amount), backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }]
-                        },
-                        options: { responsive: true, cutout: '65%', plugins: { legend: { display: false } } }
-                    });
-                    const legend = document.getElementById('payLegend');
-                    if (legend) legend.innerHTML = payment.map((x, i) =>
-                        `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px;">
-               <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:${colors[i]};display:inline-block;"></span>${x.mode}</span>
-               <strong>${fmtINR(x.amount)}</strong>
-             </div>`).join('');
-                }
 
                 // Recent Bills
                 const billsBody = document.getElementById('recentBillsBody');

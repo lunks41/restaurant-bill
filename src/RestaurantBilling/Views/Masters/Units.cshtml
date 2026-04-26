@@ -96,7 +96,13 @@
   };
 
   async function load() {
-    const rows = await getJSON('/masters/units-data?outletId=1');
+    const rows = await getJSON(`/masters/units-data?outletId=1&_=${Date.now()}`);
+    if (window.jQuery && jQuery.fn.DataTable) {
+      const table = jQuery('#unitsTable');
+      if (jQuery.fn.dataTable.isDataTable(table)) {
+        table.DataTable().destroy();
+      }
+    }
     document.getElementById('unitsBody').innerHTML = rows.length
       ? rows.map(x => `<tr><td>${x.unitName}</td><td>${x.unitCode ?? ''}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.unitId}" data-name="${x.unitName}" data-code="${x.unitCode ?? ''}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.unitId}">Inactivate</button></td></tr>`).join('')
       : '<tr><td colspan="4" class="text-center text-muted">No units found.</td></tr>';
