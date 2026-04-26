@@ -17,13 +17,19 @@
 
     <aside class="pos-cart">
         <div class="cart-header">
-            <div class="cart-header-icon"><i class="fas fa-shopping-bag"></i></div>
-            <div class="cart-header-info">
-                <div class="cart-header-row">
-                    <div class="cart-header-title" id="twHeaderTitle">Order #</div>
+            <div class="cart-header-top">
+                <div class="cart-header-icon"><i class="fas fa-shopping-bag"></i></div>
+                <div class="cart-header-info">
+                    <div class="cart-header-row">
+                        <div class="cart-header-title" id="twHeaderTitle">Order #</div>
+                    </div>
+                    <div class="cart-order-meta">OPEN · takeaway</div>
                 </div>
-                <div class="cart-order-meta">OPEN · takeaway</div>
             </div>
+        </div>
+        <div class="cart-kot-hint" id="twCartKotHint">
+            <i class="fas fa-circle-exclamation"></i>
+            <span>Kitchen item not sent yet - use Send KOT or KOT &amp; print.</span>
         </div>
         <div class="cart-items" id="twCartItems"></div>
         <div class="cart-totals">
@@ -151,7 +157,7 @@ function twUpdateHeaderLabel() {
 function twPrintKotSlip() {
   const wrap = document.getElementById("twReceiptWrap");
   if (!wrap) {
-    window.print();
+    twPrintNow();
     return;
   }
   const lines = twState.cart.map((l) => `
@@ -175,7 +181,14 @@ function twPrintKotSlip() {
     <hr style="border-top:1px dashed #000;margin:8px 0;"/>
     <div style="text-align:center;font-size:11px;color:#666;">KITCHEN COPY</div>
   </div>`;
-  window.print();
+  twPrintNow();
+}
+
+function twPrintNow() {
+  // Give the browser one paint cycle so receipt HTML is ready in print preview.
+  requestAnimationFrame(() => {
+    setTimeout(() => window.print(), 40);
+  });
 }
 
 function twUpdateKotActionButtons() {
@@ -183,8 +196,10 @@ function twUpdateKotActionButtons() {
   const btnKot = document.getElementById("twBtnKot");
   const btnKotPrint = document.getElementById("twBtnKotPrint");
   const status = document.getElementById("twKotStatus");
+  const hint = document.getElementById("twCartKotHint");
   if (btnKot) btnKot.disabled = !canSendKot;
   if (btnKotPrint) btnKotPrint.disabled = !canSendKot;
+  if (hint) hint.style.display = canSendKot ? "" : "none";
   if (status) {
     status.textContent = canSendKot ? "Pending KOT" : "KOT Sent";
     status.classList.toggle("sent", !canSendKot);
@@ -667,7 +682,7 @@ async function twConfirmSettle() {
       ${change>0?`<div style="display:flex;justify-content:space-between;"><span>Change</span><span>${fmtINR(change)}</span></div>`:""}
       <hr style="border-top:1px dashed #000;margin:8px 0;"/><div style="text-align:center;font-size:11px;color:#666;">Thank you! Visit again.</div></div>`;
     document.getElementById("twReceiptWrap").innerHTML = receiptHtml;
-    window.print();
+    twPrintNow();
     twState.cart = [];
     twState.billLevelDiscount = 0;
     twState.hasPendingKot = false;

@@ -135,6 +135,25 @@
     </div>
 </div>
 
+<!-- Cancel Order Confirm Modal -->
+<div class="modal fade modal-custom" id="cancelOrderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-circle-exclamation text-warning me-2"></i>Cancel current order?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0 text-muted">This will cancel the current draft and free the selected table.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">No, keep it</button>
+                <button type="button" class="btn btn-danger" id="confirmCancelOrderBtn">Yes, cancel order</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Hidden print receipt -->
 <div class="receipt-wrap" id="receiptWrap"></div>
 

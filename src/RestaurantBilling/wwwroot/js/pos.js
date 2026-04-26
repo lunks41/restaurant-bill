@@ -12,6 +12,10 @@ const posState = {
   customerPhone: ""
 };
 const POS_AUTOSAVE_TOAST_KEY = "pos.autosave.toast";
+function posNotify(type, message) {
+  const t = window.toastr;
+  if (t && typeof t[type] === "function") t[type](message);
+}
 
 function updateKotHintVisibility() {
   const hint = document.getElementById("cartKotHint");
@@ -57,7 +61,7 @@ async function loadCatalog() {
       price: i.price, taxPercent: i.taxPercent || 0, foodType: i.foodType || "veg",
       imageUrl: i.imageUrl || ""
     }));
-  } catch { toastr?.error("Unable to load item catalog."); }
+  } catch { posNotify("error", "Unable to load item catalog."); }
 }
 
 /* ─── Render ─── */
@@ -294,7 +298,16 @@ function bindPosEvents() {
   const search = document.getElementById("posSearch");
   if (search) { let t; search.addEventListener("input", e => { clearTimeout(t); t = setTimeout(() => { posState.searchTerm = e.target.value.trim().toLowerCase(); renderPosItems(); }, 250); }); }
 
-  document.getElementById("btnHold")?.addEventListener("click", cancelOrderDraft);
+  const cancelOrderModalEl = document.getElementById("cancelOrderModal");
+  const cancelOrderModal = (cancelOrderModalEl && window.bootstrap) ? new window.bootstrap.Modal(cancelOrderModalEl) : null;
+  document.getElementById("btnHold")?.addEventListener("click", () => {
+    if (!posState.cart.length) return;
+    cancelOrderModal?.show();
+  });
+  document.getElementById("confirmCancelOrderBtn")?.addEventListener("click", async () => {
+    cancelOrderModal?.hide();
+    await cancelOrderDraft();
+  });
   document.getElementById("btnSettle")?.addEventListener("click", openSettleModal);
   document.getElementById("btnKot")?.addEventListener("click", generateKot);
   document.getElementById("btnKotPrint")?.addEventListener("click", generateKotAndPrint);
@@ -310,7 +323,7 @@ function bindPosEvents() {
   document.getElementById("btnEditDiscount")?.addEventListener("click", () => {
     const subtotal = posState.cart.reduce((s, x) => s + x.qty * x.price, 0);
     if (!subtotal) {
-      toastr?.info("Add items first.");
+      posNotify("info", "Add items first.");
       return;
     }
     const current = Number(posState.billLevelDiscount || 0).toFixed(2);
@@ -318,7 +331,7 @@ function bindPosEvents() {
     if (raw === null) return;
     const next = Number(raw);
     if (!Number.isFinite(next) || next < 0) {
-      toastr?.warning("Invalid discount amount.");
+      posNotify("warning", "Invalid discount amount.");
       return;
     }
     posState.billLevelDiscount = Math.min(next, subtotal);
@@ -328,7 +341,7 @@ function bindPosEvents() {
   document.getElementById("posQuickBtn")?.addEventListener("click", async () => {
     await loadCatalog();
     renderPosItems();
-    toastr?.info("POS refreshed.");
+    posNotify("info", "POS refreshed.");
   });
   document.getElementById("btnBackTables")?.addEventListener("click", async () => {
     await posSaveBeforeBackToTables();
@@ -344,7 +357,7 @@ function bindPosEvents() {
   document.getElementById("btnSaveCustomer")?.addEventListener("click", () => {
     posState.customerName = (document.getElementById("customerName")?.value || "").trim();
     posState.customerPhone = (document.getElementById("customerPhone")?.value || "").trim();
-    toastr?.success("Customer info saved.");
+    posNotify("success", "Customer info saved.");
   });
 
   // Table picker events
@@ -391,7 +404,7 @@ function closeTablePicker() { document.getElementById("tablePanelOverlay")?.clas
 
 /* ─── Hold Bill ─── */
 async function holdBill() {
-  if (!posState.cart.length) { toastr?.warning("Add items before holding."); return; }
+  if (!posState.cart.length) { posNotify("warning", "Add items before holding."); return; }
   const btn = document.getElementById("btnHold");
   if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`; }
   try {
@@ -407,14 +420,23 @@ async function holdBill() {
     posState.currentBillId = r.billId;
     posState.currentBillNo = r.billNo;
     updateCartHeader();
-    toastr?.success(`Bill ${r.billNo} held successfully. Use Recall to view all held bills.`);
-  } catch { toastr?.error("Failed to hold bill."); }
+    posNotify("success", `Bill ${r.billNo} held successfully. Use Recall to view all held bills.`);
+  } catch { posNotify("error", "Failed to hold bill."); }
   finally { if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fas fa-pause"></i> Hold`; } }
 }
 
-function cancelOrderDraft() {
+async function cancelOrderDraft() {
   if (!posState.cart.length) return;
-  if (!confirm("Cancel current order items?")) return;
+  const existingBillId = posState.currentBillId;
+  if (existingBillId) {
+    try {
+      await postJSON(`/pos/cancel-draft/${existingBillId}`, { outletId: 1 });
+    } catch {
+      posNotify("error", "Unable to cancel order right now.");
+      return;
+    }
+  }
+
   posState.cart = [];
   posState.currentBillId = null;
   posState.currentBillNo = null;
@@ -425,7 +447,7 @@ function cancelOrderDraft() {
   updateCartHeader();
   renderPosCart();
   updateCartHeader();
-  toastr?.info("Order cancelled.");
+  posNotify("success", "Order cancelled. Table is now free.");
 }
 
 async function posSaveBeforeBackToTables() {
@@ -468,12 +490,12 @@ function recallBill(b) {
   if (customerPhoneEl) customerPhoneEl.value = posState.customerPhone;
   updateCartHeader();
   renderPosCart();
-  toastr?.info(`Bill ${b.billNo} recalled.`);
+  posNotify("info", `Bill ${b.billNo} recalled.`);
 }
 
 /* ─── KOT ─── */
 async function generateKot() {
-  if (!posState.cart.length) { toastr?.warning("Add items before generating KOT."); return; }
+  if (!posState.cart.length) { posNotify("warning", "Add items before generating KOT."); return; }
   const btn = document.getElementById("btnKot");
   if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending...`; }
   try {
@@ -512,10 +534,10 @@ async function generateKot() {
     posState.hasPendingKot = false;
     updateKotHintVisibility();
     updateKotActionButtons();
-    toastr?.success(msg);
+    posNotify("success", msg);
     return { ok: true, kotIds: Array.isArray(result.kotIds) ? result.kotIds : [] };
   } catch {
-    toastr?.error("Failed to generate KOT.");
+    posNotify("error", "Failed to generate KOT.");
     return { ok: false, kotIds: [] };
   }
   finally {
@@ -578,7 +600,7 @@ function bindSettleModal() {
     if (checked && (posState.selectedPayMethod || "Cash") === "Cash") {
       partialToggle.checked = false;
       posState.partialSplitEnabled = false;
-      toastr?.info("Choose Card or UPI to enable partial split with cash.");
+      posNotify("info", "Choose Card or UPI to enable partial split with cash.");
       return;
     }
     posState.partialSplitEnabled = checked;
@@ -594,7 +616,7 @@ function bindSettleModal() {
 }
 
 function openSettleModal() {
-  if (!posState.cart.length) { toastr?.warning("Cart is empty."); return; }
+  if (!posState.cart.length) { posNotify("warning", "Cart is empty."); return; }
   const totals = getPosTotals();
   const grand = totals.grand;
   const sub = totals.subtotal;
@@ -678,9 +700,9 @@ async function confirmSettle() {
     updateCartHeader();
     renderPosCart();
     updateCartHeader();
-    toastr?.success(`Bill ${result.billNo || ""} settled!`);
+    posNotify("success", `Bill ${result.billNo || ""} settled!`);
   } catch (_e) {
-    toastr?.error("Settlement failed. Please try again.");
+    posNotify("error", "Settlement failed. Please try again.");
   } finally {
     if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.innerHTML = `<i class="fas fa-check-circle"></i> Confirm & Print`; }
   }
@@ -761,7 +783,7 @@ async function posTryRecallFromQuery() {
   try {
     const b = await getJSON(`/pos/held-bill/${encodeURIComponent(id)}?outletId=1`);
     if (b.billType && b.billType !== "DineIn") {
-      toastr?.warning("This order is not Dine-In. Open Takeaway POS to continue.");
+      posNotify("warning", "This order is not Dine-In. Open Takeaway POS to continue.");
       return;
     }
     recallBill(b);
@@ -769,7 +791,7 @@ async function posTryRecallFromQuery() {
     u.searchParams.delete("recall");
     history.replaceState({}, "", u.pathname + u.search + u.hash);
   } catch {
-    toastr?.error("Could not load this bill. It may not be a draft or the link is invalid.");
+    posNotify("error", "Could not load this bill. It may not be a draft or the link is invalid.");
   }
 }
 
@@ -780,12 +802,12 @@ async function posTryRecallFromPath() {
   try {
     const b = await getJSON(`/pos/held-bill/${encodeURIComponent(id)}?outletId=1`);
     if (b.billType && b.billType !== "DineIn") {
-      toastr?.warning("This order is not Dine-In. Open Takeaway POS to continue.");
+      posNotify("warning", "This order is not Dine-In. Open Takeaway POS to continue.");
       return;
     }
     recallBill(b);
   } catch {
-    toastr?.error("Could not load this order.");
+    posNotify("error", "Could not load this order.");
   }
 }
 
@@ -804,7 +826,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (document.getElementById("posRoot")) {
     const autoSavedBillNo = sessionStorage.getItem(POS_AUTOSAVE_TOAST_KEY);
     if (autoSavedBillNo) {
-      toastr?.info(`Draft auto-saved (${autoSavedBillNo}).`);
+      posNotify("info", `Draft auto-saved (${autoSavedBillNo}).`);
       sessionStorage.removeItem(POS_AUTOSAVE_TOAST_KEY);
     }
 

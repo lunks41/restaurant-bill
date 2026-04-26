@@ -54,16 +54,6 @@ public class KOTController(
             return NotFound("Bill not found.");
         }
 
-        var existingKotIds = await db.KotHeaders
-            .Where(x => x.OutletId == request.OutletId && x.BillId == request.BillId && x.Status != "Cancelled" && x.Status != "Served")
-            .OrderByDescending(x => x.KotDate)
-            .Select(x => x.KotHeaderId)
-            .ToListAsync(cancellationToken);
-        if (existingKotIds.Count > 0)
-        {
-            return Ok(new { kotIds = existingKotIds, reused = true });
-        }
-
         var hasPreviousKotForBill = await db.KotHeaders
             .AnyAsync(x => x.OutletId == request.OutletId && x.BillId == request.BillId, cancellationToken);
 

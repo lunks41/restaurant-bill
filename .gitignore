@@ -31,6 +31,9 @@ coverage/
 *.coverage
 *.coveragexml
 
+# Local artifacts / publish outputs
+artifacts/
+
 # OS / editor junk
 .DS_Store
 Thumbs.db

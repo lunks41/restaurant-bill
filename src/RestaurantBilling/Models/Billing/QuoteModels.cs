@@ -46,6 +46,9 @@ public sealed record UpdateDraftBillRequest(
     string? CustomerName = null,
     string? Phone = null);
 
+public sealed record CancelDraftRequest(
+    int OutletId);
+
 public sealed record SettleExistingPayment(
     PaymentMode Mode,
     decimal Amount,

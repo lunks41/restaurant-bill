@@ -1999,16 +1999,18 @@ a:hover { color: var(--accent-hover); }
     color: #000 !important;
   }
 
-  body * {
-    visibility: hidden !important;
+  .app-shell,
+  .sidebar,
+  .topbar,
+  .main-wrapper,
+  .main-content,
+  .no-print {
+    display: none !important;
   }
 
   .receipt-wrap {
-    visibility: visible !important;
     display: block !important;
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
+    position: static !important;
     width: 80mm !important;
     max-width: 80mm !important;
     min-height: auto !important;
@@ -2020,7 +2022,6 @@ a:hover { color: var(--accent-hover); }
   }
 
   .receipt-wrap * {
-    visibility: visible !important;
     color: #000 !important;
     box-shadow: none !important;
     text-shadow: none !important;

@@ -215,6 +215,24 @@ public class POSController(
         return Ok(new { billId = bill.BillId, billNo = bill.BillNo, grandTotal = bill.GrandTotal, status = "Updated" });
     }
 
+    [HttpPost("cancel-draft/{billId:long}")]
+    public async Task<IActionResult> CancelDraft(long billId, [FromBody] CancelDraftRequest request, CancellationToken cancellationToken)
+    {
+        var bill = await db.Bills
+            .FirstOrDefaultAsync(x => x.BillId == billId && x.OutletId == request.OutletId, cancellationToken);
+        if (bill is null) return NotFound("Bill not found.");
+        if (bill.Status != BillStatus.Draft) return BadRequest("Only draft bills can be cancelled.");
+        if (await IsBusinessDateLocked(request.OutletId, bill.BusinessDate, cancellationToken))
+            return Conflict("Business date is locked.");
+
+        bill.Cancel();
+        await SetTableOccupiedStateAsync(request.OutletId, bill.TableName, false, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        await alertHub.Clients.All.SendAsync("DashboardRefresh", "bill", cancellationToken);
+        return Ok(new { billId = bill.BillId, billNo = bill.BillNo, status = "Cancelled" });
+    }
+
     [HttpGet("held-bill/{billId:long}")]
     public async Task<IActionResult> HeldBill(long billId, [FromQuery] int outletId, CancellationToken cancellationToken)
     {

@@ -10,7 +10,12 @@ public class SecurityHeadersMiddleware(RequestDelegate next)
         context.Response.Headers.TryAdd("X-XSS-Protection", "0");
         context.Response.Headers.TryAdd(
             "Content-Security-Policy",
-            "default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' data:;");
+            "default-src 'self'; " +
+            "img-src 'self' data: blob:; " +
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://code.jquery.com; " +
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://fonts.googleapis.com; " +
+            "font-src 'self' data: https://fonts.gstatic.com; " +
+            "connect-src 'self' https: ws: wss:;");
 
         await next(context);
     }
