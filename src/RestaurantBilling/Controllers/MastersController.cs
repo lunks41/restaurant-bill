@@ -13,8 +13,22 @@ namespace RestaurantBilling.Controllers;
 [Route("master")]
 public class MastersController(AppDbContext db, IWebHostEnvironment env) : Controller
 {
+    [HttpGet("menu-categories")]
+    public IActionResult MenuCategories()
+    {
+        ViewData["Title"] = "Menu & Categories";
+        return View();
+    }
+
+    [HttpGet("groceries-units")]
+    public IActionResult GroceriesUnits()
+    {
+        ViewData["Title"] = "Groceries & Unit";
+        return View();
+    }
+
     [HttpGet("categories")]
-    public async Task<IActionResult> Categories([FromQuery] int? editId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Categories([FromQuery] int? editId, [FromQuery] bool embed, CancellationToken cancellationToken)
     {
         var categories = await db.Categories
             .Where(x => !x.IsDeleted)
@@ -23,6 +37,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
             .ToListAsync(cancellationToken);
         ViewBag.Rows = categories;
         ViewBag.UseDataTables = true;
+        ViewData["EmbedMode"] = embed;
 
         if (editId.HasValue)
         {
@@ -47,7 +62,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     {
         if (!ModelState.IsValid)
         {
-            return await Categories(editId: null, cancellationToken);
+            return await Categories(editId: null, embed: false, cancellationToken);
         }
 
         if (model.CategoryId.HasValue && model.CategoryId.Value > 0)
@@ -90,7 +105,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     }
 
     [HttpGet("items")]
-    public async Task<IActionResult> Items([FromQuery] int? editId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Items([FromQuery] int? editId, [FromQuery] bool embed, CancellationToken cancellationToken)
     {
         var rows = await db.Items
             .Join(db.Categories, i => i.CategoryId, c => c.CategoryId, (i, c) => new { i, CategoryName = c.CategoryName })
@@ -99,6 +114,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         ViewBag.Rows = rows;
         ViewBag.Categories = await db.Categories.Where(x => x.IsActive && !x.IsDeleted).OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
         ViewBag.UseDataTables = true;
+        ViewData["EmbedMode"] = embed;
 
         if (editId.HasValue)
         {
@@ -128,7 +144,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     {
         if (!ModelState.IsValid)
         {
-            return await Items(editId: null, cancellationToken);
+            return await Items(editId: null, embed: false, cancellationToken);
         }
 
         var uploadedImagePath = await SaveItemImageAsync(model.ImageFile, cancellationToken);
@@ -237,9 +253,10 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     }
 
     [HttpGet("units")]
-    public IActionResult Units()
+    public IActionResult Units([FromQuery] bool embed)
     {
         ViewBag.UseDataTables = true;
+        ViewData["EmbedMode"] = embed;
         return View();
     }
 

@@ -1,5 +1,9 @@
 @model RestaurantBilling.Models.Masters.ItemInputModel
 @{
+    if ((ViewData["EmbedMode"] as bool?) == true)
+    {
+        Layout = null;
+    }
     var rows = ViewBag.Rows;
     var categories = (IEnumerable<Entities.Masters.Category>)ViewBag.Categories;
 }

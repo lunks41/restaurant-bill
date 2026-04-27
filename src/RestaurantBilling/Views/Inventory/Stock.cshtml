@@ -1,4 +1,8 @@
 @{
+    if ((ViewData["EmbedMode"] as bool?) == true)
+    {
+        Layout = null;
+    }
     ViewData["Title"] = "Grocery Stock";
 }
 

@@ -35,9 +35,10 @@ public class InventoryController(AppDbContext db) : Controller
     };
 
     [HttpGet("stock")]
-    public IActionResult Stock()
+    public IActionResult Stock([FromQuery] bool embed)
     {
         ViewBag.UseDataTables = true;
+        ViewData["EmbedMode"] = embed;
         return View();
     }
 
