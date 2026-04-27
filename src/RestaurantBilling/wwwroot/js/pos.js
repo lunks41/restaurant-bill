@@ -18,6 +18,11 @@ function posNotify(type, message) {
   const t = window.toastr;
   if (t && typeof t[type] === "function") t[type](message);
 }
+const fmtQty = (value) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "0";
+  return num.toFixed(3).replace(/\.?0+$/, "");
+};
 
 function updateKotHintVisibility() {
   const hint = document.getElementById("cartKotHint");
@@ -717,7 +722,7 @@ function openSettleModal() {
   const discount = totals.discount;
   const summaryEl = document.getElementById("settleSummary");
   if (summaryEl) summaryEl.innerHTML = `
-    ${posState.cart.map(l => `<div class="settle-summary-row"><span>${l.name} ×${l.qty}</span><span>${fmtINR(l.qty * l.price)}</span></div>`).join("")}
+    ${posState.cart.map(l => `<div class="settle-summary-row"><span>${l.name} ×${fmtQty(l.qty)}</span><span>${fmtINR(l.qty * l.price)}</span></div>`).join("")}
     <div class="settle-summary-row" style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;"><span>Subtotal</span><span>${fmtINR(sub)}</span></div>
     <div class="settle-summary-row"><span>Discount</span><span>${fmtINR(discount)}</span></div>
     <div class="settle-summary-row"><span>Tax</span><span>${fmtINR(tax)}</span></div>
@@ -829,7 +834,7 @@ async function printReceipt(bill, amtPaid, method, payments) {
   const change = Math.max(0, amtPaid - grand);
   const effectivePayments = Array.isArray(payments) && payments.length ? payments : [{ mode: method, amount: amtPaid }];
   const items = (bill?.items || posState.cart).map(l =>
-    `<tr><td>${l.itemName || l.name}</td><td style="text-align:center">${l.qty}</td><td style="text-align:right">${fmtINR((l.rate || l.price) * l.qty)}</td></tr>`
+    `<tr><td>${l.itemName || l.name}</td><td style="text-align:center">${fmtQty(l.qty)}</td><td style="text-align:right">${fmtINR((l.rate || l.price) * l.qty)}</td></tr>`
   ).join("");
   const paymentRows = effectivePayments.map(p =>
     `<div style="display:flex;justify-content:space-between;margin-top:4px;"><span>Paid (${p.mode})</span><span>${fmtINR(p.amount || 0)}</span></div>`
@@ -839,8 +844,9 @@ async function printReceipt(bill, amtPaid, method, payments) {
     ? await window.getBrandingSettings()
     : { restaurantName: "RestoBill", logoUrl: "" };
   const brandName = (branding?.restaurantName || "RestoBill");
-  const logoBlock = branding?.logoUrl
-    ? `<img src="${branding.logoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto 4px;display:block;" />`
+  const safeLogoUrl = String(branding?.logoUrl || "").trim();
+  const logoBlock = safeLogoUrl && !safeLogoUrl.includes("${")
+    ? `<img src="${safeLogoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto 4px;display:block;" />`
     : "";
   const html = `<div style="font-family:'Courier New',monospace;font-size:12px;max-width:300px;margin:0 auto;padding:10px;">
     <div style="text-align:center;margin-bottom:10px;">
@@ -911,13 +917,14 @@ async function printKotSlip() {
     ? await window.getBrandingSettings()
     : { restaurantName: "RestoBill", logoUrl: "" };
   const brandName = (branding?.restaurantName || "RestoBill");
-  const logoBlock = branding?.logoUrl
-    ? `<img src="${branding.logoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto 4px;display:block;" />`
+  const safeLogoUrl = String(branding?.logoUrl || "").trim();
+  const logoBlock = safeLogoUrl && !safeLogoUrl.includes("${")
+    ? `<img src="${safeLogoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto 4px;display:block;" />`
     : "";
   const lines = printItems.map((l) => `
     <tr>
       <td>${l.name}</td>
-      <td style="text-align:center">${l.qty}</td>
+      <td style="text-align:center">${fmtQty(l.qty)}</td>
       <td style="text-align:right"><span style="padding:1px 6px;font-size:10px;">${l.status || "Pending"}</span></td>
     </tr>`).join("");
   wrap.innerHTML = `<div style="font-family:'Courier New',monospace;font-size:12px;max-width:300px;margin:0 auto;padding:10px;">

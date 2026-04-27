@@ -548,13 +548,13 @@ input[type="submit"].btn {
 /* ─── Tables ─── */
 .table-custom { width: 100%; border-collapse: separate; border-spacing: 0; }
 .table-custom th {
-  padding: 8px 10px; font-size: 10px; font-weight: 700;
+  padding: 7px 9px; font-size: 10px; font-weight: 700;
   color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px;
   background: var(--bg-surface2); border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 1;
 }
 .table-custom td {
-  padding: 8px 10px; font-size: 12px; color: var(--text-primary);
+  padding: 7px 9px; font-size: 11px; color: var(--text-primary);
   border-bottom: 1px solid var(--border); vertical-align: middle;
 }
 .table-custom tbody tr { transition: background var(--transition); }
@@ -577,9 +577,26 @@ input[type="submit"].btn {
 
 .main-content table.app-table thead th,
 .main-content table.app-table tbody td {
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-left: 9px;
+  padding-right: 9px;
   vertical-align: middle;
+}
+
+/* Compact table action controls across modules */
+.main-content table.app-table td .btn.btn-sm,
+.main-content table.table-custom td .btn.btn-sm {
+  min-height: 26px;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 7px;
+}
+
+.main-content table.app-table td .badge-custom,
+.main-content table.table-custom td .badge-custom {
+  font-size: 10px;
+  padding: 2px 7px;
 }
 
 .main-content .dataTables_wrapper {
@@ -596,6 +613,15 @@ input[type="submit"].btn {
 
 .main-content .dataTables_wrapper .dataTables_filter input {
   margin-left: 6px;
+  height: 30px;
+  font-size: 12px;
+  padding: 0 9px;
+}
+
+.main-content .dataTables_wrapper .dataTables_length select {
+  height: 30px;
+  font-size: 12px;
+  padding: 0 8px;
 }
 
 /* ─── DataTables Dark Theme Fixes ─── */

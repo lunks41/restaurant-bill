@@ -2,6 +2,83 @@
     ViewData["Title"] = "Inventory";
 }
 
+@section Styles {
+<style>
+  /* Compact inventory table layout */
+  #stockItemsTable {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  #stockItemsTable th,
+  #stockItemsTable td {
+    padding: 7px 10px;
+    font-size: 12px;
+    line-height: 1.25;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  #stockItemsTable th:nth-child(1),
+  #stockItemsTable td:nth-child(1) { width: 72px; }   /* Code */
+  #stockItemsTable th:nth-child(2),
+  #stockItemsTable td:nth-child(2) { width: 180px; }  /* Name */
+  #stockItemsTable th:nth-child(3),
+  #stockItemsTable td:nth-child(3) { width: 90px; }   /* Unit */
+  #stockItemsTable th:nth-child(4),
+  #stockItemsTable td:nth-child(4) { width: 90px; }   /* Current Qty */
+  #stockItemsTable th:nth-child(5),
+  #stockItemsTable td:nth-child(5) { width: 80px; }   /* Reorder */
+  #stockItemsTable th:nth-child(6),
+  #stockItemsTable td:nth-child(6) { width: 90px; }   /* Status */
+  #stockItemsTable th:nth-child(7),
+  #stockItemsTable td:nth-child(7) { width: 140px; text-align: right; } /* Actions */
+
+  #stockItemsTable td:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #stockItemsTable .btn.btn-sm {
+    min-height: 28px;
+    height: 28px;
+    padding: 0 9px;
+    font-size: 11px;
+    line-height: 1;
+    border-radius: 7px;
+  }
+
+  #stockItemsTable .badge-custom {
+    font-size: 10px;
+    padding: 2px 7px;
+  }
+
+  #stockItemsTable thead th {
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+
+  #stockItemsTable td:last-child {
+    white-space: nowrap;
+  }
+
+  #stockItemsTable_wrapper .dataTables_filter input,
+  #stockItemsTable_wrapper .dataTables_length select {
+    min-height: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  @@media (max-width: 1199px) {
+    #stockItemsTable th,
+    #stockItemsTable td {
+      padding: 6px 8px;
+      font-size: 11.5px;
+    }
+  }
+</style>
+}
+
 <div class="app-surface mb-3 d-flex flex-wrap align-items-end gap-2 stock-compact-controls">
     <div style="min-width:220px;">
         <label class="form-label mb-1">Search</label>

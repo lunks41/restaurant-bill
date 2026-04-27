@@ -30,8 +30,10 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
         var fromDate = from.ToDateTime(TimeOnly.MinValue);
         var toDate = to.ToDateTime(TimeOnly.MinValue);
         await using var conn = new SqlConnection(_connectionString);
-        var rows = await conn.QueryAsync<DailySalesReportDto>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
-        return rows.ToList();
+        var rows = await conn.QueryAsync<DailySalesRow>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
+        return rows
+            .Select(x => new DailySalesReportDto(DateOnly.FromDateTime(x.BusinessDate), x.TotalBills, x.GrossSales, x.TotalTax, x.NetSales))
+            .ToList();
     }
 
     public async Task<IReadOnlyList<StockVarianceDto>> GetStockVarianceAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
@@ -77,14 +79,34 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
         var fromDate = from.ToDateTime(TimeOnly.MinValue);
         var toDate = to.ToDateTime(TimeOnly.MinValue);
         await using var conn = new SqlConnection(_connectionString);
-        var rows = await conn.QueryAsync<VoidReportDto>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
-        return rows.ToList();
+        var rows = await conn.QueryAsync<VoidReportRow>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
+        return rows
+            .Select(x => new VoidReportDto(x.BillId, x.BillNo, DateOnly.FromDateTime(x.BusinessDate), x.GrandTotal, x.Status))
+            .ToList();
     }
 
     public async Task<IReadOnlyList<StockMovementDto>> GetStockMovementAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
         await Task.CompletedTask;
         return [];
+    }
+
+    private sealed class DailySalesRow
+    {
+        public DateTime BusinessDate { get; init; }
+        public int TotalBills { get; init; }
+        public decimal GrossSales { get; init; }
+        public decimal TotalTax { get; init; }
+        public decimal NetSales { get; init; }
+    }
+
+    private sealed class VoidReportRow
+    {
+        public long BillId { get; init; }
+        public string BillNo { get; init; } = string.Empty;
+        public DateTime BusinessDate { get; init; }
+        public decimal GrandTotal { get; init; }
+        public string Status { get; init; } = string.Empty;
     }
 }
 

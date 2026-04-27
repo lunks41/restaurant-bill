@@ -83,12 +83,16 @@ public class InventoryController(AppDbContext db) : Controller
     public async Task<IActionResult> StockUnitsData([FromQuery] int outletId, CancellationToken cancellationToken)
     {
         var units = await db.GroceryStockItems
-            .Where(x => x.OutletId == outletId && !x.IsDeleted && x.UnitId.HasValue)
-            .Select(x => x.UnitId!.Value)
-            .Distinct()
-            .OrderBy(x => x)
-            .Select(x => new { UnitId = x, UnitName = $"Unit {x}", UnitCode = $"U{x}" })
-            .ToListAsync(cancellationToken);
+    .Where(x => x.OutletId == outletId && !x.IsDeleted && x.UnitId.HasValue)
+    // Join with the Units table to get actual names/codes
+    .Join(db.Units,
+          stock => stock.UnitId,
+          unit => unit.UnitId,
+          (stock, unit) => new { unit.UnitId, unit.UnitName, unit.UnitCode })
+    .Distinct()
+    .OrderBy(x => x.UnitName)
+    .ToListAsync(cancellationToken);
+
         return Ok(units);
     }
 
@@ -96,12 +100,15 @@ public class InventoryController(AppDbContext db) : Controller
     public async Task<IActionResult> GroceryOptions([FromQuery] int outletId = 1, CancellationToken cancellationToken = default)
     {
         var groceries = await db.GroceryStockItems
-            .Where(x => x.OutletId == outletId && !x.IsDeleted)
-            .Select(x => x.GroceryId)
-            .Distinct()
-            .OrderBy(x => x)
-            .Select(x => new { GroceryId = x, GroceryName = $"Grocery {x}" })
-            .ToListAsync(cancellationToken);
+     .Where(x => x.OutletId == outletId && !x.IsDeleted)
+     // Join with the Groceries table to get the name directly
+     .Join(db.Groceries,
+           stock => stock.GroceryId,
+           grocery => grocery.GroceryId,
+           (stock, grocery) => new { stock.GroceryId, grocery.GroceryName })
+     .Distinct() // Ensure unique ID/Name pairs
+     .OrderBy(x => x.GroceryName)
+     .ToListAsync(cancellationToken);
 
         return Ok(groceries);
     }
@@ -183,20 +190,27 @@ public class InventoryController(AppDbContext db) : Controller
 
     private IQueryable<StockItemListRow> BuildGroceryStockQuery(int outletId, string? search, int? unitId)
     {
-        var query = db.GroceryStockItems
-            .Where(stock => stock.OutletId == outletId && !stock.IsDeleted)
-            .Select(stock => new StockItemListRow
+        var query =
+            from stock in db.GroceryStockItems
+            where stock.OutletId == outletId && !stock.IsDeleted
+            join grocery in db.Groceries.Where(x => x.OutletId == outletId && !x.IsDeleted)
+                on stock.GroceryId equals grocery.GroceryId into groceryJoin
+            from grocery in groceryJoin.DefaultIfEmpty()
+            join unit in db.Units.Where(x => x.OutletId == outletId && !x.IsDeleted)
+                on stock.UnitId equals unit.UnitId into unitJoin
+            from unit in unitJoin.DefaultIfEmpty()
+            select new StockItemListRow
             {
                 ItemId = stock.GroceryStockItemId,
                 ItemCode = $"GRC{stock.GroceryStockItemId:000}",
                 GroceryId = stock.GroceryId,
-                ItemName = $"Grocery {stock.GroceryId}",
+                ItemName = grocery != null ? grocery.GroceryName : "Grocery " + stock.GroceryId,
                 ReorderLevel = stock.ReorderLevel,
                 IsActive = stock.IsActive,
                 UnitId = stock.UnitId,
-                UnitName = stock.UnitId.HasValue ? $"Unit {stock.UnitId.Value}" : string.Empty,
+                UnitName = unit != null ? unit.UnitName : string.Empty,
                 CurrentQty = stock.CurrentQty
-            });
+            };
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -212,7 +226,7 @@ public class InventoryController(AppDbContext db) : Controller
             query = query.Where(x => x.UnitId == unitId.Value);
         }
 
-        return query.OrderBy(x => x.GroceryId);
+        return query.OrderBy(x => x.ItemName);
     }
 
     private static string Escape(string value)

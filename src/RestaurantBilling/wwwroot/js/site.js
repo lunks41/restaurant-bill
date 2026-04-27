@@ -194,11 +194,21 @@ async function applyBranding() {
   const brandFallback = document.getElementById('brandLogoFallback');
   if (!brandName || !brandLogo || !brandFallback) return;
 
+  const normalizeLogoUrl = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    // Ignore unresolved template placeholders or malformed values from settings.
+    if (raw.includes('${') || raw.includes('\n') || raw.includes('\r') || raw.includes('"') || raw.includes("'")) return '';
+    if (raw.startsWith('/')) return raw;
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return '';
+  };
+
   try {
     const settings = await getJSON('/settings/get?outletId=1');
     window.__branding = settings || {};
     const name = (settings?.restaurantName || '').trim();
-    const logoUrl = (settings?.logoUrl || '').trim();
+    const logoUrl = normalizeLogoUrl(settings?.logoUrl);
 
     brandName.textContent = name || 'RestoBill';
     if (logoUrl) {
@@ -215,12 +225,27 @@ async function applyBranding() {
 }
 
 window.getBrandingSettings = async function () {
+  const normalizeLogoUrl = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (raw.includes('${') || raw.includes('\n') || raw.includes('\r') || raw.includes('"') || raw.includes("'")) return '';
+    if (raw.startsWith('/')) return raw;
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return '';
+  };
+
   if (window.__branding && (window.__branding.restaurantName || window.__branding.logoUrl)) {
-    return window.__branding;
+    return {
+      ...window.__branding,
+      logoUrl: normalizeLogoUrl(window.__branding.logoUrl)
+    };
   }
   try {
     const settings = await getJSON('/settings/get?outletId=1');
-    window.__branding = settings || {};
+    window.__branding = {
+      ...(settings || {}),
+      logoUrl: normalizeLogoUrl(settings?.logoUrl)
+    };
     return window.__branding;
   } catch {
     return { restaurantName: "RestoBill", logoUrl: "" };

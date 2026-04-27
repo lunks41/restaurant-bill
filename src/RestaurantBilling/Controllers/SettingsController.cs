@@ -31,11 +31,12 @@ public class SettingsController(AppDbContext db, IWebHostEnvironment env) : Cont
         map.TryGetValue("ManagerPin", out var managerPin);
         map.TryGetValue("RestaurantName", out var restaurantName);
         map.TryGetValue("LogoUrl", out var logoUrl);
+        var safeLogoUrl = SanitizeLogoUrl(logoUrl);
 
         return Ok(new
         {
             restaurantName = restaurantName ?? "RestoBill",
-            logoUrl = logoUrl ?? string.Empty,
+            logoUrl = safeLogoUrl,
             fssai = fssai ?? string.Empty,
             gstin = gstin ?? string.Empty,
             managerPin = managerPin ?? string.Empty
@@ -46,7 +47,7 @@ public class SettingsController(AppDbContext db, IWebHostEnvironment env) : Cont
     public async Task<IActionResult> Save([FromBody] SettingsPayloadDto payload, CancellationToken cancellationToken)
     {
         await Upsert(payload.OutletId, "RestaurantName", payload.RestaurantName, cancellationToken);
-        await Upsert(payload.OutletId, "LogoUrl", payload.LogoUrl, cancellationToken);
+        await Upsert(payload.OutletId, "LogoUrl", SanitizeLogoUrl(payload.LogoUrl), cancellationToken);
         await Upsert(payload.OutletId, "FssaiLicenseNo", payload.Fssai, cancellationToken);
         await Upsert(payload.OutletId, "Gstin", payload.Gstin, cancellationToken);
         await Upsert(payload.OutletId, "ManagerPin", payload.ManagerPin, cancellationToken);
@@ -99,6 +100,43 @@ public class SettingsController(AppDbContext db, IWebHostEnvironment env) : Cont
         }
 
         row.SettingValue = value ?? string.Empty;
+    }
+
+    private static string SanitizeLogoUrl(string? value)
+    {
+        var raw = (value ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+
+        // Block malformed placeholders and unsafe characters.
+        if (raw.Contains("${", StringComparison.Ordinal) ||
+            raw.Contains('}') ||
+            raw.Contains('\n') ||
+            raw.Contains('\r') ||
+            raw.Contains('"') ||
+            raw.Contains('\''))
+        {
+            return string.Empty;
+        }
+
+        // Allow uploaded/static app paths.
+        if (raw.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) ||
+            raw.StartsWith("/images/", StringComparison.OrdinalIgnoreCase))
+        {
+            return raw;
+        }
+
+        // Allow absolute web URLs only for common image types.
+        if (Uri.TryCreate(raw, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            var ext = Path.GetExtension(uri.AbsolutePath).ToLowerInvariant();
+            if (ext is ".png" or ".jpg" or ".jpeg" or ".webp" or ".gif" or ".svg")
+            {
+                return raw;
+            }
+        }
+
+        return string.Empty;
     }
 
     public sealed record SettingsPayloadDto(
