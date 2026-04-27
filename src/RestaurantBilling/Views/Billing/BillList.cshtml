@@ -118,7 +118,11 @@
 
     function renderBills() {
       const body = document.getElementById('billBody');
-      const filtered = billFilter === 'all' ? allBills : allBills.filter(x => x.status === billFilter);
+      const filtered = allBills.filter(x => {
+        if (billFilter === 'all') return true;
+        if (billFilter === 'Paid') return x.status === 'Paid' || x.status === 'Partial';
+        return x.status === billFilter;
+      });
       if (!filtered.length) {
         body.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No bills found.</td></tr>';
         return;

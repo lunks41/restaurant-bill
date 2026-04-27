@@ -43,22 +43,19 @@
       <aside class="sidebar" id="appSidebar">
         <div class="sidebar-logo">
           <div class="logo-icon"><i class="fas fa-utensils"></i></div>
-          <span class="logo-text">RestoBill</span>
+          <a href="/dashbord" class="logo-text" style="text-decoration:none;">RestoBill</a>
         </div>
         <nav class="sidebar-nav">
           <div class="nav-group">
-            <div class="nav-group-label">POS</div>
+            <div class="nav-group-label">Operations</div>
             <a class="@LinkClass("/floor")" href="/floor"><i class="nav-icon fas fa-border-all"></i><span
-                class="nav-label">KOT</span></a>
+                class="nav-label">KOT (Dining)</span></a>
             <a class="@LinkClass("/takeaway")" href="/takeaway"><i class="nav-icon fas fa-bag-shopping"></i><span
                 class="nav-label">Takeaway</span></a>
-          </div>
-          <div class="nav-group">
-            <div class="nav-group-label">Service</div>
             <a class="@LinkClass("/kot")" href="/kot" target="_blank" rel="noopener"><i
-                class="nav-icon fas fa-fire-burner"></i><span class="nav-label">KOT View</span></a>
+                class="nav-icon fas fa-fire-burner"></i><span class="nav-label">Kitchen View</span></a>
             <a class="@LinkClass("/bills")" href="/bills"><i class="nav-icon fas fa-clock-rotate-left"></i><span
-                class="nav-label">Order History</span></a>
+                class="nav-label">Orders</span></a>
           </div>
           <div class="nav-group">
             <div class="nav-group-label">Masters</div>
@@ -67,26 +64,28 @@
             <a class="@LinkClass("/master/items")" href="/master/items"><i class="nav-icon fas fa-utensils"></i><span
                 class="nav-label">Menu &amp; items</span></a>
             <a class="@LinkClass("/master/table")" href="/master/table"><i class="nav-icon fas fa-table-cells"></i><span
-                class="nav-label">Table master</span></a>
-          </div>
-          <div class="nav-group">
-            <div class="nav-group-label">Admin</div>
+                class="nav-label">Tables</span></a>
+
             <a class="@LinkClass("/admin/users")" href="/admin/users"><i class="nav-icon fas fa-users"></i><span
                 class="nav-label">Users</span></a>
-          </div>
-          <div class="nav-group">
-            <div class="nav-group-label">Inventory</div>
+
             <a class="@LinkClass("/master/stock")" href="/master/stock"><i class="nav-icon fas fa-boxes-stacked"></i><span
                 class="nav-label">Inventory</span></a>
           </div>
           <div class="nav-group">
-            <div class="nav-group-label">Analytics</div>
+            <div class="nav-group-label">Analytics & Reports</div>
             <a class="@LinkClass("/dashbord")" href="/dashbord"><i class="nav-icon fas fa-table-cells-large"></i><span
                 class="nav-label">Dashboard</span></a>
-            <a class="@LinkClass("/reports")" href="/reports"><i class="nav-icon fas fa-chart-column"></i><span
-                class="nav-label">Reports</span></a>
-          </div>
-        </nav>
+              <a class="@LinkClass("/reports/dailysales")" href="/reports/dailysales"><i class="nav-icon fas fa-calendar-day"></i><span
+                  class="nav-label">Daily Sales</span></a>
+              <a class="@LinkClass("/reports/billwise")" href="/reports/billwise"><i class="nav-icon fas fa-file-invoice"></i><span
+                  class="nav-label">Bill Wise</span></a>
+              <a class="@LinkClass("/reports/itemwise")" href="/reports/itemwise"><i class="nav-icon fas fa-bowl-food"></i><span
+                  class="nav-label">Item Wise</span></a>
+              <a class="@LinkClass("/reports/paymentmode")" href="/reports/paymentmode"><i class="nav-icon fas fa-money-check-dollar"></i><span
+                  class="nav-label">Payment Mode</span></a>
+            </div>
+                  </nav>
         <div class="sidebar-footer">
           <form asp-controller="Account" asp-action="Logout" method="post">
             @Html.AntiForgeryToken()

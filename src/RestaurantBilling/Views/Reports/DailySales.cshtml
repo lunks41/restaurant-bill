@@ -19,28 +19,60 @@
   fromDate.value = fmt(from);
   toDate.value = fmt(today);
 
+  function getDateRange() {
+    const fromVal = fromDate.value;
+    const toVal = toDate.value;
+    if (!fromVal || !toVal) {
+      if (typeof toastr !== "undefined") toastr.warning("Select both From and To dates.");
+      return null;
+    }
+    if (fromVal > toVal) {
+      if (typeof toastr !== "undefined") toastr.warning("From date cannot be after To date.");
+      return null;
+    }
+    return { fromVal, toVal };
+  }
+
   async function run() {
-    const rows = await getJSON(`/reports/daily-sales?outletId=1&from=${fromDate.value}&to=${toDate.value}`);
     const body = document.getElementById('dailySalesBody');
-    body.innerHTML = rows.length
-      ? rows.map(x => `<tr data-date="${x.businessDate}"><td>${x.businessDate}</td><td>${x.totalBills}</td><td>${fmtINR(x.grossSales)}</td><td>${fmtINR(x.totalTax)}</td><td>${fmtINR(x.netSales)}</td></tr>`).join('')
-      : '<tr><td colspan="5" class="text-center text-muted">No data</td></tr>';
-    body.querySelectorAll('tr[data-date]').forEach(tr => tr.addEventListener('click', () => drill(tr.dataset.date)));
+    const range = getDateRange();
+    if (!range) return;
+    try {
+      const rows = await getJSON(`/reports/daily-sales?outletId=1&from=${encodeURIComponent(range.fromVal)}&to=${encodeURIComponent(range.toVal)}`);
+      body.innerHTML = rows.length
+        ? rows.map(x => `<tr data-date="${x.businessDate}"><td>${x.businessDate}</td><td>${x.totalBills}</td><td>${fmtINR(x.grossSales)}</td><td>${fmtINR(x.totalTax)}</td><td>${fmtINR(x.netSales)}</td></tr>`).join('')
+        : '<tr><td colspan="5" class="text-center text-muted">No data</td></tr>';
+      body.querySelectorAll('tr[data-date]').forEach(tr => tr.addEventListener('click', () => drill(tr.dataset.date)));
+    } catch {
+      body.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load daily sales.</td></tr>';
+      if (typeof toastr !== "undefined") toastr.error("Failed to load daily sales.");
+    }
   }
 
   async function drill(date) {
-    const rows = await getJSON(`/reports/daily-sales-drilldown?outletId=1&date=${date}`);
     const body = document.getElementById('drillRows');
-    body.innerHTML = rows.length
-      ? rows.map(x => `<tr><td>${x.billNo}</td><td>${x.billDate}</td><td>${x.status}</td><td>${fmtINR(x.taxAmount)}</td><td>${fmtINR(x.grandTotal)}</td></tr>`).join('')
-      : '<tr><td colspan="5" class="text-center text-muted">No bills for selected date.</td></tr>';
+    try {
+      const rows = await getJSON(`/reports/daily-sales-drilldown?outletId=1&date=${date}`);
+      body.innerHTML = rows.length
+        ? rows.map(x => `<tr><td>${x.billNo}</td><td>${x.billDate}</td><td>${x.status}</td><td>${fmtINR(x.taxAmount)}</td><td>${fmtINR(x.grandTotal)}</td></tr>`).join('')
+        : '<tr><td colspan="5" class="text-center text-muted">No bills for selected date.</td></tr>';
+    } catch {
+      body.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load drilldown.</td></tr>';
+      if (typeof toastr !== "undefined") toastr.error("Failed to load drilldown.");
+    }
   }
 
   document.getElementById('runDailySales').addEventListener('click', run);
-  document.getElementById('exportDailyCsv').addEventListener('click', () =>
-    window.open(`/reports/daily-sales-export?outletId=1&from=${fromDate.value}&to=${toDate.value}&format=csv`, '_blank'));
-  document.getElementById('exportDailyXlsx').addEventListener('click', () =>
-    window.open(`/reports/daily-sales-export?outletId=1&from=${fromDate.value}&to=${toDate.value}&format=xlsx`, '_blank'));
+  document.getElementById('exportDailyCsv').addEventListener('click', () => {
+    const range = getDateRange();
+    if (!range) return;
+    window.open(`/reports/daily-sales-export?outletId=1&from=${encodeURIComponent(range.fromVal)}&to=${encodeURIComponent(range.toVal)}&format=csv`, '_blank');
+  });
+  document.getElementById('exportDailyXlsx').addEventListener('click', () => {
+    const range = getDateRange();
+    if (!range) return;
+    window.open(`/reports/daily-sales-export?outletId=1&from=${encodeURIComponent(range.fromVal)}&to=${encodeURIComponent(range.toVal)}&format=xlsx`, '_blank');
+  });
   document.addEventListener('DOMContentLoaded', run);
 })();
 </script>

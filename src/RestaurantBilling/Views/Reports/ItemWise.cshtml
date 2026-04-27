@@ -13,20 +13,46 @@
   document.getElementById('fromDate').value = fmt(from);
   document.getElementById('toDate').value = fmt(today);
 
+  function getDateRange() {
+    const fromVal = document.getElementById('fromDate').value;
+    const toVal = document.getElementById('toDate').value;
+    if (!fromVal || !toVal) {
+      if (typeof toastr !== "undefined") toastr.warning("Select both From and To dates.");
+      return null;
+    }
+    if (fromVal > toVal) {
+      if (typeof toastr !== "undefined") toastr.warning("From date cannot be after To date.");
+      return null;
+    }
+    return { fromVal, toVal };
+  }
+
   async function run() {
-    const fromDate = document.getElementById('fromDate').value;
-    const toDate = document.getElementById('toDate').value;
-    const rows = await getJSON(`/reports/item-wise?outletId=1&from=${fromDate}&to=${toDate}`);
-    document.getElementById('itemWiseBody').innerHTML = rows.length
-      ? rows.map(x => `<tr><td>${x.itemName}</td><td>${x.theoreticalConsumption}</td><td>${x.actualConsumption}</td><td>${x.varianceQty}</td><td>${fmtINR(x.varianceValue)}</td></tr>`).join('')
-      : '<tr><td colspan="5" class="text-center text-muted">No data</td></tr>';
+    const body = document.getElementById('itemWiseBody');
+    const range = getDateRange();
+    if (!range) return;
+    try {
+      const rows = await getJSON(`/reports/item-wise?outletId=1&from=${encodeURIComponent(range.fromVal)}&to=${encodeURIComponent(range.toVal)}`);
+      body.innerHTML = rows.length
+        ? rows.map(x => `<tr><td>${x.itemName}</td><td>${x.theoreticalConsumption}</td><td>${x.actualConsumption}</td><td>${x.varianceQty}</td><td>${fmtINR(x.varianceValue)}</td></tr>`).join('')
+        : '<tr><td colspan="5" class="text-center text-muted">No data</td></tr>';
+    } catch {
+      body.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load item wise report.</td></tr>';
+      if (typeof toastr !== "undefined") toastr.error("Failed to load item wise report.");
+    }
   }
 
   document.getElementById('runItemWise').addEventListener('click', run);
-  document.getElementById('exportItemCsv').addEventListener('click', () =>
-    window.open(`/reports/item-wise-export?outletId=1&from=${document.getElementById('fromDate').value}&to=${document.getElementById('toDate').value}&format=csv`, '_blank'));
-  document.getElementById('exportItemXlsx').addEventListener('click', () =>
-    window.open(`/reports/item-wise-export?outletId=1&from=${document.getElementById('fromDate').value}&to=${document.getElementById('toDate').value}&format=xlsx`, '_blank'));
+  document.getElementById('exportItemCsv').addEventListener('click', () => {
+    const range = getDateRange();
+    if (!range) return;
+    window.open(`/reports/item-wise-export?outletId=1&from=${encodeURIComponent(range.fromVal)}&to=${encodeURIComponent(range.toVal)}&format=csv`, '_blank');
+  });
+  document.getElementById('exportItemXlsx').addEventListener('click', () => {
+    const range = getDateRange();
+    if (!range) return;
+    window.open(`/reports/item-wise-export?outletId=1&from=${encodeURIComponent(range.fromVal)}&to=${encodeURIComponent(range.toVal)}&format=xlsx`, '_blank');
+  });
   document.addEventListener('DOMContentLoaded', run);
 })();
 </script>

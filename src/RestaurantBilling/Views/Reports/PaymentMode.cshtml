@@ -13,20 +13,46 @@
   document.getElementById('fromDate').value = fmt(from);
   document.getElementById('toDate').value = fmt(today);
 
+  function getDateRange() {
+    const fromVal = document.getElementById('fromDate').value;
+    const toVal = document.getElementById('toDate').value;
+    if (!fromVal || !toVal) {
+      if (typeof toastr !== "undefined") toastr.warning("Select both From and To dates.");
+      return null;
+    }
+    if (fromVal > toVal) {
+      if (typeof toastr !== "undefined") toastr.warning("From date cannot be after To date.");
+      return null;
+    }
+    return { fromVal, toVal };
+  }
+
   async function run() {
-    const fromDate = document.getElementById('fromDate').value;
-    const toDate = document.getElementById('toDate').value;
-    const rows = await getJSON(`/reports/payment-summary?outletId=1&from=${fromDate}&to=${toDate}`);
-    document.getElementById('paymentModeBody').innerHTML = rows.length
-      ? rows.map(x => `<tr><td>${x.paymentMode}</td><td>${fmtINR(x.totalAmount)}</td><td>${x.transactionCount}</td></tr>`).join('')
-      : '<tr><td colspan="3" class="text-center text-muted">No data</td></tr>';
+    const body = document.getElementById('paymentModeBody');
+    const range = getDateRange();
+    if (!range) return;
+    try {
+      const rows = await getJSON(`/reports/payment-summary?outletId=1&from=${encodeURIComponent(range.fromVal)}&to=${encodeURIComponent(range.toVal)}`);
+      body.innerHTML = rows.length
+        ? rows.map(x => `<tr><td>${x.paymentMode}</td><td>${fmtINR(x.totalAmount)}</td><td>${x.transactionCount}</td></tr>`).join('')
+        : '<tr><td colspan="3" class="text-center text-muted">No data</td></tr>';
+    } catch {
+      body.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Failed to load payment mode report.</td></tr>';
+      if (typeof toastr !== "undefined") toastr.error("Failed to load payment mode report.");
+    }
   }
 
   document.getElementById('runPaymentMode').addEventListener('click', run);
-  document.getElementById('exportPayCsv').addEventListener('click', () =>
-    window.open(`/reports/payment-summary-export?outletId=1&from=${document.getElementById('fromDate').value}&to=${document.getElementById('toDate').value}&format=csv`, '_blank'));
-  document.getElementById('exportPayXlsx').addEventListener('click', () =>
-    window.open(`/reports/payment-summary-export?outletId=1&from=${document.getElementById('fromDate').value}&to=${document.getElementById('toDate').value}&format=xlsx`, '_blank'));
+  document.getElementById('exportPayCsv').addEventListener('click', () => {
+    const range = getDateRange();
+    if (!range) return;
+    window.open(`/reports/payment-summary-export?outletId=1&from=${encodeURIComponent(range.fromVal)}&to=${encodeURIComponent(range.toVal)}&format=csv`, '_blank');
+  });
+  document.getElementById('exportPayXlsx').addEventListener('click', () => {
+    const range = getDateRange();
+    if (!range) return;
+    window.open(`/reports/payment-summary-export?outletId=1&from=${encodeURIComponent(range.fromVal)}&to=${encodeURIComponent(range.toVal)}&format=xlsx`, '_blank');
+  });
   document.addEventListener('DOMContentLoaded', run);
 })();
 </script>

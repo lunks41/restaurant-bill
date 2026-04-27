@@ -27,8 +27,10 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
                            ORDER BY b.BusinessDate DESC
                            """;
 
+        var fromDate = from.ToDateTime(TimeOnly.MinValue);
+        var toDate = to.ToDateTime(TimeOnly.MinValue);
         await using var conn = new SqlConnection(_connectionString);
-        var rows = await conn.QueryAsync<DailySalesReportDto>(new CommandDefinition(sql, new { outletId, from, to }, cancellationToken: cancellationToken));
+        var rows = await conn.QueryAsync<DailySalesReportDto>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
         return rows.ToList();
     }
 
@@ -49,8 +51,10 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
                            ORDER BY ABS(SUM(sl.OutQty)) DESC
                            """;
 
+        var fromDate = from.ToDateTime(TimeOnly.MinValue);
+        var toDate = to.ToDateTime(TimeOnly.MinValue);
         await using var conn = new SqlConnection(_connectionString);
-        var rows = await conn.QueryAsync<StockVarianceDto>(new CommandDefinition(sql, new { outletId, from, to }, cancellationToken: cancellationToken));
+        var rows = await conn.QueryAsync<StockVarianceDto>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
         return rows.ToList();
     }
 
@@ -67,8 +71,10 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
                            GROUP BY p.PaymentMode
                            ORDER BY SUM(p.Amount) DESC
                            """;
+        var fromDate = from.ToDateTime(TimeOnly.MinValue);
+        var toDate = to.ToDateTime(TimeOnly.MinValue);
         await using var conn = new SqlConnection(_connectionString);
-        var rows = await conn.QueryAsync<PaymentSummaryDto>(new CommandDefinition(sql, new { outletId, from, to }, cancellationToken: cancellationToken));
+        var rows = await conn.QueryAsync<PaymentSummaryDto>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
         return rows.ToList();
     }
 
@@ -86,8 +92,10 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
                              AND b.Status = 3
                            ORDER BY b.BusinessDate DESC, b.BillId DESC
                            """;
+        var fromDate = from.ToDateTime(TimeOnly.MinValue);
+        var toDate = to.ToDateTime(TimeOnly.MinValue);
         await using var conn = new SqlConnection(_connectionString);
-        var rows = await conn.QueryAsync<VoidReportDto>(new CommandDefinition(sql, new { outletId, from, to }, cancellationToken: cancellationToken));
+        var rows = await conn.QueryAsync<VoidReportDto>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
         return rows.ToList();
     }
 
@@ -107,8 +115,10 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
                              AND sl.BusinessDate BETWEEN @from AND @to
                            ORDER BY sl.BusinessDate DESC, sl.StockLedgerEntryId DESC
                            """;
+        var fromDate = from.ToDateTime(TimeOnly.MinValue);
+        var toDate = to.ToDateTime(TimeOnly.MinValue);
         await using var conn = new SqlConnection(_connectionString);
-        var rows = await conn.QueryAsync<StockMovementDto>(new CommandDefinition(sql, new { outletId, from, to }, cancellationToken: cancellationToken));
+        var rows = await conn.QueryAsync<StockMovementDto>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
         return rows.ToList();
     }
 }
