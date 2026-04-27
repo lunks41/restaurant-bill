@@ -29,7 +29,7 @@
         </div>
         <div class="cart-kot-hint" id="twCartKotHint">
             <i class="fas fa-circle-exclamation"></i>
-            <span>Kitchen item not sent yet - use Send KOT or KOT &amp; print.</span>
+            <span>Kitchen item not sent yet - use Send KOT.</span>
         </div>
         <div class="cart-items" id="twCartItems"></div>
         <div class="cart-totals">
@@ -190,10 +190,65 @@ function twPrintKotSlip() {
 }
 
 function twPrintNow() {
-  // Give the browser one paint cycle so receipt HTML is ready in print preview.
-  requestAnimationFrame(() => {
-    setTimeout(() => window.print(), 40);
-  });
+  const wrap = document.getElementById("twReceiptWrap");
+  const content = (wrap?.innerHTML || "").trim();
+  if (!content) {
+    if (typeof toastr !== "undefined") toastr.warning("Nothing to print.");
+    return;
+  }
+
+  let frame = document.getElementById("twPrintFrame");
+  if (!frame) {
+    frame = document.createElement("iframe");
+    frame.id = "twPrintFrame";
+    frame.setAttribute("aria-hidden", "true");
+    frame.style.position = "fixed";
+    frame.style.right = "0";
+    frame.style.bottom = "0";
+    frame.style.width = "0";
+    frame.style.height = "0";
+    frame.style.border = "0";
+    document.body.appendChild(frame);
+  }
+
+  const printDoc = frame.contentWindow?.document;
+  if (!printDoc || !frame.contentWindow) {
+    if (typeof toastr !== "undefined") toastr.error("Unable to open print preview.");
+    return;
+  }
+
+  const htmlDoc = [
+    "<!doctype html>",
+    "<html>",
+    "<head>",
+    "  <meta charset=\"utf-8\" />",
+    "  <title>Takeaway Print</title>",
+    "  <style>",
+    "    @@page { size: 80mm auto; margin: 0; }",
+    "    html, body { margin: 0; padding: 0; background: #fff; color: #000; }",
+    "    body { font-family: 'Courier New', monospace; }",
+    "    .print-root { width: 80mm; max-width: 80mm; padding: 2mm; box-sizing: border-box; }",
+    "    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-shadow: none; text-shadow: none; }",
+    "  </style>",
+    "</head>",
+    "<body>",
+    `  <div class="print-root">${content}</div>`,
+    "</body>",
+    "</html>"
+  ].join("\n");
+
+  printDoc.open();
+  printDoc.write(htmlDoc);
+  printDoc.close();
+
+  setTimeout(() => {
+    try {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    } catch {
+      if (typeof toastr !== "undefined") toastr.error("Print failed. Please try again.");
+    }
+  }, 60);
 }
 
 function twUpdateKotActionButtons() {
@@ -223,6 +278,7 @@ async function twInit() {
   twBindEvents();
   twUpdateHeaderLabel();
   await twTryRecallFromQuery();
+  twTryAutoSettleFromQuery();
 }
 
 function twBindPosItemGrid() {
@@ -343,11 +399,6 @@ function twRenderItems() {
         ev.preventDefault();
         twAdd(i);
       }
-    });
-    // Direct fallback (same pattern as POS): ensures add works even if delegated lookup fails on some clients.
-    tile.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      twAdd(i);
     });
     host.appendChild(tile);
   });
@@ -678,6 +729,16 @@ async function twTryRecallFromQuery() {
   } catch {
     if (typeof toastr !== "undefined") toastr.error("Could not load this bill. It may not be a draft.");
   }
+}
+
+function twTryAutoSettleFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("autosettle") !== "1") return;
+  if (!twState.currentBillId || !twState.cart.length) return;
+  twOpenSettle();
+  const u = new URL(window.location.href);
+  u.searchParams.delete("autosettle");
+  history.replaceState({}, "", u.pathname + u.search + u.hash);
 }
 
 async function twConfirmSettle() {

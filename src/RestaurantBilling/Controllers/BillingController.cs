@@ -86,7 +86,7 @@ public class BillingController(
     {
         var rows = await db.Bills
             .AsNoTracking()
-            .Where(x => x.OutletId == outletId && x.Status == BillStatus.Paid)
+            .Where(x => x.OutletId == outletId)
             .OrderByDescending(x => x.BillDate)
             .Take(500)
             .Select(x => new

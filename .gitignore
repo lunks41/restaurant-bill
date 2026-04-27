@@ -1,0 +1,9 @@
+.vs/
+bin/
+obj/
+logs/
+*.sln
+logs.sln
+temp_
+temp_*/
+tmp_*

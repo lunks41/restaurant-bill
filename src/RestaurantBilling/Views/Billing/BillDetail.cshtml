@@ -2,10 +2,6 @@
 @using Entities.Enums
 @{
     ViewData["Title"] = "Bill Detail";
-    var isDraft = Model.Status.ToString() == "Draft";
-    var recallPosUrl = Model.BillType == BillType.Takeaway
-        ? $"/takeaway?recall={Model.BillId}"
-        : $"/pos/order/{Model.BillId}";
 }
 
 <nav class="app-muted mb-3" style="font-size:13px;">
@@ -18,16 +14,9 @@
         <div class="page-sub">@Model.BillNo · @Model.BillType · @Model.Status · @Model.BillDate.ToString("dd-MMM-yyyy hh:mm tt")</div>
     </div>
     <div class="d-flex flex-wrap gap-2 align-items-center">
-        <a class="btn-ghost" href="#" onclick="window.print(); return false;" style="padding:8px 16px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:8px;" title="Print bill">
+        <a class="btn-ghost" href="#" onclick="printBillReceipt(); return false;" style="padding:8px 16px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:8px;" title="Print bill">
             <i class="fas fa-print"></i> Print
         </a>
-        @if (isDraft)
-        {
-            <a class="btn-accent" href="@recallPosUrl" style="padding:8px 16px;border-radius:var(--radius-sm);text-decoration:none;display:inline-flex;align-items:center;gap:8px;" title="Open in POS with this bill">
-                <i class="fas fa-rotate-left"></i> Recall
-            </a>
-            <span class="badge-custom badge-warning d-none d-md-inline">Draft — add items, Hold, then KOT, or use Recall to edit in POS.</span>
-        }
     </div>
 </div>
 
@@ -87,10 +76,62 @@
 
 @section Scripts {
 <script>
+  function printBillReceipt() {
+    const receipt = document.getElementById('billReceiptWrap');
+    const content = receipt?.innerHTML?.trim();
+    if (!content) return;
+
+    const win = window.open('', '_blank', 'width=420,height=760');
+    if (!win) return;
+
+    win.document.open();
+    win.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Bill Print</title>
+  <style>
+    @@page { size: 80mm auto; margin: 0; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      color: #000;
+      width: 80mm;
+      max-width: 80mm;
+      font-family: 'Courier New', monospace;
+    }
+    .print-root {
+      width: 80mm;
+      max-width: 80mm;
+      padding: 2mm;
+      box-sizing: border-box;
+    }
+    * {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      box-shadow: none;
+      text-shadow: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="print-root">${content}</div>
+<\/body>
+<\/html>`);
+    win.document.close();
+
+    setTimeout(() => {
+      win.focus();
+      win.print();
+      win.close();
+    }, 120);
+  }
+
   (() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('autoprint') !== '1') return;
-    const printNow = () => requestAnimationFrame(() => setTimeout(() => window.print(), 40));
+    const printNow = () => requestAnimationFrame(() => setTimeout(() => printBillReceipt(), 40));
     window.addEventListener('load', () => {
       printNow();
     }, { once: true });

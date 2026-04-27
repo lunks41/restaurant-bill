@@ -53,6 +53,8 @@
           style="font-size:12px;padding:5px 12px;color:var(--success);">Paid</button>
         <button class="btn-ghost bill-filter-btn" data-filter="Draft"
           style="font-size:12px;padding:5px 12px;color:var(--warning);">Draft</button>
+        <button class="btn-ghost bill-filter-btn" data-filter="Cancelled"
+          style="font-size:12px;padding:5px 12px;color:var(--danger);">Cancelled</button>
       </div>
       <button class="btn-accent" id="refreshBills" style="padding:6px 14px;font-size:12px;"><i
           class="fas fa-rotate"></i> Refresh</button>
@@ -103,10 +105,12 @@
 
     function updateKpis() {
       const settled = allBills.filter(x => x.status === 'Paid').length;
+      const partial = allBills.filter(x => x.status === 'Partial').length;
+      const settledCount = settled + partial;
       const draft = allBills.filter(x => x.status === 'Draft').length;
       const cancelled = allBills.filter(x => x.status === 'Cancelled').length;
       const total = allBills.filter(x => x.status === 'Paid').reduce((s, x) => s + (x.grandTotal || 0), 0);
-      document.getElementById('kpiBillSettled').textContent = settled;
+      document.getElementById('kpiBillSettled').textContent = settledCount;
       document.getElementById('kpiBillDraft').textContent = draft;
       document.getElementById('kpiBillCancelled').textContent = cancelled;
       document.getElementById('kpiBillTotal').textContent = fmtINR(total);
@@ -119,17 +123,32 @@
         body.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No bills found.</td></tr>';
         return;
       }
+      const renderStatusBadges = (status) => {
+        if (status === 'Partial') {
+          return `
+            <span class="badge-custom status-paid">Paid</span>
+            <span class="badge-custom status-pending">Partial</span>
+          `;
+        }
+        const cls = statusMap[status] || 'badge-custom badge-muted';
+        return `<span class="${cls}">${status}</span>`;
+      };
+
       body.innerHTML = filtered.map(x => {
-        const cls = statusMap[x.status] || 'badge-custom badge-muted';
+        const canQuickSettleTakeaway = x.status === 'Draft' && String(x.billType || '').toLowerCase() === 'takeaway';
+        const quickSettleAction = canQuickSettleTakeaway
+          ? `<a class="btn-accent" href="/takeaway?recall=${x.billId}&autosettle=1" style="font-size:12px;padding:5px 10px;" title="Settle takeaway draft"><i class="fas fa-indian-rupee-sign"></i></a>`
+          : '';
         return `<tr>
         <td><strong style="color:var(--accent);">${x.billNo}</strong></td>
         <td><span class="badge-custom badge-muted">${x.billType || 'DineIn'}</span></td>
         <td style="font-size:12px;">${x.tableName || '-'}</td>
         <td style="font-size:12px;color:var(--text-muted);">${x.billDate}</td>
         <td style="font-size:12px;">${x.itemCount || '-'}</td>
-        <td><span class="${cls}">${x.status}</span></td>
+        <td style="display:flex;gap:6px;align-items:center;">${renderStatusBadges(x.status)}</td>
         <td><strong>${fmtINR(x.grandTotal)}</strong></td>
         <td style="display:flex;gap:6px;">
+          ${quickSettleAction}
           <a class="btn-ghost" href="/bills/${x.billId}" style="font-size:12px;padding:5px 10px;" title="View bill"><i class="fas fa-eye"></i></a>
           <a class="btn-ghost" href="/bills/${x.billId}?autoprint=1" target="_blank" rel="noopener" style="font-size:12px;padding:5px 10px;" title="Print bill"><i class="fas fa-print"></i></a>
         </td>

@@ -1,22 +1,20 @@
 @{
     Layout = "_LayoutKds";
     ViewData["Title"] = "KOT List";
+    var uiStamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
 }
 
 <div class="kds-topbar">
     <div style="display:flex;align-items:center;gap:16px;">
-        <div class="kds-title"><i class="fas fa-ticket" style="color:#a1a1aa;margin-right:8px;"></i>KOT List</div>
+        <div class="kds-title"><i class="fas fa-ticket" style="color:#a1a1aa;margin-right:8px;"></i>KOT List <span style="font-size:10px;color:#8B949E;font-weight:600;">UI @uiStamp</span></div>
         <div style="display:flex;gap:8px;">
             <button onclick="setKotStatusFilter('all')" id="kotFilterAll" class="kds-filter-active" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#E6EDF3;font-size:12px;font-weight:600;cursor:pointer;">All</button>
             <button onclick="setKotStatusFilter('Pending')" id="kotFilterPending" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#F59E0B;font-size:12px;font-weight:600;cursor:pointer;">Pending</button>
             <button onclick="setKotStatusFilter('Preparing')" id="kotFilterPreparing" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#3B82F6;font-size:12px;font-weight:600;cursor:pointer;">Preparing</button>
-            <button onclick="setKotStatusFilter('Ready')" id="kotFilterReady" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#10B981;font-size:12px;font-weight:600;cursor:pointer;">Ready</button>
+            <button onclick="setKotStatusFilter('Served')" id="kotFilterServed" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#A78BFA;font-size:12px;font-weight:600;cursor:pointer;">Served</button>
         </div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
-        <select id="kotStationFilter" style="height:32px;padding:0 10px;border-radius:8px;border:1px solid #30363D;background:#21262D;color:#E6EDF3;font-size:12px;">
-            <option value="all">All stations</option>
-        </select>
         <div id="kotCount" style="font-size:12px;color:#8B949E;"></div>
         <button onclick="loadKots()" style="padding:6px 14px;border-radius:8px;border:1px solid #30363D;background:#21262D;color:#E6EDF3;font-size:12px;cursor:pointer;"><i class="fas fa-rotate"></i> Refresh</button>
         <a href="/kot/screen" target="_blank" style="padding:6px 12px;border-radius:8px;border:1px solid #30363D;background:#21262D;color:#E6EDF3;font-size:12px;text-decoration:none;"><i class="fas fa-display"></i> KDS Screen</a>
@@ -58,7 +56,29 @@ function apiPost(url, payload) {
 
 let allKots = [];
 let activeFilter = "all";
-let activeStation = "all";
+const statusPriority = ["Pending", "Preparing", "Served", "Cancelled"];
+
+function normalizeStatus(status) {
+  if (!status) return "Pending";
+  if (status === "Pending") return "Pending";
+  if (status === "Preparing") return "Preparing";
+  if (status === "Served") return "Served";
+  if (status === "Cancelled") return "Cancelled";
+  return "Pending";
+}
+
+function deriveCardStatus(kot) {
+  const itemStatuses = (kot.items || []).map(i => normalizeStatus(i.status || kot.status));
+  if (!itemStatuses.length) return normalizeStatus(kot.status);
+  if (itemStatuses.includes("Pending")) return "Pending";
+  if (itemStatuses.includes("Preparing")) return "Preparing";
+  if (itemStatuses.every(s => s === "Served" || s === "Cancelled")) {
+    return itemStatuses.includes("Served") ? "Served" : "Cancelled";
+  }
+  if (itemStatuses.every(s => s === "Served")) return "Served";
+  if (itemStatuses.every(s => s === "Cancelled")) return "Cancelled";
+  return normalizeStatus(kot.status);
+}
 
 window.setKotStatusFilter = function(status) {
   activeFilter = status;
@@ -67,7 +87,7 @@ window.setKotStatusFilter = function(status) {
     all: "kotFilterAll",
     Pending: "kotFilterPending",
     Preparing: "kotFilterPreparing",
-    Ready: "kotFilterReady"
+    Served: "kotFilterServed"
   };
   document.getElementById(map[status])?.classList.add("kds-filter-active");
   renderKotGrid();
@@ -76,28 +96,10 @@ window.setKotStatusFilter = function(status) {
 async function loadKots() {
   try {
     allKots = await apiGet("/kot/kots-data?outletId=1") || [];
-    syncStationFilter();
     renderKotGrid();
   } catch {
     const grid = document.getElementById("kotGrid");
     if (grid) grid.innerHTML = `<div class="kot-card"><div class="kot-card-head"><div class="kot-no-label" style="color:#EF4444;"><i class="fas fa-exclamation-triangle"></i> Failed to load</div></div></div>`;
-  }
-}
-
-function syncStationFilter() {
-  const select = document.getElementById("kotStationFilter");
-  if (!select) return;
-  const prev = activeStation;
-  const stationIds = Array.from(new Set(allKots
-    .map(x => Number(x.kitchenStationId))
-    .filter(x => Number.isFinite(x) && x > 0)))
-    .sort((a, b) => a - b);
-  select.innerHTML = `<option value="all">All stations</option>${stationIds.map(id => `<option value="${id}">Station ${id}</option>`).join("")}`;
-  if (prev === "all" || stationIds.includes(Number(prev))) {
-    select.value = prev;
-  } else {
-    activeStation = "all";
-    select.value = "all";
   }
 }
 
@@ -106,9 +108,8 @@ function renderKotGrid() {
   if (!grid) return;
 
   const filtered = allKots.filter(x => {
-    const statusOk = activeFilter === "all" || x.status === activeFilter;
-    const stationOk = activeStation === "all" || String(x.kitchenStationId) === activeStation;
-    return statusOk && stationOk;
+    const effectiveStatus = deriveCardStatus(x);
+    return activeFilter === "all" || effectiveStatus === activeFilter;
   });
 
   const count = document.getElementById("kotCount");
@@ -120,15 +121,18 @@ function renderKotGrid() {
   }
 
   grid.innerHTML = filtered.map(kot => {
+    const effectiveStatus = deriveCardStatus(kot);
     const elapsed = kot.kotDateIso ? Math.floor((Date.now() - new Date(kot.kotDateIso).getTime()) / 60000) : null;
     const timerClass = elapsed > 20 ? "urgent" : elapsed > 10 ? "warn" : "ok";
-    const stationLabel = kot.kitchenStationId ? `Station ${kot.kitchenStationId}` : "Station -";
     const itemsHtml = (kot.items || []).map(i => `
       <div class="kot-line">
-        <div class="kot-qty-badge">${i.qty}</div>
-        <div class="kot-item-nm">${i.itemName}</div>
+        <div class="kot-item-nm">
+          <span class="kot-item-qty">${i.qty}</span>
+          <span class="kot-item-name">${i.itemName}</span>
+          <span class="kot-item-status">${normalizeStatus(i.status || effectiveStatus)}</span>
+        </div>
       </div>`).join("") || `<div style="padding:8px 0;color:#8B949E;font-size:12px;">No item details</div>`;
-    const nextStatus = kot.status === "Pending" ? "Preparing" : kot.status === "Preparing" ? "Ready" : kot.status === "Ready" ? "Served" : null;
+    const nextStatus = effectiveStatus === "Pending" ? "Preparing" : effectiveStatus === "Preparing" ? "Served" : null;
 
     return `
       <div class="kot-card ${elapsed > 20 ? "alert-urgent" : ""}">
@@ -138,17 +142,16 @@ function renderKotGrid() {
             ${kot.kotEventType === "AddOn" ? `<div class="kot-event-badge">Additional KOT</div>` : ''}
             ${kot.billNo ? `<div class="kot-table-label"><i class="fas fa-receipt"></i> Order: ${kot.billNo}</div>` : ''}
             ${kot.tableName ? `<div class="kot-table-label"><i class="fas fa-chair"></i> Table: ${kot.tableName}</div>` : `<div class="kot-table-label"><i class="fas fa-chair"></i> Table: -</div>`}
-            <div class="kot-table-label"><i class="fas fa-kitchen-set"></i> ${stationLabel}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
             <div class="kot-timer ${timerClass}">${elapsed != null && elapsed >= 0 ? `${elapsed}m` : "—"}</div>
-            <div style="font-size:10px;font-weight:700;color:#8B949E;">${kot.status}</div>
+            <div style="font-size:10px;font-weight:700;color:#8B949E;">${effectiveStatus}</div>
           </div>
         </div>
         <div class="kot-items-list">${itemsHtml}</div>
         <div class="kot-actions">
-          ${nextStatus ? `<button class="btn-kds ${nextStatus === "Preparing" ? "start" : nextStatus === "Ready" ? "ready" : "served"}" onclick="kotAdvance(${kot.kotHeaderId},'${nextStatus}')">${nextStatus}</button>` : ""}
-          ${(kot.status === "Pending" || kot.status === "Preparing") ? `<button class="btn-kds" style="background:#1F2937;color:#9CA3AF;" onclick="kotAdvance(${kot.kotHeaderId},'Cancelled')">Cancel</button>` : ""}
+          ${nextStatus ? `<button class="btn-kds ${nextStatus === "Preparing" ? "start" : "served"}" onclick="kotAdvance(${kot.kotHeaderId},'${nextStatus}')">${nextStatus}</button>` : ""}
+          ${(effectiveStatus === "Pending" || effectiveStatus === "Preparing") ? `<button class="btn-kds" style="background:#1F2937;color:#9CA3AF;" onclick="kotAdvance(${kot.kotHeaderId},'Cancelled')">Cancel</button>` : ""}
         </div>
       </div>`;
   }).join("");
@@ -165,10 +168,6 @@ window.kotAdvance = async function(id, status) {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("kotStationFilter")?.addEventListener("change", (e) => {
-    activeStation = e.target.value;
-    renderKotGrid();
-  });
   loadKots();
   setInterval(loadKots, 30000);
 });
@@ -178,6 +177,40 @@ document.addEventListener("DOMContentLoaded", () => {
   background: #fafafa !important;
   border-color: #fafafa !important;
   color: #18181b !important;
+}
+.kot-card {
+  display: flex;
+  flex-direction: column;
+}
+.kot-items-list {
+  max-height: 260px;
+  overflow-y: auto;
+}
+.kot-actions {
+  margin-top: auto;
+}
+.kot-item-qty {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #1f2937;
+  color: #cbd5e1;
+  margin-right: 6px;
+  font-size: 11px;
+}
+.kot-item-name {
+  color: #e5e7eb;
+  margin-right: 8px;
+}
+.kot-item-status {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #111827;
+  color: #93c5fd;
+  border: 1px solid #1d4ed8;
+  font-size: 11px;
 }
 </style>
 }

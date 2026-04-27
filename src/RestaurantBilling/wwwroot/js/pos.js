@@ -12,6 +12,7 @@ const posState = {
   customerPhone: ""
 };
 const POS_AUTOSAVE_TOAST_KEY = "pos.autosave.toast";
+let kotPrintInProgress = false;
 function posNotify(type, message) {
   const t = window.toastr;
   if (t && typeof t[type] === "function") t[type](message);
@@ -24,12 +25,14 @@ function updateKotHintVisibility() {
 }
 
 function updateKotActionButtons() {
-  const canSendKot = posState.hasPendingKot && posState.cart.length > 0;
+  const hasCartItems = posState.cart.length > 0;
+  const canSendKot = posState.hasPendingKot && hasCartItems;
+  const canPrintKot = hasCartItems;
   const btnKot = document.getElementById("btnKot");
   const btnKotPrint = document.getElementById("btnKotPrint");
   const status = document.getElementById("posKotStatus");
   if (btnKot) btnKot.disabled = !canSendKot;
-  if (btnKotPrint) btnKotPrint.disabled = !canSendKot;
+  if (btnKotPrint) btnKotPrint.disabled = !canPrintKot;
   if (status) {
     status.textContent = canSendKot ? "Pending KOT" : "KOT Sent";
     status.classList.toggle("sent", !canSendKot);
@@ -176,8 +179,8 @@ function getPosTotals() {
   const discount = Math.max(0, Math.min(posState.billLevelDiscount || 0, subtotal));
   let taxTotal = 0;
   lines.forEach(l => {
-    const proportionalDiscount = subtotal > 0 ? (discount * l.lineSub) / subtotal : 0;
-    taxTotal += (l.lineSub - proportionalDiscount) * l.lineTaxRate;
+    // Business rule: bill-level discount does not reduce tax base.
+    taxTotal += l.lineSub * l.lineTaxRate;
   });
   const grand = subtotal - discount + taxTotal;
   return { subtotal, discount, taxTotal, grand };
@@ -544,7 +547,7 @@ async function generateKot() {
       outletId: 1, billId: posState.currentBillId, captainUserId: 1
     });
     const msg = result.reused
-      ? `KOT already exists for this bill.`
+      ? `KOT updated with new items.`
       : `KOT sent to kitchen! Bill: ${posState.currentBillNo}`;
     posState.hasPendingKot = false;
     updateKotHintVisibility();
@@ -563,18 +566,24 @@ async function generateKot() {
 
 async function generateKotAndPrint() {
   const printBtn = document.getElementById("btnKotPrint");
+  if (kotPrintInProgress) return;
   if (!posState.cart.length) {
     posNotify("warning", "Add items before printing.");
     return;
   }
+  kotPrintInProgress = true;
   if (printBtn) {
     printBtn.disabled = true;
     printBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Printing...`;
   }
-  printKotSlip();
-  if (printBtn) {
-    printBtn.innerHTML = `<i class="fas fa-print"></i> KOT Print`;
-    printBtn.disabled = false;
+  try {
+    await printKotSlip();
+  } finally {
+    if (printBtn) {
+      printBtn.innerHTML = `<i class="fas fa-print"></i> KOT Print`;
+      printBtn.disabled = false;
+    }
+    kotPrintInProgress = false;
   }
 }
 
@@ -753,7 +762,11 @@ async function confirmSettle() {
 
 /* ─── Print ─── */
 function printReceipt(bill, amtPaid, method, payments) {
-  const grand = bill?.grandTotal ?? calcGrand();
+  const liveTotals = getPosTotals();
+  const subtotal = bill?.subTotal ?? liveTotals.subtotal;
+  const discount = bill?.discountAmount ?? liveTotals.discount;
+  const taxTotal = bill?.taxAmount ?? liveTotals.taxTotal;
+  const grand = bill?.grandTotal ?? liveTotals.grand;
   const change = Math.max(0, amtPaid - grand);
   const effectivePayments = Array.isArray(payments) && payments.length ? payments : [{ mode: method, amount: amtPaid }];
   const items = (bill?.items || posState.cart).map(l =>
@@ -777,6 +790,9 @@ function printReceipt(bill, amtPaid, method, payments) {
       <tbody>${items}</tbody>
     </table>
     <hr style="border-top:1px dashed #000;margin:6px 0;"/>
+    <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>${fmtINR(subtotal)}</span></div>
+    <div style="display:flex;justify-content:space-between;"><span>Tax</span><span>${fmtINR(taxTotal)}</span></div>
+    <div style="display:flex;justify-content:space-between;"><span>Discount</span><span>${fmtINR(discount)}</span></div>
     <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;margin-top:4px;"><span>TOTAL</span><span>${fmtINR(grand)}</span></div>
     ${paymentRows}
     ${change > 0 ? `<div style="display:flex;justify-content:space-between;"><span>Change</span><span>${fmtINR(change)}</span></div>` : ""}
@@ -788,17 +804,46 @@ function printReceipt(bill, amtPaid, method, payments) {
   posPrintNow();
 }
 
-function printKotSlip() {
+async function printKotSlip() {
   const wrap = document.getElementById("receiptWrap");
   if (!wrap) {
     posPrintNow();
     return;
   }
+
+  let printItems = [];
+  if (posState.currentBillId) {
+    try {
+      const kots = await getJSON("/kot/kots-data?outletId=1");
+      const latestKotForBill = (Array.isArray(kots) ? kots : [])
+        .filter(k => Number(k.billId) === Number(posState.currentBillId))
+        .sort((a, b) => new Date(b.kotDateIso).getTime() - new Date(a.kotDateIso).getTime())[0];
+      if (latestKotForBill && Array.isArray(latestKotForBill.items)) {
+        printItems = latestKotForBill.items.map(i => ({
+          name: i.itemName,
+          qty: i.qty,
+          status: i.status || latestKotForBill.status || "Pending"
+        }));
+      }
+    } catch {
+      // Fallback to local cart data when KOT lookup fails.
+    }
+  }
+
+  if (!printItems.length) {
+    printItems = posState.cart.map(l => ({
+      name: l.name,
+      qty: l.qty,
+      status: l.status || "Pending"
+    }));
+  }
+
   const tableLine = posState.selectedTableName ? `<div style="font-size:11px;color:#666;">Table: ${posState.selectedTableName}</div>` : "";
-  const lines = posState.cart.map((l) => `
+  const lines = printItems.map((l) => `
     <tr>
       <td>${l.name}</td>
       <td style="text-align:center">${l.qty}</td>
+      <td style="text-align:right"><span style="padding:1px 6px;font-size:10px;">${l.status || "Pending"}</span></td>
     </tr>`).join("");
   wrap.innerHTML = `<div style="font-family:'Courier New',monospace;font-size:12px;max-width:300px;margin:0 auto;padding:10px;">
     <div style="text-align:center;margin-bottom:10px;">
@@ -810,7 +855,7 @@ function printKotSlip() {
     </div>
     <hr style="border-top:1px dashed #000;margin:6px 0;"/>
     <table style="width:100%;border-collapse:collapse;">
-      <thead><tr><th style="text-align:left">Item</th><th style="text-align:center">Qty</th></tr></thead>
+      <thead><tr><th style="text-align:left">Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Status</th></tr></thead>
       <tbody>${lines}</tbody>
     </table>
     <hr style="border-top:1px dashed #000;margin:8px 0;"/>
@@ -820,13 +865,61 @@ function printKotSlip() {
 }
 
 function posPrintNow() {
-  // Call print directly from user-triggered flow to avoid popup blocking.
-  try {
-    window.print();
-  } catch {
-    // Fallback if direct print fails on specific browsers.
-    setTimeout(() => window.print(), 0);
+  const wrap = document.getElementById("receiptWrap");
+  const content = (wrap?.innerHTML || "").trim();
+  if (!content) {
+    posNotify("warning", "Nothing to print.");
+    return;
   }
+
+  let frame = document.getElementById("posPrintFrame");
+  if (!frame) {
+    frame = document.createElement("iframe");
+    frame.id = "posPrintFrame";
+    frame.setAttribute("aria-hidden", "true");
+    frame.style.position = "fixed";
+    frame.style.right = "0";
+    frame.style.bottom = "0";
+    frame.style.width = "0";
+    frame.style.height = "0";
+    frame.style.border = "0";
+    document.body.appendChild(frame);
+  }
+
+  const printDoc = frame.contentWindow?.document;
+  if (!printDoc || !frame.contentWindow) {
+    posNotify("error", "Unable to open print preview.");
+    return;
+  }
+
+  printDoc.open();
+  printDoc.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Print</title>
+  <style>
+    @page { size: 80mm auto; margin: 0; }
+    html, body { margin: 0; padding: 0; background: #fff; color: #000; }
+    body { font-family: 'Courier New', monospace; }
+    .print-root { width: 80mm; max-width: 80mm; padding: 2mm; box-sizing: border-box; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-shadow: none; text-shadow: none; }
+  </style>
+</head>
+<body>
+  <div class="print-root">${content}</div>
+<\/body>
+<\/html>`);
+  printDoc.close();
+
+  setTimeout(() => {
+    try {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    } catch {
+      posNotify("error", "Print failed. Please try again.");
+    }
+  }, 60);
 }
 
 /* ─── Recall from bill detail / query string ─── */

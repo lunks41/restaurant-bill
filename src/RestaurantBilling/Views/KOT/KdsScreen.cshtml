@@ -2,16 +2,17 @@
     Layout = "_LayoutKds";
     ViewData["Title"] = "KDS Screen";
     ViewBag.UseSignalR = true;
+    var uiStamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
 }
 
 <div class="kds-topbar">
     <div style="display:flex;align-items:center;gap:16px;">
-        <div class="kds-title"><i class="fas fa-display" style="color:#a1a1aa;margin-right:8px;"></i>Kitchen Display</div>
+        <div class="kds-title"><i class="fas fa-display" style="color:#a1a1aa;margin-right:8px;"></i>Kitchen Display <span style="font-size:10px;color:#8B949E;font-weight:600;">UI @uiStamp</span></div>
         <div style="display:flex;gap:8px;">
             <button onclick="kdsFilter('all')" id="kdsFilterAll" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#E6EDF3;font-size:12px;font-weight:600;cursor:pointer;" class="kds-filter-active">All</button>
             <button onclick="kdsFilter('Pending')" id="kdsFilterPending" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#F59E0B;font-size:12px;font-weight:600;cursor:pointer;">Pending</button>
             <button onclick="kdsFilter('Preparing')" id="kdsFilterPrep" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#3B82F6;font-size:12px;font-weight:600;cursor:pointer;">Preparing</button>
-            <button onclick="kdsFilter('Ready')" id="kdsFilterReady" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#10B981;font-size:12px;font-weight:600;cursor:pointer;">Ready</button>
+            <button onclick="kdsFilter('Served')" id="kdsFilterServed" style="padding:5px 14px;border-radius:20px;border:1px solid #30363D;background:#21262D;color:#A78BFA;font-size:12px;font-weight:600;cursor:pointer;">Served</button>
         </div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
@@ -63,11 +64,34 @@ let activeFilter = 'all';
 let seenKotIds = new Set();
 let isFirstKdsLoad = true;
 const KDS_AUDIO_PREF_KEY = "kds.audio.enabled";
+const statusPriority = ["Pending", "Preparing", "Served", "Cancelled"];
+
+function normalizeStatus(status) {
+  if (!status) return "Pending";
+  if (status === "Pending") return "Pending";
+  if (status === "Preparing") return "Preparing";
+  if (status === "Served") return "Served";
+  if (status === "Cancelled") return "Cancelled";
+  return "Pending";
+}
+
+function deriveCardStatus(kot) {
+  const itemStatuses = (kot.items || []).map(i => normalizeStatus(i.status || kot.status));
+  if (!itemStatuses.length) return normalizeStatus(kot.status);
+  if (itemStatuses.includes("Pending")) return "Pending";
+  if (itemStatuses.includes("Preparing")) return "Preparing";
+  if (itemStatuses.every(s => s === "Served" || s === "Cancelled")) {
+    return itemStatuses.includes("Served") ? "Served" : "Cancelled";
+  }
+  if (itemStatuses.every(s => s === "Served")) return "Served";
+  if (itemStatuses.every(s => s === "Cancelled")) return "Cancelled";
+  return normalizeStatus(kot.status);
+}
 
 window.kdsFilter = function(f) {
   activeFilter = f;
   document.querySelectorAll('[id^="kdsFilter"]').forEach(b => b.classList.remove('kds-filter-active'));
-  const map = {all:'kdsFilterAll', Pending:'kdsFilterPending', Preparing:'kdsFilterPrep', Ready:'kdsFilterReady'};
+  const map = {all:'kdsFilterAll', Pending:'kdsFilterPending', Preparing:'kdsFilterPrep', Served:'kdsFilterServed'};
   document.getElementById(map[f])?.classList.add('kds-filter-active');
   renderKdsGrid(allKots);
 };
@@ -75,7 +99,7 @@ window.kdsFilter = function(f) {
 function renderKdsGrid(rows) {
   const grid = document.getElementById("kdsGrid");
   if (!grid) return;
-  const filtered = activeFilter === 'all' ? rows : rows.filter(r => r.status === activeFilter);
+  const filtered = activeFilter === 'all' ? rows : rows.filter(r => deriveCardStatus(r) === activeFilter);
   const cnt = document.getElementById("kdsCount");
   if (cnt) cnt.textContent = `${filtered.length} order${filtered.length !== 1 ? 's' : ''}`;
 
@@ -85,9 +109,10 @@ function renderKdsGrid(rows) {
   }
 
   grid.innerHTML = filtered.map(r => {
-    const statusColor = { Pending:'#F59E0B', Preparing:'#3B82F6', Ready:'#10B981', Served:'#6B7280', Cancelled:'#EF4444' }[r.status] || '#8B949E';
+    const effectiveStatus = deriveCardStatus(r);
+    const statusColor = { Pending:'#F59E0B', Preparing:'#3B82F6', Served:'#6B7280', Cancelled:'#EF4444' }[effectiveStatus] || '#8B949E';
     const timerClass = r.elapsedMin > 15 ? 'urgent' : r.elapsedMin > 8 ? 'warn' : 'ok';
-    const itemsHtml  = (r.items || []).map(i => `<div class="kot-line"><div class="kot-qty-badge">${i.qty}</div><div class="kot-item-nm">${i.itemName}</div></div>`).join('') || `<div style="padding:8px 0;color:#8B949E;font-size:12px;">No item details</div>`;
+    const itemsHtml  = (r.items || []).map(i => `<div class="kot-line"><div class="kot-item-nm"><span class="kot-item-qty">${i.qty}</span><span class="kot-item-name">${i.itemName}</span><span class="kot-item-status">${normalizeStatus(i.status || effectiveStatus)}</span></div></div>`).join('') || `<div style="padding:8px 0;color:#8B949E;font-size:12px;">No item details</div>`;
     return `
       <div class="kot-card ${r.elapsedMin > 15 ? 'alert-urgent' : ''}">
         <div class="kot-card-head">
@@ -100,15 +125,14 @@ function renderKdsGrid(rows) {
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
             <div class="kot-timer ${timerClass}">${r.elapsedMin != null ? r.elapsedMin+'m' : r.kotDate}</div>
-            <div style="font-size:10px;font-weight:700;color:${statusColor};">${r.status}</div>
+            <div style="font-size:10px;font-weight:700;color:${statusColor};">${effectiveStatus}</div>
           </div>
         </div>
         <div class="kot-items-list">${itemsHtml}</div>
         <div class="kot-actions">
-          ${r.status === 'Pending'   ? `<button class="btn-kds start"  onclick="kdsUpdate(${r.kotHeaderId},'Preparing')"><i class="fas fa-fire"></i> Start</button>` : ''}
-          ${r.status === 'Preparing' ? `<button class="btn-kds ready"  onclick="kdsUpdate(${r.kotHeaderId},'Ready')"><i class="fas fa-bell"></i> Ready</button>` : ''}
-          ${r.status === 'Ready'     ? `<button class="btn-kds served" onclick="kdsUpdate(${r.kotHeaderId},'Served')"><i class="fas fa-check"></i> Served</button>` : ''}
-          ${r.status === 'Pending' || r.status === 'Preparing' ? `<button class="btn-kds" style="background:#1F2937;color:#9CA3AF;" onclick="kdsUpdate(${r.kotHeaderId},'Cancelled')">Cancel</button>` : ''}
+          ${effectiveStatus === 'Pending'   ? `<button class="btn-kds start"  onclick="kdsUpdate(${r.kotHeaderId},'Preparing')"><i class="fas fa-fire"></i> Preparing</button>` : ''}
+          ${effectiveStatus === 'Preparing' ? `<button class="btn-kds served" onclick="kdsUpdate(${r.kotHeaderId},'Served')"><i class="fas fa-check"></i> Served</button>` : ''}
+          ${effectiveStatus === 'Pending' || effectiveStatus === 'Preparing' ? `<button class="btn-kds" style="background:#1F2937;color:#9CA3AF;" onclick="kdsUpdate(${r.kotHeaderId},'Cancelled')">Cancel</button>` : ''}
         </div>
       </div>`;
   }).join('');
@@ -195,6 +219,40 @@ document.addEventListener("DOMContentLoaded", () => {
   background: #fafafa !important;
   border-color: #fafafa !important;
   color: #18181b !important;
+}
+.kot-card {
+  display: flex;
+  flex-direction: column;
+}
+.kot-items-list {
+  max-height: 260px;
+  overflow-y: auto;
+}
+.kot-actions {
+  margin-top: auto;
+}
+.kot-item-qty {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #1f2937;
+  color: #cbd5e1;
+  margin-right: 6px;
+  font-size: 11px;
+}
+.kot-item-name {
+  color: #e5e7eb;
+  margin-right: 8px;
+}
+.kot-item-status {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #111827;
+  color: #93c5fd;
+  border: 1px solid #1d4ed8;
+  font-size: 11px;
 }
 </style>
 }
