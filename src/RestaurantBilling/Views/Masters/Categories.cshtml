@@ -1,11 +1,10 @@
 @model RestaurantBilling.Models.Masters.CategoryInputModel
 @{
-    if ((ViewData["EmbedMode"] as bool?) == true)
-    {
-        Layout = null;
-    }
     var rows = (IEnumerable<Entities.Masters.Category>)ViewBag.Rows;
 }
+
+<partial name="_MastersCoreTabs" />
+
 <div class="app-surface mb-3 d-flex justify-content-end">
     <button type="button" class="btn-accent" id="openAddCategory">
         <i class="fas fa-plus"></i> Add Category

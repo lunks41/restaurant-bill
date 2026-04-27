@@ -478,7 +478,7 @@ public class POSController(
     {
         if (string.IsNullOrWhiteSpace(tableName)) return;
         var normalized = tableName.Trim();
-        var table = await db.TableMasters
+        var table = await db.DiningTables
             .FirstOrDefaultAsync(
                 x => x.OutletId == outletId
                      && x.IsActive

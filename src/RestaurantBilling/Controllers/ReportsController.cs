@@ -44,19 +44,13 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
         return View();
     }
 
-    [HttpGet("stockreport")]
-    public IActionResult StockReport()
+    [HttpGet("dayclosereports")]
+    public IActionResult DayCloseReports()
     {
         ViewBag.UseDataTables = true;
         return View();
     }
 
-    [HttpGet("stockloss")]
-    public IActionResult StockLoss()
-    {
-        ViewBag.UseDataTables = true;
-        return View();
-    }
 
     [HttpGet("daily-sales")]
     public async Task<IActionResult> DailySales([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
@@ -86,12 +80,6 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
         return Ok(data);
     }
 
-    [HttpGet("stock-movement")]
-    public async Task<IActionResult> StockMovement([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
-    {
-        var data = await repository.GetStockMovementAsync(outletId, from, to, cancellationToken);
-        return Ok(data);
-    }
 
     [HttpGet("bill-wise")]
     public async Task<IActionResult> BillWiseData([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
@@ -112,24 +100,6 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
         return Ok(rows);
     }
 
-    [HttpGet("stock-loss-data")]
-    public async Task<IActionResult> StockLossData([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
-    {
-        var rows = await db.StockLosses
-            .Where(x => x.OutletId == outletId && x.BusinessDate >= from && x.BusinessDate <= to)
-            .Join(db.Items, l => l.ItemId, i => i.ItemId, (l, i) => new
-            {
-                date = l.BusinessDate.ToString("dd-MMM-yyyy"),
-                i.ItemName,
-                l.Qty,
-                l.Reason
-            })
-            .OrderByDescending(x => x.date)
-            .Take(500)
-            .ToListAsync(cancellationToken);
-
-        return Ok(rows);
-    }
 
     [HttpGet("voids-data")]
     public async Task<IActionResult> VoidsData([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
@@ -145,6 +115,31 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
                 status = x.Status.ToString()
             })
             .Take(500)
+            .ToListAsync(cancellationToken);
+
+        return Ok(rows);
+    }
+
+    [HttpGet("day-close-reports")]
+    public async Task<IActionResult> DayCloseReportsData([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
+    {
+        var rows = await db.DayCloseReports
+            .Where(x => x.OutletId == outletId && x.BusinessDate >= from && x.BusinessDate <= to)
+            .OrderByDescending(x => x.BusinessDate)
+            .Select(x => new
+            {
+                x.DayCloseReportId,
+                businessDate = x.BusinessDate.ToString("yyyy-MM-dd"),
+                openedAt = x.OpenedAtUtc.ToString("dd-MMM-yyyy HH:mm"),
+                closedAt = x.ClosedAtUtc.ToString("dd-MMM-yyyy HH:mm"),
+                x.OpeningCash,
+                x.ClosingCash,
+                x.TotalSales,
+                x.TotalTax,
+                x.CashOverShort,
+                x.IsLocked
+            })
+            .Take(5000)
             .ToListAsync(cancellationToken);
 
         return Ok(rows);
@@ -266,66 +261,56 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
         return CsvResult(csv, fn + ".csv");
     }
 
-    [HttpGet("stock-movement-export")]
-    public async Task<IActionResult> StockMovementExport([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] string format = "csv", CancellationToken cancellationToken = default)
+    [HttpGet("day-close-reports-export")]
+    public async Task<IActionResult> DayCloseReportsExport([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] string format = "csv", CancellationToken cancellationToken = default)
     {
-        var rows = await repository.GetStockMovementAsync(outletId, from, to, cancellationToken);
-        var fn = $"stock-movement-{from:yyyyMMdd}-{to:yyyyMMdd}";
+        var rows = await db.DayCloseReports
+            .Where(x => x.OutletId == outletId && x.BusinessDate >= from && x.BusinessDate <= to)
+            .OrderByDescending(x => x.BusinessDate)
+            .Select(x => new
+            {
+                businessDate = x.BusinessDate.ToString("yyyy-MM-dd"),
+                openedAt = x.OpenedAtUtc.ToString("dd-MMM-yyyy HH:mm"),
+                closedAt = x.ClosedAtUtc.ToString("dd-MMM-yyyy HH:mm"),
+                x.OpeningCash,
+                x.ClosingCash,
+                x.TotalSales,
+                x.TotalTax,
+                x.CashOverShort,
+                x.IsLocked
+            })
+            .Take(5000)
+            .ToListAsync(cancellationToken);
+
+        var fn = $"day-close-reports-{from:yyyyMMdd}-{to:yyyyMMdd}";
         if (format == "xlsx")
         {
             using var wb = new XLWorkbook();
-            var ws = wb.Worksheets.Add("Stock Movement");
-            AddExportHeaders(ws, ["Date", "Item", "In Qty", "Out Qty", "Balance", "Ref Type"]);
+            var ws = wb.Worksheets.Add("Day Close Reports");
+            AddExportHeaders(ws, ["Date", "Opened At", "Closed At", "Opening Cash", "Closing Cash", "Sales", "Tax", "Over/Short", "Locked"]);
             for (var i = 0; i < rows.Count; i++)
             {
                 var r = rows[i]; var row = i + 2;
-                ws.Cell(row, 1).Value = r.BusinessDate.ToString("yyyy-MM-dd");
-                ws.Cell(row, 2).Value = r.ItemName;
-                ws.Cell(row, 3).Value = (double)r.InQty;
-                ws.Cell(row, 4).Value = (double)r.OutQty;
-                ws.Cell(row, 5).Value = (double)r.RunningBalance;
-                ws.Cell(row, 6).Value = r.ReferenceType;
+                ws.Cell(row, 1).Value = r.businessDate;
+                ws.Cell(row, 2).Value = r.openedAt;
+                ws.Cell(row, 3).Value = r.closedAt;
+                ws.Cell(row, 4).Value = (double)r.OpeningCash;
+                ws.Cell(row, 5).Value = (double)r.ClosingCash;
+                ws.Cell(row, 6).Value = (double)r.TotalSales;
+                ws.Cell(row, 7).Value = (double)r.TotalTax;
+                ws.Cell(row, 8).Value = (double)r.CashOverShort;
+                ws.Cell(row, 9).Value = r.IsLocked ? "Yes" : "No";
             }
             ws.Columns().AdjustToContents();
             return XlsxResult(wb, fn + ".xlsx");
         }
-        var csv = new StringBuilder("Date,Item,InQty,OutQty,Balance,RefType\n");
+
+        var csv = new StringBuilder("Date,OpenedAt,ClosedAt,OpeningCash,ClosingCash,Sales,Tax,CashOverShort,Locked\n");
         foreach (var r in rows)
-            csv.AppendLine($"{r.BusinessDate:yyyy-MM-dd},{r.ItemName},{r.InQty},{r.OutQty},{r.RunningBalance},{r.ReferenceType}");
+            csv.AppendLine($"{r.businessDate},{r.openedAt},{r.closedAt},{r.OpeningCash},{r.ClosingCash},{r.TotalSales},{r.TotalTax},{r.CashOverShort},{(r.IsLocked ? "Yes" : "No")}");
         return CsvResult(csv, fn + ".csv");
     }
 
-    [HttpGet("stock-loss-export")]
-    public async Task<IActionResult> StockLossExport([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] string format = "csv", CancellationToken cancellationToken = default)
-    {
-        var rows = await db.StockLosses
-            .Where(x => x.OutletId == outletId && x.BusinessDate >= from && x.BusinessDate <= to)
-            .Join(db.Items, l => l.ItemId, i => i.ItemId, (l, i) => new { date = l.BusinessDate.ToString("yyyy-MM-dd"), i.ItemName, l.Qty, l.Reason })
-            .OrderByDescending(x => x.date)
-            .Take(5000)
-            .ToListAsync(cancellationToken);
-        var fn = $"stock-loss-{from:yyyyMMdd}-{to:yyyyMMdd}";
-        if (format == "xlsx")
-        {
-            using var wb = new XLWorkbook();
-            var ws = wb.Worksheets.Add("Stock Loss");
-            AddExportHeaders(ws, ["Date", "Item", "Qty", "Reason"]);
-            for (var i = 0; i < rows.Count; i++)
-            {
-                var r = rows[i]; var row = i + 2;
-                ws.Cell(row, 1).Value = r.date;
-                ws.Cell(row, 2).Value = r.ItemName;
-                ws.Cell(row, 3).Value = (double)r.Qty;
-                ws.Cell(row, 4).Value = r.Reason ?? "";
-            }
-            ws.Columns().AdjustToContents();
-            return XlsxResult(wb, fn + ".xlsx");
-        }
-        var csv = new StringBuilder("Date,Item,Qty,Reason\n");
-        foreach (var r in rows)
-            csv.AppendLine($"{r.date},{r.ItemName},{r.Qty},{r.Reason}");
-        return CsvResult(csv, fn + ".csv");
-    }
 
     [HttpGet("voids-export")]
     public async Task<IActionResult> VoidsExport([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] string format = "csv", CancellationToken cancellationToken = default)

@@ -1,0 +1,166 @@
+@{
+    ViewData["Title"] = "Groceries";
+}
+
+<partial name="_MastersCoreTabs" />
+
+<div class="app-surface mb-3 d-flex justify-content-end">
+    <button type="button" class="btn-accent" id="openAddGrocery">
+        <i class="fas fa-plus"></i> Add Grocery
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body-custom">
+        <table id="groceriesTable" class="table-custom">
+            <thead>
+                <tr>
+                    <th>Grocery Name</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="groceriesBody">
+                <tr><td colspan="3" class="text-center text-muted">No groceries found.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="groceryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="groceryModalTitle">Add Grocery</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input id="groceryId" type="hidden" />
+                <div>
+                    <label class="form-label">Grocery name</label>
+                    <input id="groceryName" class="form-control" placeholder="Grocery name" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveGrocery">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="groceryConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Inactivate</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Inactivate this grocery?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmGroceryInactivate">Inactivate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(() => {
+  const modalEl = document.getElementById('groceryModal');
+  if (!modalEl || !window.bootstrap) return;
+  const modal = new window.bootstrap.Modal(modalEl);
+  const confirmModalEl = document.getElementById('groceryConfirmModal');
+  const confirmModal = confirmModalEl ? new window.bootstrap.Modal(confirmModalEl) : null;
+  const confirmBtn = document.getElementById('confirmGroceryInactivate');
+  const idEl = document.getElementById('groceryId');
+  const nameEl = document.getElementById('groceryName');
+  const titleEl = document.getElementById('groceryModalTitle');
+  const saveBtnEl = document.getElementById('saveGrocery');
+  let pendingDeleteId = null;
+
+  const notifySafe = (message, type = 'info') => {
+    if (typeof window.notify === 'function') {
+      window.notify(message, type);
+      return;
+    }
+    if (typeof toastr !== 'undefined' && typeof toastr[type] === 'function') {
+      toastr[type](message);
+    }
+  };
+
+  async function load() {
+    const rows = await getJSON(`/masters/groceries-data?outletId=1&_=${Date.now()}`);
+    if (window.jQuery && jQuery.fn.DataTable) {
+      const table = jQuery('#groceriesTable');
+      if (jQuery.fn.dataTable.isDataTable(table)) {
+        table.DataTable().destroy();
+      }
+    }
+    document.getElementById('groceriesBody').innerHTML = rows.length
+      ? rows.map(x => `<tr><td>${x.groceryName}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.groceryId}" data-name="${x.groceryName}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.groceryId}">Inactivate</button></td></tr>`).join('')
+      : '<tr><td colspan="3" class="text-center text-muted">No groceries found.</td></tr>';
+    bindRowActions();
+    if (window.refreshDataTableById) window.refreshDataTableById('groceriesTable');
+  }
+
+  const openAdd = () => {
+    idEl.value = '';
+    nameEl.value = '';
+    titleEl.textContent = 'Add Grocery';
+    saveBtnEl.textContent = 'Add';
+    modal.show();
+  };
+
+  const openEdit = (btn) => {
+    idEl.value = btn.getAttribute('data-edit') || '';
+    nameEl.value = btn.getAttribute('data-name') || '';
+    titleEl.textContent = 'Edit Grocery';
+    saveBtnEl.textContent = 'Update';
+    modal.show();
+  };
+
+  async function save() {
+    const name = nameEl.value.trim();
+    if (!name) {
+      notifySafe('Grocery name is required', 'warning');
+      return;
+    }
+
+    const id = idEl.value;
+    if (id) {
+      await postJSON(`/masters/groceries-update/${id}`, { name });
+      notifySafe('Grocery updated', 'success');
+    } else {
+      await postJSON('/masters/groceries-create', { name });
+      notifySafe('Grocery added', 'success');
+    }
+    modal.hide();
+    await load();
+  }
+
+  function bindRowActions() {
+    document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => openEdit(btn)));
+    document.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', () => {
+      pendingDeleteId = btn.getAttribute('data-delete');
+      confirmModal?.show();
+    }));
+  }
+
+  document.getElementById('openAddGrocery')?.addEventListener('click', openAdd);
+  saveBtnEl.addEventListener('click', save);
+  confirmBtn?.addEventListener('click', async () => {
+    if (!pendingDeleteId) return;
+    await postJSON(`/masters/groceries-delete/${pendingDeleteId}`, { name: '' });
+    notifySafe('Grocery inactivated', 'success');
+    confirmModal?.hide();
+    pendingDeleteId = null;
+    await load();
+  });
+  document.addEventListener('DOMContentLoaded', load);
+})();
+</script>
+}

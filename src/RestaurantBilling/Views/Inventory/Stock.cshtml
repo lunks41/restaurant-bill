@@ -1,17 +1,8 @@
 @{
-    if ((ViewData["EmbedMode"] as bool?) == true)
-    {
-        Layout = null;
-    }
-    ViewData["Title"] = "Grocery Stock";
+    ViewData["Title"] = "Inventory";
 }
 
-<div class="app-module-header">
-    <h1 class="h3 mb-1">Grocery Stock</h1>
-    <p class="app-muted mb-0">Maintain only grocery and kitchen consumable stock items.</p>
-</div>
-
-<div class="app-surface mb-3 d-flex flex-wrap align-items-end gap-2">
+<div class="app-surface mb-3 d-flex flex-wrap align-items-end gap-2 stock-compact-controls">
     <div style="min-width:220px;">
         <label class="form-label mb-1">Search</label>
         <input id="stockSearch" class="form-control" placeholder="Grocery name" />
@@ -30,15 +21,14 @@
     </button>
 </div>
 
-<div class="card">
-    <div class="card-body-custom">
+<div class="card stock-compact">
+    <div class="card-body-custom stock-compact-table-wrap">
         <table id="stockItemsTable" class="table-custom">
             <thead>
                 <tr>
                     <th>Code</th>
                     <th>Name</th>
                     <th>Unit</th>
-                    <th>Rate</th>
                     <th>Current Qty</th>
                     <th>Reorder</th>
                     <th>Status</th>
@@ -48,7 +38,6 @@
             <tbody id="stockItemsBody">
                 <tr>
                     <td class="text-center text-muted">No stock items found.</td>
-                    <td></td>
                     <td></td>
                     <td></td>
                     <td></td>
@@ -72,7 +61,7 @@
                 <input id="stockItemId" type="hidden" />
                 <div class="mb-3">
                     <label class="form-label">Grocery Item</label>
-                    <select id="stockName" class="form-select">
+                    <select id="stockGroceryId" class="form-select">
                         <option value="">Select grocery item</option>
                     </select>
                 </div>
@@ -83,15 +72,11 @@
                     </select>
                 </div>
                 <div class="row g-2">
-                    <div class="col-md-4">
-                        <label class="form-label">Purchase rate</label>
-                        <input id="stockRate" type="number" step="0.01" class="form-control" />
-                    </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label">Current qty</label>
                         <input id="stockCurrentQty" type="number" step="0.01" class="form-control" />
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label">Reorder</label>
                         <input id="stockReorder" type="number" step="0.01" class="form-control" />
                     </div>
@@ -108,14 +93,14 @@
 @section Scripts {
 <script>
 (() => {
+  const apiPrefix = '@(ViewData["ApiPrefix"] as string ?? "/inventory")';
   const modalEl = document.getElementById('stockItemModal');
   if (!modalEl || !window.bootstrap) return;
   const modal = new window.bootstrap.Modal(modalEl);
 
   const idEl = document.getElementById('stockItemId');
-  const nameEl = document.getElementById('stockName');
+  const groceryEl = document.getElementById('stockGroceryId');
   const unitEl = document.getElementById('stockUnitId');
-  const rateEl = document.getElementById('stockRate');
   const currentQtyEl = document.getElementById('stockCurrentQty');
   const reorderEl = document.getElementById('stockReorder');
   const searchEl = document.getElementById('stockSearch');
@@ -136,14 +121,14 @@
   };
 
   async function loadUnits() {
-    const rows = await getJSON(`/master/stock-units-data?outletId=1&_=${Date.now()}`);
+    const rows = await getJSON(`${apiPrefix}/stock-units-data?outletId=1&_=${Date.now()}`);
     unitEl.innerHTML = '<option value="">Select unit</option>' + rows.map(u => `<option value="${u.unitId}">${u.unitName} (${u.unitCode})</option>`).join('');
     unitFilterEl.innerHTML = '<option value="">All units</option>' + rows.map(u => `<option value="${u.unitId}">${u.unitName} (${u.unitCode})</option>`).join('');
   }
 
   async function loadGroceries() {
-    const rows = await getJSON('/master/grocery-options');
-    nameEl.innerHTML = '<option value="">Select grocery item</option>' + rows.map(n => `<option value="${n}">${n}</option>`).join('');
+    const rows = await getJSON(`${apiPrefix}/grocery-options?outletId=1`);
+    groceryEl.innerHTML = '<option value="">Select grocery item</option>' + rows.map(g => `<option value="${g.groceryId}">${g.groceryName}</option>`).join('');
   }
 
   async function loadItems(resetPage = false) {
@@ -160,16 +145,15 @@
     q.set('page', String(currentPage));
     q.set('pageSize', String(pageSize));
     q.set('_', Date.now().toString());
-    const result = await getJSON(`/master/stock-items-data?${q.toString()}`);
+    const result = await getJSON(`${apiPrefix}/stock-items-data?${q.toString()}`);
     const rows = Array.isArray(result) ? result : (result.items || []);
     if (!Array.isArray(result)) {
       currentPage = result.page || 1;
     }
     document.getElementById('stockItemsBody').innerHTML = rows.length
-      ? rows.map(x => `<tr><td>${x.itemCode || ''}</td><td>${x.itemName}</td><td>${x.unitName || '-'}</td><td>${x.purchasePrice ?? 0}</td><td>${x.currentQty ?? 0}</td><td>${x.reorderLevel ?? 0}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.itemId}" data-name="${x.itemName}" data-unit-id="${x.unitId || ''}" data-rate="${x.purchasePrice ?? 0}" data-current-qty="${x.currentQty ?? 0}" data-reorder="${x.reorderLevel ?? 0}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.itemId}">Delete</button></td></tr>`).join('')
+      ? rows.map(x => `<tr><td>${x.itemCode || ''}</td><td>${x.itemName}</td><td>${x.unitName || '-'}</td><td>${x.currentQty ?? 0}</td><td>${x.reorderLevel ?? 0}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.itemId}" data-grocery-id="${x.groceryId || ''}" data-unit-id="${x.unitId || ''}" data-current-qty="${x.currentQty ?? 0}" data-reorder="${x.reorderLevel ?? 0}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.itemId}">Inactivate</button></td></tr>`).join('')
       : `<tr>
            <td class="text-center text-muted">No stock items found.</td>
-           <td></td>
            <td></td>
            <td></td>
            <td></td>
@@ -185,9 +169,8 @@
     await loadUnits();
     await loadGroceries();
     idEl.value = '';
-    nameEl.value = '';
+    groceryEl.value = '';
     unitEl.value = '';
-    rateEl.value = '0';
     currentQtyEl.value = '0';
     reorderEl.value = '0';
     titleEl.textContent = 'Add Grocery Stock';
@@ -199,9 +182,8 @@
     await loadUnits();
     await loadGroceries();
     idEl.value = btn.getAttribute('data-edit') || '';
-    nameEl.value = btn.getAttribute('data-name') || '';
+    groceryEl.value = btn.getAttribute('data-grocery-id') || '';
     unitEl.value = btn.getAttribute('data-unit-id') || '';
-    rateEl.value = btn.getAttribute('data-rate') || '0';
     currentQtyEl.value = btn.getAttribute('data-current-qty') || '0';
     reorderEl.value = btn.getAttribute('data-reorder') || '0';
     titleEl.textContent = 'Edit Grocery Stock';
@@ -210,17 +192,15 @@
   };
 
   async function save() {
-    const name = nameEl.value.trim();
-    if (!name) {
+    if (!groceryEl.value) {
       notifySafe('Please select grocery item', 'warning');
       return;
     }
 
     const payload = {
       outletId: 1,
-      name,
+      groceryId: parseInt(groceryEl.value, 10),
       unitId: unitEl.value ? parseInt(unitEl.value, 10) : null,
-      purchasePrice: parseFloat(rateEl.value || '0'),
       currentQty: parseFloat(currentQtyEl.value || '0'),
       reorderLevel: parseFloat(reorderEl.value || '0')
     };
@@ -228,10 +208,10 @@
     try {
       const id = idEl.value;
       if (id) {
-        await postJSON(`/master/stock-items-update/${id}`, payload);
+        await postJSON(`${apiPrefix}/stock-items-update/${id}`, payload);
         notifySafe('Grocery stock updated', 'success');
       } else {
-        await postJSON('/master/stock-items-create', payload);
+        await postJSON(`${apiPrefix}/stock-items-create`, payload);
         notifySafe('Grocery stock added', 'success');
       }
       modal.hide();
@@ -241,18 +221,17 @@
     }
   }
 
+  async function inactivate(itemId) {
+    if (!itemId) return;
+    if (!confirm('Inactivate this stock item?')) return;
+    await postJSON(`${apiPrefix}/stock-items-delete/${itemId}`, { name: '' });
+    notifySafe('Grocery stock inactivated', 'success');
+    await loadItems();
+  }
+
   function bindRowActions() {
     document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => openEdit(btn)));
-    document.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', async () => {
-      if (!confirm('Delete this grocery stock item?')) return;
-      try {
-        await postJSON(`/master/stock-items-delete/${btn.getAttribute('data-delete')}`, {});
-        notifySafe('Grocery stock deleted', 'success');
-        await loadItems();
-      } catch (_) {
-        notifySafe('Unable to delete grocery stock right now', 'error');
-      }
-    }));
+    document.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', () => inactivate(btn.getAttribute('data-delete'))));
   }
 
   document.getElementById('openAddStockItem')?.addEventListener('click', openAdd);
@@ -263,7 +242,7 @@
     const q = new URLSearchParams({ outletId: '1' });
     if (searchEl.value.trim()) q.set('search', searchEl.value.trim());
     if (unitFilterEl.value) q.set('unitId', unitFilterEl.value);
-    window.location.href = `/master/stock-items-export?${q.toString()}`;
+    window.location.href = `${apiPrefix}/stock-items-export?${q.toString()}`;
   });
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', async () => {

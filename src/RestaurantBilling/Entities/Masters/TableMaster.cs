@@ -2,7 +2,7 @@ using Entities.Common;
 
 namespace Entities.Masters;
 
-public class TableMaster : BaseEntity
+public class DiningTables : BaseEntity
 {
     public int TableMasterId { get; set; }
     public int OutletId { get; set; }

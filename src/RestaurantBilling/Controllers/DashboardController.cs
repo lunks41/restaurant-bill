@@ -51,12 +51,7 @@ public class DashboardController(AppDbContext db) : Controller
             .Where(x => x.OutletId == outletId && x.Status == BillStatus.Draft)
             .CountAsync(cancellationToken);
 
-        var lowStock = await db.StockItems
-            .Where(x => x.OutletId == outletId && x.IsActive && !x.IsDeleted)
-            .Join(db.StockLedger, si => si.ItemId, s => s.ItemId, (si, s) => new { si, s })
-            .GroupBy(x => new { x.si.ItemId, x.si.ReorderLevel })
-            .Select(g => new { g.Key.ReorderLevel, Balance = g.OrderByDescending(x => x.s.StockLedgerEntryId).Select(x => x.s.RunningBalance).FirstOrDefault() })
-            .CountAsync(x => x.Balance <= x.ReorderLevel, cancellationToken);
+        var lowStock = 0;
 
         return Ok(new
         {
@@ -153,35 +148,8 @@ public class DashboardController(AppDbContext db) : Controller
     [HttpGet("/dashboard/low-stock")]
     public async Task<IActionResult> LowStock(CancellationToken cancellationToken)
     {
-        var outletId = await db.Outlets.Select(x => x.OutletId).FirstOrDefaultAsync(cancellationToken);
-
-        var latestBalances = await db.StockLedger
-            .Where(x => x.OutletId == outletId)
-            .GroupBy(x => x.ItemId)
-            .Select(g => new
-            {
-                ItemId = g.Key,
-                Balance = g.OrderByDescending(x => x.StockLedgerEntryId).Select(x => x.RunningBalance).FirstOrDefault()
-            })
-            .ToListAsync(cancellationToken);
-
-        var rows = await db.StockItems
-            .Where(x => x.OutletId == outletId && x.IsActive && !x.IsDeleted)
-            .Join(db.Items, si => si.ItemId, i => i.ItemId, (si, i) => new { i.ItemId, i.ItemName, si.ReorderLevel })
-            .ToListAsync(cancellationToken);
-
-        var result = rows
-            .Select(i =>
-            {
-                var bal = latestBalances.FirstOrDefault(x => x.ItemId == i.ItemId)?.Balance ?? 0m;
-                return new { i.ItemName, i.ReorderLevel, balance = bal };
-            })
-            .Where(x => x.balance <= x.ReorderLevel)
-            .OrderBy(x => x.balance)
-            .Take(10)
-            .ToList();
-
-        return Ok(result);
+        await Task.CompletedTask;
+        return Ok(Array.Empty<object>());
     }
 }
 

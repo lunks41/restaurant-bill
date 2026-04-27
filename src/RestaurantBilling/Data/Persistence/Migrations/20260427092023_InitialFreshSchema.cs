@@ -1,12 +1,12 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Data.Persistence.Migrations
+namespace RestaurantBilling.Data.Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitialFreshSchema : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -67,6 +67,8 @@ namespace Data.Persistence.Migrations
                     NewValuesJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     IpAddress = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     UserAgent = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    PreviousHash = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    EntryHash = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
                     CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<int>(type: "int", nullable: false),
                     UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -103,6 +105,9 @@ namespace Data.Persistence.Migrations
                     PaidAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     BalanceAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
+                    TableName = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: true),
+                    CustomerName = table.Column<string>(type: "nvarchar(160)", maxLength: 160, nullable: true),
+                    Phone = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<int>(type: "int", nullable: false),
                     UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -143,16 +148,22 @@ namespace Data.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "EInvoiceQueue",
+                name: "DayCloseReports",
                 columns: table => new
                 {
-                    EInvoiceQueueItemId = table.Column<long>(type: "bigint", nullable: false)
+                    DayCloseReportId = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    BillId = table.Column<long>(type: "bigint", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    Attempts = table.Column<int>(type: "int", nullable: false),
-                    LastError = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    Irn = table.Column<string>(type: "nvarchar(80)", maxLength: 80, nullable: true),
+                    OutletId = table.Column<int>(type: "int", nullable: false),
+                    BusinessDate = table.Column<DateOnly>(type: "date", nullable: false),
+                    OpenedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ClosedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ClosedBy = table.Column<int>(type: "int", nullable: false),
+                    OpeningCash = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    ClosingCash = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TotalSales = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TotalTax = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    CashOverShort = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    IsLocked = table.Column<bool>(type: "bit", nullable: false),
                     CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<int>(type: "int", nullable: false),
                     UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -165,7 +176,82 @@ namespace Data.Persistence.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_EInvoiceQueue", x => x.EInvoiceQueueItemId);
+                    table.PrimaryKey("PK_DayCloseReports", x => x.DayCloseReportId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DiningTables",
+                columns: table => new
+                {
+                    TableMasterId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    OutletId = table.Column<int>(type: "int", nullable: false),
+                    TableName = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
+                    Area = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Capacity = table.Column<int>(type: "int", nullable: false),
+                    IsOccupied = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<int>(type: "int", nullable: false),
+                    UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    UpdatedBy = table.Column<int>(type: "int", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedBy = table.Column<int>(type: "int", nullable: true),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DiningTables", x => x.TableMasterId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Groceries",
+                columns: table => new
+                {
+                    GroceryId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    OutletId = table.Column<int>(type: "int", nullable: false),
+                    GroceryName = table.Column<string>(type: "nvarchar(120)", maxLength: 120, nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<int>(type: "int", nullable: false),
+                    UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    UpdatedBy = table.Column<int>(type: "int", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedBy = table.Column<int>(type: "int", nullable: true),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Groceries", x => x.GroceryId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "GroceryStockItems",
+                columns: table => new
+                {
+                    GroceryStockItemId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    OutletId = table.Column<int>(type: "int", nullable: false),
+                    GroceryId = table.Column<int>(type: "int", nullable: false),
+                    UnitId = table.Column<int>(type: "int", nullable: true),
+                    CurrentQty = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    ReorderLevel = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<int>(type: "int", nullable: false),
+                    UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    UpdatedBy = table.Column<int>(type: "int", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedBy = table.Column<int>(type: "int", nullable: true),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_GroceryStockItems", x => x.GroceryStockItemId);
                 });
 
             migrationBuilder.CreateTable(
@@ -176,16 +262,14 @@ namespace Data.Persistence.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     OutletId = table.Column<int>(type: "int", nullable: false),
                     CategoryId = table.Column<int>(type: "int", nullable: false),
+                    UnitId = table.Column<int>(type: "int", nullable: true),
                     ItemCode = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
                     ItemName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     SalePrice = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
-                    PurchasePrice = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
                     GstPercent = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
                     IsTaxInclusive = table.Column<bool>(type: "bit", nullable: false),
                     TaxType = table.Column<int>(type: "int", nullable: false),
-                    SacCode = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
-                    IsStockTracked = table.Column<bool>(type: "bit", nullable: false),
-                    ReorderLevel = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
+                    ImagePath = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<int>(type: "int", nullable: false),
                     UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -202,6 +286,30 @@ namespace Data.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "KitchenStations",
+                columns: table => new
+                {
+                    KitchenStationId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    OutletId = table.Column<int>(type: "int", nullable: false),
+                    StationName = table.Column<string>(type: "nvarchar(60)", maxLength: 60, nullable: false),
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<int>(type: "int", nullable: false),
+                    UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    UpdatedBy = table.Column<int>(type: "int", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedBy = table.Column<int>(type: "int", nullable: true),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_KitchenStations", x => x.KitchenStationId);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "KotHeaders",
                 columns: table => new
                 {
@@ -215,6 +323,9 @@ namespace Data.Persistence.Migrations
                     KitchenStationId = table.Column<int>(type: "int", nullable: false),
                     KotEventType = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    KotPrintedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ServedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ServedByUserId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<int>(type: "int", nullable: false),
                     UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -341,6 +452,36 @@ namespace Data.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "PaymentCallbackEvents",
+                columns: table => new
+                {
+                    PaymentCallbackEventId = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Provider = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
+                    EventId = table.Column<string>(type: "nvarchar(120)", maxLength: 120, nullable: false),
+                    ReceivedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IsValid = table.Column<bool>(type: "bit", nullable: false),
+                    ProcessingStatus = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    ProcessedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ErrorMessage = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    MatchedPaymentId = table.Column<long>(type: "bigint", nullable: true),
+                    MatchedBillId = table.Column<long>(type: "bigint", nullable: true),
+                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<int>(type: "int", nullable: false),
+                    UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    UpdatedBy = table.Column<int>(type: "int", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedBy = table.Column<int>(type: "int", nullable: true),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PaymentCallbackEvents", x => x.PaymentCallbackEventId);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ReprintLogs",
                 columns: table => new
                 {
@@ -393,65 +534,6 @@ namespace Data.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "StockLedger",
-                columns: table => new
-                {
-                    StockLedgerEntryId = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    OutletId = table.Column<int>(type: "int", nullable: false),
-                    ItemId = table.Column<int>(type: "int", nullable: false),
-                    BusinessDate = table.Column<DateOnly>(type: "date", nullable: false),
-                    ReferenceType = table.Column<int>(type: "int", nullable: false),
-                    ReferenceId = table.Column<long>(type: "bigint", nullable: false),
-                    InQty = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
-                    OutQty = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
-                    Rate = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
-                    RunningBalance = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
-                    Remarks = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<int>(type: "int", nullable: false),
-                    UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    UpdatedBy = table.Column<int>(type: "int", nullable: true),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    DeletedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    DeletedBy = table.Column<int>(type: "int", nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_StockLedger", x => x.StockLedgerEntryId);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "StockLots",
-                columns: table => new
-                {
-                    StockLotId = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    OutletId = table.Column<int>(type: "int", nullable: false),
-                    ItemId = table.Column<int>(type: "int", nullable: false),
-                    ReceivedOn = table.Column<DateOnly>(type: "date", nullable: false),
-                    ExpiryOn = table.Column<DateOnly>(type: "date", nullable: true),
-                    QtyReceived = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
-                    QtyRemaining = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
-                    CostPerUnit = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<int>(type: "int", nullable: false),
-                    UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    UpdatedBy = table.Column<int>(type: "int", nullable: true),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
-                    DeletedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    DeletedBy = table.Column<int>(type: "int", nullable: true),
-                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_StockLots", x => x.StockLotId);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "TaxConfigurations",
                 columns: table => new
                 {
@@ -478,6 +560,30 @@ namespace Data.Persistence.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_TaxConfigurations", x => x.TaxConfigurationId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Units",
+                columns: table => new
+                {
+                    UnitId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    OutletId = table.Column<int>(type: "int", nullable: false),
+                    UnitName = table.Column<string>(type: "nvarchar(60)", maxLength: 60, nullable: false),
+                    UnitCode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<int>(type: "int", nullable: false),
+                    UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    UpdatedBy = table.Column<int>(type: "int", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DeletedBy = table.Column<int>(type: "int", nullable: true),
+                    RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Units", x => x.UnitId);
                 });
 
             migrationBuilder.CreateTable(
@@ -701,6 +807,12 @@ namespace Data.Persistence.Migrations
                 column: "BillId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_PaymentCallbackEvents_Provider_EventId",
+                table: "PaymentCallbackEvents",
+                columns: new[] { "Provider", "EventId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Payments_BillId",
                 table: "Payments",
                 column: "BillId");
@@ -734,10 +846,22 @@ namespace Data.Persistence.Migrations
                 name: "Categories");
 
             migrationBuilder.DropTable(
-                name: "EInvoiceQueue");
+                name: "DayCloseReports");
+
+            migrationBuilder.DropTable(
+                name: "DiningTables");
+
+            migrationBuilder.DropTable(
+                name: "Groceries");
+
+            migrationBuilder.DropTable(
+                name: "GroceryStockItems");
 
             migrationBuilder.DropTable(
                 name: "Items");
+
+            migrationBuilder.DropTable(
+                name: "KitchenStations");
 
             migrationBuilder.DropTable(
                 name: "KotHeaders");
@@ -755,6 +879,9 @@ namespace Data.Persistence.Migrations
                 name: "Outlets");
 
             migrationBuilder.DropTable(
+                name: "PaymentCallbackEvents");
+
+            migrationBuilder.DropTable(
                 name: "Payments");
 
             migrationBuilder.DropTable(
@@ -764,13 +891,10 @@ namespace Data.Persistence.Migrations
                 name: "RestaurantSettings");
 
             migrationBuilder.DropTable(
-                name: "StockLedger");
-
-            migrationBuilder.DropTable(
-                name: "StockLots");
-
-            migrationBuilder.DropTable(
                 name: "TaxConfigurations");
+
+            migrationBuilder.DropTable(
+                name: "Units");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
@@ -783,4 +907,3 @@ namespace Data.Persistence.Migrations
         }
     }
 }
-

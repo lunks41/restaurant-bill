@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Entities.Configuration;
 using Entities.Enums;
 using Entities.Inventory;
@@ -122,33 +123,17 @@ public static class DbSeeder
                 new Unit { OutletId = outletId, UnitName = "Litre", UnitCode = "LTR" });
         }
 
-        if (!db.TableMasters.Any())
+        if (!db.DiningTables.Any())
         {
-            db.TableMasters.AddRange(
-                new TableMaster { OutletId = outletId, TableName = "Ground-1", Area = "Ground", Capacity = 4 },
-                new TableMaster { OutletId = outletId, TableName = "Ground-2", Area = "Ground", Capacity = 6 },
-                new TableMaster { OutletId = outletId, TableName = "AC-1", Area = "AC", Capacity = 2 },
-                new TableMaster { OutletId = outletId, TableName = "AC-2", Area = "AC", Capacity = 4 },
-                new TableMaster { OutletId = outletId, TableName = "NonAC-1", Area = "Non-AC", Capacity = 4 },
-                new TableMaster { OutletId = outletId, TableName = "NonAC-2", Area = "Non-AC", Capacity = 8 },
-                new TableMaster { OutletId = outletId, TableName = "Outdoor-1", Area = "Outdoor", Capacity = 2 },
-                new TableMaster { OutletId = outletId, TableName = "Outdoor-2", Area = "Outdoor", Capacity = 6 });
-        }
-
-        if (!db.Customers.Any())
-        {
-            db.Customers.AddRange(
-                new Customer { OutletId = outletId, CustomerName = "Walk-in Customer", Phone = null, Gstin = null },
-                new Customer { OutletId = outletId, CustomerName = "Aarav Mehta", Phone = "9876543210", Gstin = null },
-                new Customer { OutletId = outletId, CustomerName = "CityCorp Pvt Ltd", Phone = "9123456780", Gstin = "27AACCC1234D1Z9" });
-        }
-
-        if (!db.Suppliers.Any())
-        {
-            db.Suppliers.AddRange(
-                new Supplier { OutletId = outletId, SupplierName = "Fresh Farm Foods", ContactNo = "9898989898", Gstin = "27AABCF1111Q1Z5" },
-                new Supplier { OutletId = outletId, SupplierName = "Metro Dairy Traders", ContactNo = "9888777666", Gstin = "27AADDM2222P1ZX" },
-                new Supplier { OutletId = outletId, SupplierName = "Spice Hub Distributors", ContactNo = "9776655443", Gstin = "27AAECS3333N1Z2" });
+            db.DiningTables.AddRange(
+                new DiningTables { OutletId = outletId, TableName = "Ground-1", Area = "Ground", Capacity = 4 },
+                new DiningTables { OutletId = outletId, TableName = "Ground-2", Area = "Ground", Capacity = 6 },
+                new DiningTables { OutletId = outletId, TableName = "AC-1", Area = "AC", Capacity = 2 },
+                new DiningTables { OutletId = outletId, TableName = "AC-2", Area = "AC", Capacity = 4 },
+                new DiningTables { OutletId = outletId, TableName = "NonAC-1", Area = "Non-AC", Capacity = 4 },
+                new DiningTables { OutletId = outletId, TableName = "NonAC-2", Area = "Non-AC", Capacity = 8 },
+                new DiningTables { OutletId = outletId, TableName = "Outdoor-1", Area = "Outdoor", Capacity = 2 },
+                new DiningTables { OutletId = outletId, TableName = "Outdoor-2", Area = "Outdoor", Capacity = 6 });
         }
 
         if (!db.KitchenStations.Any())
@@ -156,28 +141,6 @@ public static class DbSeeder
             db.KitchenStations.AddRange(
                 new KitchenStation { OutletId = outletId, StationName = "Main Kitchen", SortOrder = 1 },
                 new KitchenStation { OutletId = outletId, StationName = "Beverage", SortOrder = 2 });
-        }
-
-        if (!db.TaxMasters.Any())
-        {
-            db.TaxMasters.Add(new TaxMaster
-            {
-                OutletId = outletId,
-                TaxName = "GST",
-                TaxPercent = 5m,
-                EffectiveFrom = DateTime.UtcNow.Date
-            });
-        }
-
-        if (!db.PrinterProfiles.Any())
-        {
-            db.PrinterProfiles.Add(new PrinterProfile
-            {
-                OutletId = outletId,
-                PrinterName = "Default Thermal",
-                PrinterType = "Thermal",
-                IsDefault = true
-            });
         }
 
         // Flush newly inserted categories before item dictionary lookup.
@@ -266,117 +229,61 @@ public static class DbSeeder
             await db.SaveChangesAsync();
         }
 
-        if (!db.StockItems.Any())
-        {
-            var trackedItems = db.Items.Where(x => x.OutletId == outletId).ToList();
-            db.StockItems.AddRange(trackedItems.Select(i => new StockItem
-            {
-                OutletId = outletId,
-                ItemId = i.ItemId,
-                CurrentQty = 30m,
-                ReorderLevel = 10m
-            }));
-        }
-
-        if (!db.StockLedger.Any())
-        {
-            var trackedItems = db.Items.Where(x => x.OutletId == outletId).ToList();
-            foreach (var item in trackedItems)
-            {
-                var openingQty = 30m;
-                db.StockLedger.Add(StockLedgerEntry.Add(
-                    outletId,
-                    item.ItemId,
-                    DateOnly.FromDateTime(DateTime.UtcNow.Date),
-                    StockReferenceType.Adjustment,
-                    0,
-                    openingQty,
-                    item.SalePrice,
-                    0m,
-                    "Opening stock seeded"));
-                db.StockLedger.Add(StockLedgerEntry.Deduct(
-                    outletId,
-                    item.ItemId,
-                    DateOnly.FromDateTime(DateTime.UtcNow.Date),
-                    StockReferenceType.Sale,
-                    0,
-                    2m,
-                    item.SalePrice,
-                    openingQty,
-                    "Sample consumption seeded"));
-            }
-        }
-
-        if (!db.StockLots.Any())
-        {
-            var trackedItems = db.Items.Where(x => x.OutletId == outletId).ToList();
-            db.StockLots.AddRange(trackedItems.Select(i => new StockLot
-            {
-                OutletId = outletId,
-                ItemId = i.ItemId,
-                ReceivedOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-1)),
-                ExpiryOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(30)),
-                QtyReceived = 30m,
-                QtyRemaining = 28m,
-                CostPerUnit = i.SalePrice
-            }));
-        }
-
         var defaultCategories = db.Categories
             .Where(x => x.OutletId == outletId)
             .ToDictionary(x => x.CategoryName, x => x.CategoryId);
         var additionalVegItems = new[]
         {
-            new { Category = "Starters", Code = "STR002", Name = "Hara Bhara Kebab", Sale = 240m, Purchase = 130m, Reorder = 10m },
-            new { Category = "Starters", Code = "STR003", Name = "Veg Spring Roll", Sale = 180m, Purchase = 95m, Reorder = 14m },
-            new { Category = "Starters", Code = "STR004", Name = "Crispy Corn", Sale = 170m, Purchase = 78m, Reorder = 12m },
-            new { Category = "Starters", Code = "STR005", Name = "Gobi Manchurian", Sale = 190m, Purchase = 92m, Reorder = 11m },
-            new { Category = "Starters", Code = "STR006", Name = "Veg Manchurian Dry", Sale = 210m, Purchase = 105m, Reorder = 11m },
-            new { Category = "Starters", Code = "STR007", Name = "Cheese Corn Balls", Sale = 220m, Purchase = 112m, Reorder = 10m },
-            new { Category = "Starters", Code = "STR008", Name = "Paneer 65", Sale = 250m, Purchase = 135m, Reorder = 9m },
-            new { Category = "Starters", Code = "STR009", Name = "Mushroom Pepper Fry", Sale = 230m, Purchase = 120m, Reorder = 9m },
-            new { Category = "Starters", Code = "STR010", Name = "Corn Tikki", Sale = 175m, Purchase = 84m, Reorder = 12m },
-            new { Category = "Starters", Code = "STR011", Name = "Baby Corn Chilli", Sale = 205m, Purchase = 98m, Reorder = 11m },
-            new { Category = "Main Course", Code = "MNC002", Name = "Paneer Butter Masala", Sale = 280m, Purchase = 155m, Reorder = 8m },
-            new { Category = "Main Course", Code = "MNC003", Name = "Dal Tadka", Sale = 160m, Purchase = 70m, Reorder = 16m },
-            new { Category = "Main Course", Code = "MNC004", Name = "Kadai Paneer", Sale = 290m, Purchase = 162m, Reorder = 8m },
-            new { Category = "Main Course", Code = "MNC005", Name = "Palak Paneer", Sale = 275m, Purchase = 150m, Reorder = 8m },
-            new { Category = "Main Course", Code = "MNC006", Name = "Veg Kolhapuri", Sale = 230m, Purchase = 118m, Reorder = 10m },
-            new { Category = "Main Course", Code = "MNC007", Name = "Mix Veg Curry", Sale = 210m, Purchase = 106m, Reorder = 11m },
-            new { Category = "Main Course", Code = "MNC008", Name = "Jeera Rice", Sale = 140m, Purchase = 60m, Reorder = 18m },
-            new { Category = "Main Course", Code = "MNC009", Name = "Steam Rice", Sale = 120m, Purchase = 48m, Reorder = 22m },
-            new { Category = "Main Course", Code = "MNC010", Name = "Paneer Lababdar", Sale = 295m, Purchase = 166m, Reorder = 8m },
-            new { Category = "Main Course", Code = "MNC011", Name = "Veg Pulao", Sale = 180m, Purchase = 84m, Reorder = 14m },
-            new { Category = "Breads", Code = "BRD002", Name = "Tandoori Roti", Sale = 25m, Purchase = 10m, Reorder = 45m },
-            new { Category = "Breads", Code = "BRD003", Name = "Garlic Naan", Sale = 60m, Purchase = 24m, Reorder = 22m },
-            new { Category = "Breads", Code = "BRD004", Name = "Plain Naan", Sale = 40m, Purchase = 16m, Reorder = 34m },
-            new { Category = "Breads", Code = "BRD005", Name = "Lachha Paratha", Sale = 55m, Purchase = 22m, Reorder = 26m },
-            new { Category = "Breads", Code = "BRD006", Name = "Missi Roti", Sale = 45m, Purchase = 18m, Reorder = 24m },
-            new { Category = "Breads", Code = "BRD007", Name = "Butter Roti", Sale = 35m, Purchase = 14m, Reorder = 36m },
-            new { Category = "Breads", Code = "BRD008", Name = "Roomali Roti", Sale = 30m, Purchase = 12m, Reorder = 30m },
-            new { Category = "Breads", Code = "BRD009", Name = "Stuffed Kulcha", Sale = 70m, Purchase = 30m, Reorder = 18m },
-            new { Category = "Breads", Code = "BRD010", Name = "Ajwain Paratha", Sale = 52m, Purchase = 21m, Reorder = 20m },
-            new { Category = "Breads", Code = "BRD011", Name = "Methi Thepla", Sale = 48m, Purchase = 19m, Reorder = 22m },
-            new { Category = "Desserts", Code = "DST002", Name = "Rasmalai", Sale = 110m, Purchase = 52m, Reorder = 12m },
-            new { Category = "Desserts", Code = "DST003", Name = "Kulfi", Sale = 95m, Purchase = 44m, Reorder = 14m },
-            new { Category = "Desserts", Code = "DST004", Name = "Gajar Halwa", Sale = 130m, Purchase = 62m, Reorder = 10m },
-            new { Category = "Desserts", Code = "DST005", Name = "Moong Dal Halwa", Sale = 140m, Purchase = 68m, Reorder = 9m },
-            new { Category = "Desserts", Code = "DST006", Name = "Ice Cream Sundae", Sale = 125m, Purchase = 57m, Reorder = 11m },
-            new { Category = "Desserts", Code = "DST007", Name = "Chocolate Brownie", Sale = 160m, Purchase = 78m, Reorder = 9m },
-            new { Category = "Desserts", Code = "DST008", Name = "Caramel Custard", Sale = 115m, Purchase = 54m, Reorder = 10m },
-            new { Category = "Desserts", Code = "DST009", Name = "Falooda", Sale = 145m, Purchase = 68m, Reorder = 9m },
-            new { Category = "Desserts", Code = "DST010", Name = "Shahi Tukda", Sale = 135m, Purchase = 64m, Reorder = 8m },
-            new { Category = "Desserts", Code = "DST011", Name = "Fruit Cream", Sale = 120m, Purchase = 56m, Reorder = 10m },
-            new { Category = "Beverages", Code = "BEV002", Name = "Sweet Lassi", Sale = 70m, Purchase = 28m, Reorder = 20m },
-            new { Category = "Beverages", Code = "BEV003", Name = "Fresh Lime Soda", Sale = 90m, Purchase = 35m, Reorder = 20m },
-            new { Category = "Beverages", Code = "BEV004", Name = "Cold Coffee", Sale = 120m, Purchase = 52m, Reorder = 16m },
-            new { Category = "Beverages", Code = "BEV005", Name = "Mango Shake", Sale = 130m, Purchase = 58m, Reorder = 14m },
-            new { Category = "Beverages", Code = "BEV006", Name = "Buttermilk", Sale = 45m, Purchase = 16m, Reorder = 26m },
-            new { Category = "Beverages", Code = "BEV007", Name = "Mint Mojito", Sale = 110m, Purchase = 46m, Reorder = 15m },
-            new { Category = "Beverages", Code = "BEV008", Name = "Classic Lemonade", Sale = 80m, Purchase = 30m, Reorder = 18m },
-            new { Category = "Beverages", Code = "BEV009", Name = "Watermelon Cooler", Sale = 105m, Purchase = 42m, Reorder = 14m },
-            new { Category = "Beverages", Code = "BEV010", Name = "Iced Tea", Sale = 95m, Purchase = 38m, Reorder = 16m },
-            new { Category = "Beverages", Code = "BEV011", Name = "Masala Soda", Sale = 75m, Purchase = 28m, Reorder = 20m }
+            new { Category = "Starters", Code = "STR002", Name = "Hara Bhara Kebab", Sale = 240m },
+            new { Category = "Starters", Code = "STR003", Name = "Veg Spring Roll", Sale = 180m },
+            new { Category = "Starters", Code = "STR004", Name = "Crispy Corn", Sale = 170m },
+            new { Category = "Starters", Code = "STR005", Name = "Gobi Manchurian", Sale = 190m },
+            new { Category = "Starters", Code = "STR006", Name = "Veg Manchurian Dry", Sale = 210m },
+            new { Category = "Starters", Code = "STR007", Name = "Cheese Corn Balls", Sale = 220m },
+            new { Category = "Starters", Code = "STR008", Name = "Paneer 65", Sale = 250m },
+            new { Category = "Starters", Code = "STR009", Name = "Mushroom Pepper Fry", Sale = 230m },
+            new { Category = "Starters", Code = "STR010", Name = "Corn Tikki", Sale = 175m },
+            new { Category = "Starters", Code = "STR011", Name = "Baby Corn Chilli", Sale = 205m },
+            new { Category = "Main Course", Code = "MNC002", Name = "Paneer Butter Masala", Sale = 280m },
+            new { Category = "Main Course", Code = "MNC003", Name = "Dal Tadka", Sale = 160m },
+            new { Category = "Main Course", Code = "MNC004", Name = "Kadai Paneer", Sale = 290m },
+            new { Category = "Main Course", Code = "MNC005", Name = "Palak Paneer", Sale = 275m },
+            new { Category = "Main Course", Code = "MNC006", Name = "Veg Kolhapuri", Sale = 230m },
+            new { Category = "Main Course", Code = "MNC007", Name = "Mix Veg Curry", Sale = 210m },
+            new { Category = "Main Course", Code = "MNC008", Name = "Jeera Rice", Sale = 140m },
+            new { Category = "Main Course", Code = "MNC009", Name = "Steam Rice", Sale = 120m },
+            new { Category = "Main Course", Code = "MNC010", Name = "Paneer Lababdar", Sale = 295m },
+            new { Category = "Main Course", Code = "MNC011", Name = "Veg Pulao", Sale = 180m },
+            new { Category = "Breads", Code = "BRD002", Name = "Tandoori Roti", Sale = 25m },
+            new { Category = "Breads", Code = "BRD003", Name = "Garlic Naan", Sale = 60m },
+            new { Category = "Breads", Code = "BRD004", Name = "Plain Naan", Sale = 40m },
+            new { Category = "Breads", Code = "BRD005", Name = "Lachha Paratha", Sale = 55m },
+            new { Category = "Breads", Code = "BRD006", Name = "Missi Roti", Sale = 45m },
+            new { Category = "Breads", Code = "BRD007", Name = "Butter Roti", Sale = 35m },
+            new { Category = "Breads", Code = "BRD008", Name = "Roomali Roti", Sale = 30m },
+            new { Category = "Breads", Code = "BRD009", Name = "Stuffed Kulcha", Sale = 70m },
+            new { Category = "Breads", Code = "BRD010", Name = "Ajwain Paratha", Sale = 52m },
+            new { Category = "Breads", Code = "BRD011", Name = "Methi Thepla", Sale = 48m },
+            new { Category = "Desserts", Code = "DST002", Name = "Rasmalai", Sale = 110m },
+            new { Category = "Desserts", Code = "DST003", Name = "Kulfi", Sale = 95m },
+            new { Category = "Desserts", Code = "DST004", Name = "Gajar Halwa", Sale = 130m },
+            new { Category = "Desserts", Code = "DST005", Name = "Moong Dal Halwa", Sale = 140m },
+            new { Category = "Desserts", Code = "DST006", Name = "Ice Cream Sundae", Sale = 125m },
+            new { Category = "Desserts", Code = "DST007", Name = "Chocolate Brownie", Sale = 160m },
+            new { Category = "Desserts", Code = "DST008", Name = "Caramel Custard", Sale = 115m },
+            new { Category = "Desserts", Code = "DST009", Name = "Falooda", Sale = 145m },
+            new { Category = "Desserts", Code = "DST010", Name = "Shahi Tukda", Sale = 135m },
+            new { Category = "Desserts", Code = "DST011", Name = "Fruit Cream", Sale = 120m },
+            new { Category = "Beverages", Code = "BEV002", Name = "Sweet Lassi", Sale = 70m },
+            new { Category = "Beverages", Code = "BEV003", Name = "Fresh Lime Soda", Sale = 90m },
+            new { Category = "Beverages", Code = "BEV004", Name = "Cold Coffee", Sale = 120m },
+            new { Category = "Beverages", Code = "BEV005", Name = "Mango Shake", Sale = 130m },
+            new { Category = "Beverages", Code = "BEV006", Name = "Buttermilk", Sale = 45m },
+            new { Category = "Beverages", Code = "BEV007", Name = "Mint Mojito", Sale = 110m },
+            new { Category = "Beverages", Code = "BEV008", Name = "Classic Lemonade", Sale = 80m },
+            new { Category = "Beverages", Code = "BEV009", Name = "Watermelon Cooler", Sale = 105m },
+            new { Category = "Beverages", Code = "BEV010", Name = "Iced Tea", Sale = 95m },
+            new { Category = "Beverages", Code = "BEV011", Name = "Masala Soda", Sale = 75m }
         };
         foreach (var seed in additionalVegItems)
         {
@@ -400,71 +307,6 @@ public static class DbSeeder
                 TaxType = TaxType.GST
             });
         }
-
-        var stockRawItems = new[]
-        {
-            new { Code = "STK001", Name = "Cooking Oil", UnitCode = "LTR", Purchase = 160m, Reorder = 30m },
-            new { Code = "STK002", Name = "Milk", UnitCode = "LTR", Purchase = 58m, Reorder = 40m },
-            new { Code = "STK003", Name = "Rice", UnitCode = "KG", Purchase = 62m, Reorder = 60m },
-            new { Code = "STK004", Name = "Sugar", UnitCode = "KG", Purchase = 48m, Reorder = 35m },
-            new { Code = "STK005", Name = "Salt", UnitCode = "KG", Purchase = 20m, Reorder = 20m },
-            new { Code = "STK006", Name = "Wheat Flour", UnitCode = "KG", Purchase = 46m, Reorder = 55m },
-            new { Code = "STK007", Name = "Onion", UnitCode = "KG", Purchase = 34m, Reorder = 45m },
-            new { Code = "STK008", Name = "Tomato", UnitCode = "KG", Purchase = 38m, Reorder = 42m },
-            new { Code = "STK009", Name = "Potato", UnitCode = "KG", Purchase = 30m, Reorder = 50m },
-            new { Code = "STK010", Name = "Green Chilli", UnitCode = "KG", Purchase = 80m, Reorder = 8m },
-            new { Code = "STK011", Name = "Coriander Leaves", UnitCode = "NOS", Purchase = 120m, Reorder = 6m },
-            new { Code = "STK012", Name = "Capsicum", UnitCode = "KG", Purchase = 64m, Reorder = 18m },
-            new { Code = "STK013", Name = "Carrot", UnitCode = "KG", Purchase = 44m, Reorder = 20m },
-            new { Code = "STK014", Name = "Cabbage", UnitCode = "KG", Purchase = 28m, Reorder = 18m },
-            new { Code = "STK015", Name = "Paneer Block", UnitCode = "KG", Purchase = 300m, Reorder = 12m },
-            new { Code = "STK016", Name = "Curd", UnitCode = "KG", Purchase = 72m, Reorder = 16m },
-            new { Code = "STK017", Name = "Turmeric Powder", UnitCode = "KG", Purchase = 220m, Reorder = 5m },
-            new { Code = "STK018", Name = "Red Chilli Powder", UnitCode = "KG", Purchase = 260m, Reorder = 5m },
-            new { Code = "STK019", Name = "Coriander Powder", UnitCode = "KG", Purchase = 210m, Reorder = 6m },
-            new { Code = "STK020", Name = "Garam Masala", UnitCode = "KG", Purchase = 360m, Reorder = 4m },
-            new { Code = "STK021", Name = "Cumin Seeds", UnitCode = "KG", Purchase = 320m, Reorder = 4m },
-            new { Code = "STK022", Name = "Mustard Seeds", UnitCode = "KG", Purchase = 180m, Reorder = 3m },
-            new { Code = "STK023", Name = "Black Pepper", UnitCode = "KG", Purchase = 680m, Reorder = 2m },
-            new { Code = "STK024", Name = "Cardamom", UnitCode = "KG", Purchase = 1400m, Reorder = 1m }
-        };
-        if (defaultCategories.TryGetValue("Stock Items", out var stockCategoryId))
-        {
-            var unitMap = db.Units
-                .Where(x => x.OutletId == outletId)
-                .ToDictionary(x => x.UnitCode, x => x.UnitId);
-            foreach (var stockSeed in stockRawItems)
-            {
-                unitMap.TryGetValue(stockSeed.UnitCode, out var unitId);
-                var existing = db.Items.FirstOrDefault(x => x.OutletId == outletId && x.ItemCode == stockSeed.Code);
-                if (existing is not null)
-                {
-                    existing.CategoryId = stockCategoryId;
-                    existing.ItemName = stockSeed.Name;
-                    existing.UnitId = unitId > 0 ? unitId : existing.UnitId;
-                    existing.SalePrice = stockSeed.Purchase;
-                    existing.IsActive = true;
-                    existing.IsDeleted = false;
-                    continue;
-                }
-
-                db.Items.Add(new Item
-                {
-                    OutletId = outletId,
-                    CategoryId = stockCategoryId,
-                    UnitId = unitId > 0 ? unitId : null,
-                    ItemCode = stockSeed.Code,
-                    ItemName = stockSeed.Name,
-                    SalePrice = stockSeed.Purchase,
-                    GstPercent = 0m,
-                    IsTaxInclusive = false,
-                    TaxType = TaxType.GST,
-                    IsActive = true,
-                    IsDeleted = false
-                });
-            }
-        }
-        await db.SaveChangesAsync();
 
         var grocerySeedItems = new[]
         {
@@ -494,7 +336,32 @@ public static class DbSeeder
 
         foreach (var grocery in grocerySeedItems)
         {
-            if (db.GroceryStockItems.Any(x => x.OutletId == outletId && x.GroceryName == grocery.Name))
+            if (!db.Groceries.Any(x => x.OutletId == outletId && x.GroceryName == grocery.Name))
+            {
+                db.Groceries.Add(new Grocery
+                {
+                    OutletId = outletId,
+                    GroceryName = grocery.Name,
+                    IsActive = true,
+                    IsDeleted = false
+                });
+            }
+        }
+
+        await db.SaveChangesAsync();
+
+        var groceryIdMap = db.Groceries
+            .Where(x => x.OutletId == outletId && !x.IsDeleted)
+            .ToDictionary(x => x.GroceryName, x => x.GroceryId);
+
+        foreach (var grocery in grocerySeedItems)
+        {
+            if (!groceryIdMap.TryGetValue(grocery.Name, out var groceryId))
+            {
+                continue;
+            }
+
+            if (db.GroceryStockItems.Any(x => x.OutletId == outletId && x.GroceryId == groceryId))
             {
                 continue;
             }
@@ -503,9 +370,8 @@ public static class DbSeeder
             db.GroceryStockItems.Add(new GroceryStockItem
             {
                 OutletId = outletId,
-                GroceryName = grocery.Name,
+                GroceryId = groceryId,
                 UnitId = unitId > 0 ? unitId : null,
-                PurchaseRate = 0m,
                 CurrentQty = 0m,
                 ReorderLevel = 0m,
                 IsActive = true,
@@ -513,31 +379,6 @@ public static class DbSeeder
             });
         }
         await db.SaveChangesAsync();
-
-        var trackedDefaultItems = db.Items.Where(x => x.OutletId == outletId).ToList();
-        var existingStockItemIds = db.StockItems.Where(x => x.OutletId == outletId).Select(x => x.ItemId).ToHashSet();
-        var missingStockItems = trackedDefaultItems.Where(x => !existingStockItemIds.Contains(x.ItemId)).ToList();
-        if (missingStockItems.Count > 0)
-        {
-            db.StockItems.AddRange(missingStockItems.Select(i => new StockItem
-            {
-                OutletId = outletId,
-                ItemId = i.ItemId,
-                CurrentQty = 30m,
-                ReorderLevel = 10m
-            }));
-            db.StockLots.AddRange(missingStockItems.Select(i => new StockLot
-            {
-                OutletId = outletId,
-                ItemId = i.ItemId,
-                ReceivedOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-1)),
-                ExpiryOn = DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(30)),
-                QtyReceived = 30m,
-                QtyRemaining = 30m,
-                CostPerUnit = i.SalePrice
-            }));
-            await db.SaveChangesAsync();
-        }
 
         var menuImageSettings = new Dictionary<string, string>
         {
@@ -629,29 +470,6 @@ public static class DbSeeder
             var seedItems = db.Items.Where(x => x.OutletId == outletSeedId).OrderBy(x => x.ItemId).Take(3).ToList();
             if (seedItems.Count < 3) return;
 
-            if (!db.Quotations.Any(x => x.OutletId == outletSeedId))
-            {
-                var quote = new Quotation
-                {
-                    OutletId = outletSeedId,
-                    QuoteNo = "QT00001",
-                    QuoteDate = DateTime.UtcNow,
-                    BusinessDate = bizDate,
-                    SubTotal = 0m,
-                    DiscountAmount = 0m,
-                    TaxAmount = 0m,
-                    GrandTotal = 0m,
-                    Status = "Draft"
-                };
-                quote.Items.AddRange([
-                    new QuotationItem { ItemId = seedItems[0].ItemId, ItemNameSnapshot = seedItems[0].ItemName, Qty = 1, Rate = seedItems[0].SalePrice, DiscountAmount = 0, TaxAmount = 0, LineTotal = seedItems[0].SalePrice },
-                    new QuotationItem { ItemId = seedItems[1].ItemId, ItemNameSnapshot = seedItems[1].ItemName, Qty = 2, Rate = seedItems[1].SalePrice, DiscountAmount = 0, TaxAmount = 0, LineTotal = 2 * seedItems[1].SalePrice }
-                ]);
-                quote.SubTotal = quote.Items.Sum(x => x.Rate * x.Qty);
-                quote.GrandTotal = quote.SubTotal;
-                db.Quotations.Add(quote);
-            }
-
             Bill? paidBill = null;
             if (!db.Bills.Any(x => x.OutletId == outletSeedId))
             {
@@ -696,58 +514,6 @@ public static class DbSeeder
                         new KotItem { KotHeaderId = kot.KotHeaderId, ItemId = seedItems[1].ItemId, ItemNameSnapshot = seedItems[1].ItemName, Qty = 1 }
                     );
                 }
-            }
-
-            if (!db.Purchases.Any(x => x.OutletId == outletSeedId))
-            {
-                var supplierId = db.Suppliers.Where(x => x.OutletId == outletSeedId).Select(x => x.SupplierId).FirstOrDefault();
-                if (supplierId > 0)
-                {
-                    var purchase = new Purchase
-                    {
-                        OutletId = outletSeedId,
-                        SupplierId = supplierId,
-                        PurchaseNo = "PO0001",
-                        BusinessDate = bizDate,
-                        SubTotal = 0m,
-                        TaxAmount = 0m,
-                        GrandTotal = 0m
-                    };
-                    purchase.Items.AddRange([
-                        new PurchaseItem { ItemId = seedItems[0].ItemId, Qty = 5, Rate = seedItems[0].SalePrice, TaxPercent = 0, LineTotal = 5 * seedItems[0].SalePrice },
-                        new PurchaseItem { ItemId = seedItems[1].ItemId, Qty = 8, Rate = seedItems[1].SalePrice, TaxPercent = 0, LineTotal = 8 * seedItems[1].SalePrice }
-                    ]);
-                    purchase.SubTotal = purchase.Items.Sum(x => x.LineTotal);
-                    purchase.GrandTotal = purchase.SubTotal;
-                    db.Purchases.Add(purchase);
-                }
-            }
-
-            if (!db.StockAdjustments.Any(x => x.OutletId == outletSeedId))
-            {
-                db.StockAdjustments.Add(new StockAdjustment
-                {
-                    OutletId = outletSeedId,
-                    ItemId = seedItems[0].ItemId,
-                    BusinessDate = bizDate,
-                    Qty = 1m,
-                    Rate = seedItems[0].SalePrice,
-                    AdjustmentType = "Add",
-                    Reason = "Initial calibration seed"
-                });
-            }
-
-            if (!db.StockLosses.Any(x => x.OutletId == outletSeedId))
-            {
-                db.StockLosses.Add(new StockLoss
-                {
-                    OutletId = outletSeedId,
-                    ItemId = seedItems[1].ItemId,
-                    BusinessDate = bizDate,
-                    Qty = 0.5m,
-                    Rate = seedItems[1].SalePrice,
-                    Reason = "Sample wastage seed"
-                });
             }
 
             if (!db.DayCloseReports.Any(x => x.OutletId == outletSeedId))

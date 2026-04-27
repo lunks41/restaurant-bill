@@ -81,16 +81,6 @@ public class SettleBillCommandHandler(
             Status = "Pending"
         });
 
-        var outlet = await db.Outlets.FirstOrDefaultAsync(x => x.OutletId == request.OutletId, cancellationToken);
-        if (outlet is { EInvoicingEnabled: true })
-        {
-            db.EInvoiceQueue.Add(new EInvoiceQueueItem
-            {
-                BillId = bill.BillId,
-                Status = "Pending"
-            });
-        }
-
         await db.SaveChangesAsync(cancellationToken);
         return Result<long>.Success(bill.BillId);
     }

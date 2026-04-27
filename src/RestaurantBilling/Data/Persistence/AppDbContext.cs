@@ -22,34 +22,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Item> Items => Set<Item>();
     public DbSet<Unit> Units => Set<Unit>();
-    public DbSet<TableMaster> TableMasters => Set<TableMaster>();
-    public DbSet<Customer> Customers => Set<Customer>();
-    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<DiningTables> DiningTables => Set<DiningTables>();
     public DbSet<Bill> Bills => Set<Bill>();
     public DbSet<BillItem> BillItems => Set<BillItem>();
-    public DbSet<Quotation> Quotations => Set<Quotation>();
-    public DbSet<QuotationItem> QuotationItems => Set<QuotationItem>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<KotHeader> KotHeaders => Set<KotHeader>();
     public DbSet<KotItem> KotItems => Set<KotItem>();
-    public DbSet<StockLedgerEntry> StockLedger => Set<StockLedgerEntry>();
-    public DbSet<StockLot> StockLots => Set<StockLot>();
-    public DbSet<StockItem> StockItems => Set<StockItem>();
-    public DbSet<StockLedger> StockLedgers => Set<StockLedger>();
-    public DbSet<StockLoss> StockLosses => Set<StockLoss>();
-    public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
-    public DbSet<Purchase> Purchases => Set<Purchase>();
-    public DbSet<PurchaseItem> PurchaseItems => Set<PurchaseItem>();
     public DbSet<GroceryStockItem> GroceryStockItems => Set<GroceryStockItem>();
+    public DbSet<Grocery> Groceries => Set<Grocery>();
     public DbSet<KitchenStation> KitchenStations => Set<KitchenStation>();
     public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
-    public DbSet<EInvoiceQueueItem> EInvoiceQueue => Set<EInvoiceQueueItem>();
     public DbSet<PaymentCallbackEvent> PaymentCallbackEvents => Set<PaymentCallbackEvent>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ReprintLog> ReprintLogs => Set<ReprintLog>();
     public DbSet<DayCloseReport> DayCloseReports => Set<DayCloseReport>();
-    public DbSet<TaxMaster> TaxMasters => Set<TaxMaster>();
-    public DbSet<PrinterProfile> PrinterProfiles => Set<PrinterProfile>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -76,7 +62,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(x => x.RowVersion).IsRowVersion();
             entity.HasQueryFilter(x => !x.IsDeleted);
         });
-        
+
         builder.Entity<NumberSeries>(entity =>
         {
             entity.HasKey(x => x.NumberSeriesId);
@@ -112,31 +98,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasQueryFilter(x => !x.IsDeleted);
         });
 
-        builder.Entity<TableMaster>(entity =>
+        builder.Entity<DiningTables>(entity =>
         {
             entity.HasKey(x => x.TableMasterId);
+            entity.ToTable("DiningTables");
             entity.Property(x => x.TableName).HasMaxLength(40).IsRequired();
             entity.Property(x => x.Area).HasMaxLength(20).IsRequired();
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        builder.Entity<Customer>(entity =>
-        {
-            entity.HasKey(x => x.CustomerId);
-            entity.Property(x => x.CustomerName).HasMaxLength(160).IsRequired();
-            entity.Property(x => x.Phone).HasMaxLength(20);
-            entity.Property(x => x.Gstin).HasMaxLength(15);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        builder.Entity<Supplier>(entity =>
-        {
-            entity.HasKey(x => x.SupplierId);
-            entity.Property(x => x.SupplierName).HasMaxLength(160).IsRequired();
-            entity.Property(x => x.ContactNo).HasMaxLength(20);
-            entity.Property(x => x.Gstin).HasMaxLength(15);
             entity.Property(x => x.RowVersion).IsRowVersion();
             entity.HasQueryFilter(x => !x.IsDeleted);
         });
@@ -186,32 +153,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(x => x.RowVersion).IsRowVersion();
         });
 
-        builder.Entity<Quotation>(entity =>
-        {
-            entity.HasKey(x => x.QuotationId);
-            entity.Property(x => x.QuoteNo).HasMaxLength(16).IsRequired();
-            entity.Property(x => x.SubTotal).HasPrecision(18, 2);
-            entity.Property(x => x.DiscountAmount).HasPrecision(18, 2);
-            entity.Property(x => x.TaxAmount).HasPrecision(18, 2);
-            entity.Property(x => x.GrandTotal).HasPrecision(18, 2);
-            entity.Property(x => x.Status).HasMaxLength(20).IsRequired();
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasMany(x => x.Items).WithOne().HasForeignKey(x => x.QuotationId);
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        builder.Entity<QuotationItem>(entity =>
-        {
-            entity.HasKey(x => x.QuotationItemId);
-            entity.Property(x => x.ItemNameSnapshot).HasMaxLength(200).IsRequired();
-            entity.Property(x => x.Qty).HasPrecision(18, 4);
-            entity.Property(x => x.Rate).HasPrecision(18, 4);
-            entity.Property(x => x.DiscountAmount).HasPrecision(18, 2);
-            entity.Property(x => x.TaxAmount).HasPrecision(18, 2);
-            entity.Property(x => x.LineTotal).HasPrecision(18, 2);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-        });
-
         builder.Entity<Payment>(entity =>
         {
             entity.HasKey(x => x.PaymentId);
@@ -222,17 +163,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(x => x.RowVersion).IsRowVersion();
         });
 
-        builder.Entity<StockLedgerEntry>(entity =>
-        {
-            entity.HasKey(x => x.StockLedgerEntryId);
-            entity.Property(x => x.InQty).HasPrecision(18, 4);
-            entity.Property(x => x.OutQty).HasPrecision(18, 4);
-            entity.Property(x => x.Rate).HasPrecision(18, 4);
-            entity.Property(x => x.RunningBalance).HasPrecision(18, 4);
-            entity.Property(x => x.Remarks).HasMaxLength(250);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
 
         builder.Entity<KotHeader>(entity =>
         {
@@ -253,88 +183,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(x => x.RowVersion).IsRowVersion();
         });
 
-        builder.Entity<StockLot>(entity =>
-        {
-            entity.HasKey(x => x.StockLotId);
-            entity.Property(x => x.QtyReceived).HasPrecision(18, 4);
-            entity.Property(x => x.QtyRemaining).HasPrecision(18, 4);
-            entity.Property(x => x.CostPerUnit).HasPrecision(18, 4);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        builder.Entity<StockItem>(entity =>
-        {
-            entity.HasKey(x => x.StockItemId);
-            entity.Property(x => x.CurrentQty).HasPrecision(18, 4);
-            entity.Property(x => x.ReorderLevel).HasPrecision(18, 4);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        builder.Entity<StockLedger>(entity =>
-        {
-            entity.HasKey(x => x.StockLedgerId);
-            entity.Property(x => x.InQty).HasPrecision(18, 4);
-            entity.Property(x => x.OutQty).HasPrecision(18, 4);
-            entity.Property(x => x.Rate).HasPrecision(18, 4);
-            entity.Property(x => x.RunningBalance).HasPrecision(18, 4);
-            entity.Property(x => x.Remarks).HasMaxLength(250);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        builder.Entity<StockLoss>(entity =>
-        {
-            entity.HasKey(x => x.StockLossId);
-            entity.Property(x => x.Qty).HasPrecision(18, 4);
-            entity.Property(x => x.Rate).HasPrecision(18, 4);
-            entity.Property(x => x.Reason).HasMaxLength(250);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        builder.Entity<StockAdjustment>(entity =>
-        {
-            entity.HasKey(x => x.StockAdjustmentId);
-            entity.Property(x => x.Qty).HasPrecision(18, 4);
-            entity.Property(x => x.Rate).HasPrecision(18, 4);
-            entity.Property(x => x.AdjustmentType).HasMaxLength(20);
-            entity.Property(x => x.Reason).HasMaxLength(250);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        builder.Entity<Purchase>(entity =>
-        {
-            entity.HasKey(x => x.PurchaseId);
-            entity.Property(x => x.PurchaseNo).HasMaxLength(24).IsRequired();
-            entity.Property(x => x.SubTotal).HasPrecision(18, 2);
-            entity.Property(x => x.TaxAmount).HasPrecision(18, 2);
-            entity.Property(x => x.GrandTotal).HasPrecision(18, 2);
-            entity.HasMany(x => x.Items).WithOne().HasForeignKey(x => x.PurchaseId);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        builder.Entity<PurchaseItem>(entity =>
-        {
-            entity.HasKey(x => x.PurchaseItemId);
-            entity.Property(x => x.Qty).HasPrecision(18, 4);
-            entity.Property(x => x.Rate).HasPrecision(18, 4);
-            entity.Property(x => x.TaxPercent).HasPrecision(5, 2);
-            entity.Property(x => x.LineTotal).HasPrecision(18, 2);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
         builder.Entity<GroceryStockItem>(entity =>
         {
             entity.HasKey(x => x.GroceryStockItemId);
-            entity.Property(x => x.GroceryName).HasMaxLength(120).IsRequired();
-            entity.Property(x => x.PurchaseRate).HasPrecision(18, 4);
+            entity.Property(x => x.GroceryId).IsRequired();
             entity.Property(x => x.CurrentQty).HasPrecision(18, 4);
             entity.Property(x => x.ReorderLevel).HasPrecision(18, 4);
+            entity.Property(x => x.RowVersion).IsRowVersion();
+            entity.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        builder.Entity<Grocery>(entity =>
+        {
+            entity.HasKey(x => x.GroceryId);
+            entity.Property(x => x.GroceryName).HasMaxLength(120).IsRequired();
             entity.Property(x => x.RowVersion).IsRowVersion();
             entity.HasQueryFilter(x => !x.IsDeleted);
         });
@@ -353,16 +215,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(x => x.EventType).HasMaxLength(150).IsRequired();
             entity.Property(x => x.Status).HasMaxLength(20).IsRequired();
             entity.Property(x => x.Error).HasMaxLength(1000);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        builder.Entity<EInvoiceQueueItem>(entity =>
-        {
-            entity.HasKey(x => x.EInvoiceQueueItemId);
-            entity.Property(x => x.Status).HasMaxLength(20).IsRequired();
-            entity.Property(x => x.Irn).HasMaxLength(80);
-            entity.Property(x => x.LastError).HasMaxLength(1000);
             entity.Property(x => x.RowVersion).IsRowVersion();
             entity.HasQueryFilter(x => !x.IsDeleted);
         });
@@ -412,24 +264,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasQueryFilter(x => !x.IsDeleted);
         });
 
-        builder.Entity<TaxMaster>(entity =>
-        {
-            entity.HasKey(x => x.TaxMasterId);
-            entity.Property(x => x.TaxName).HasMaxLength(50).IsRequired();
-            entity.Property(x => x.TaxPercent).HasPrecision(5, 2);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        builder.Entity<PrinterProfile>(entity =>
-        {
-            entity.HasKey(x => x.PrinterProfileId);
-            entity.Property(x => x.PrinterName).HasMaxLength(120).IsRequired();
-            entity.Property(x => x.PrinterType).HasMaxLength(40).IsRequired();
-            entity.Property(x => x.DevicePath).HasMaxLength(200);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
     }
 }
 

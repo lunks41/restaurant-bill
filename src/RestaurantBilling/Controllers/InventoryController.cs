@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
@@ -8,38 +8,20 @@ using Entities.Inventory;
 namespace RestaurantBilling.Controllers;
 
 [Authorize]
-[Route("master")]
-[Route("masters")]
+[Route("inventory")]
 public class InventoryController(AppDbContext db) : Controller
 {
-    private static readonly string[] AllowedGroceries =
-    {
-        "Cooking Oil",
-        "Rice",
-        "Millets",
-        "Milk",
-        "Eggs",
-        "Bread",
-        "Butter",
-        "Apples",
-        "Pasta",
-        "Chicken",
-        "Beans",
-        "Salt",
-        "Pepper",
-        "Coffee",
-        "Tea",
-        "Toilet Paper",
-        "Dish Soap",
-        "All-purpose Cleaner"
-    };
-
-    [HttpGet("stock")]
-    public IActionResult Stock([FromQuery] bool embed)
+    [HttpGet()]
+    public IActionResult Inventory()
     {
         ViewBag.UseDataTables = true;
-        ViewData["EmbedMode"] = embed;
-        return View();
+        return View("Stock");
+    }
+
+    [HttpGet("stock")]
+    public IActionResult Stock()
+    {
+        return RedirectToAction(nameof(Inventory));
     }
 
     [HttpGet("stock-items-data")]
@@ -87,11 +69,11 @@ public class InventoryController(AppDbContext db) : Controller
         CancellationToken cancellationToken)
     {
         var rows = await BuildGroceryStockQuery(outletId, search, unitId).ToListAsync(cancellationToken);
-        var csv = new StringBuilder("Code,Name,Unit,PurchaseRate,CurrentQty,ReorderLevel,Status\n");
+        var csv = new StringBuilder("Code,GroceryId,UnitId,CurrentQty,ReorderLevel,Status\n");
         foreach (var row in rows)
         {
             var status = row.IsActive ? "Active" : "Inactive";
-            csv.AppendLine($"{Escape(row.ItemCode ?? string.Empty)},{Escape(row.ItemName)},{Escape(row.UnitName ?? string.Empty)},{row.PurchasePrice},{row.CurrentQty},{row.ReorderLevel},{status}");
+            csv.AppendLine($"{Escape(row.ItemCode ?? string.Empty)},{row.GroceryId},{(row.UnitId.HasValue ? row.UnitId.Value.ToString() : string.Empty)},{row.CurrentQty},{row.ReorderLevel},{status}");
         }
         var fileName = $"stock-items-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
         return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", fileName);
@@ -100,51 +82,54 @@ public class InventoryController(AppDbContext db) : Controller
     [HttpGet("stock-units-data")]
     public async Task<IActionResult> StockUnitsData([FromQuery] int outletId, CancellationToken cancellationToken)
     {
-        var units = await db.Units
-            .Where(x => x.OutletId == outletId && x.IsActive && !x.IsDeleted)
-            .OrderBy(x => x.UnitName)
-            .Select(x => new { x.UnitId, x.UnitName, x.UnitCode })
+        var units = await db.GroceryStockItems
+            .Where(x => x.OutletId == outletId && !x.IsDeleted && x.UnitId.HasValue)
+            .Select(x => x.UnitId!.Value)
+            .Distinct()
+            .OrderBy(x => x)
+            .Select(x => new { UnitId = x, UnitName = $"Unit {x}", UnitCode = $"U{x}" })
             .ToListAsync(cancellationToken);
         return Ok(units);
     }
 
     [HttpGet("grocery-options")]
-    public IActionResult GroceryOptions()
+    public async Task<IActionResult> GroceryOptions([FromQuery] int outletId = 1, CancellationToken cancellationToken = default)
     {
-        return Ok(AllowedGroceries);
+        var groceries = await db.GroceryStockItems
+            .Where(x => x.OutletId == outletId && !x.IsDeleted)
+            .Select(x => x.GroceryId)
+            .Distinct()
+            .OrderBy(x => x)
+            .Select(x => new { GroceryId = x, GroceryName = $"Grocery {x}" })
+            .ToListAsync(cancellationToken);
+
+        return Ok(groceries);
     }
 
     [HttpPost("stock-items-create")]
     public async Task<IActionResult> CreateStockItem([FromBody] StockItemInputDto request, CancellationToken cancellationToken)
     {
-        var name = request.Name?.Trim() ?? string.Empty;
-        if (name.Length == 0)
+        if (!request.GroceryId.HasValue || request.GroceryId.Value <= 0)
         {
-            return BadRequest("Name is required.");
-        }
-        if (!AllowedGroceries.Contains(name, StringComparer.OrdinalIgnoreCase))
-        {
-            return BadRequest("Only predefined grocery items are allowed.");
+            return BadRequest("GroceryId is required.");
         }
 
         var outletId = request.OutletId ?? 1;
-        var reorderLevel = request.ReorderLevel ?? 0m;
-        var openingQty = request.CurrentQty ?? reorderLevel;
-        var purchaseRate = request.PurchasePrice ?? 0m;
-
         var exists = await db.GroceryStockItems
-            .AnyAsync(x => x.OutletId == outletId && x.GroceryName == name && !x.IsDeleted, cancellationToken);
+            .AnyAsync(x => x.OutletId == outletId && x.GroceryId == request.GroceryId.Value && !x.IsDeleted, cancellationToken);
         if (exists)
         {
-            return BadRequest("This grocery item already exists. Use edit.");
+            return BadRequest("This grocery stock item already exists. Use edit.");
         }
+
+        var reorderLevel = request.ReorderLevel ?? 0m;
+        var openingQty = request.CurrentQty ?? reorderLevel;
 
         db.GroceryStockItems.Add(new GroceryStockItem
         {
             OutletId = outletId,
-            GroceryName = name,
+            GroceryId = request.GroceryId.Value,
             UnitId = request.UnitId,
-            PurchaseRate = purchaseRate,
             CurrentQty = openingQty,
             ReorderLevel = reorderLevel,
             IsActive = true,
@@ -160,15 +145,20 @@ public class InventoryController(AppDbContext db) : Controller
         var row = await db.GroceryStockItems.FirstOrDefaultAsync(x => x.GroceryStockItemId == id, cancellationToken);
         if (row is null) return NotFound();
 
-        var name = request.Name?.Trim() ?? row.GroceryName;
-        if (!AllowedGroceries.Contains(name, StringComparer.OrdinalIgnoreCase))
+        if (request.GroceryId.HasValue && request.GroceryId.Value > 0 && request.GroceryId.Value != row.GroceryId)
         {
-            return BadRequest("Only predefined grocery items are allowed.");
+            var duplicate = await db.GroceryStockItems.AnyAsync(
+                x => x.OutletId == row.OutletId && x.GroceryStockItemId != id && x.GroceryId == request.GroceryId.Value && !x.IsDeleted,
+                cancellationToken);
+            if (duplicate)
+            {
+                return BadRequest("This grocery stock item already exists. Use edit.");
+            }
+
+            row.GroceryId = request.GroceryId.Value;
         }
 
-        row.GroceryName = name;
         row.UnitId = request.UnitId;
-        row.PurchaseRate = request.PurchasePrice ?? row.PurchaseRate;
         row.CurrentQty = request.CurrentQty ?? row.CurrentQty;
         row.ReorderLevel = request.ReorderLevel ?? row.ReorderLevel;
         row.UpdatedAtUtc = DateTime.UtcNow;
@@ -182,49 +172,39 @@ public class InventoryController(AppDbContext db) : Controller
     {
         var row = await db.GroceryStockItems.FirstOrDefaultAsync(x => x.GroceryStockItemId == id, cancellationToken);
         if (row is null) return NotFound();
+
         row.IsActive = false;
-        row.IsDeleted = true;
+        row.IsDeleted = false;
         row.UpdatedAtUtc = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { status = "Deleted" });
+        return Ok(new { status = "Inactivated" });
     }
-
-    public sealed record StockItemInputDto(
-        int? OutletId,
-        string? Code,
-        string? Name,
-        int? UnitId,
-        decimal? PurchasePrice,
-        decimal? ReorderLevel,
-        decimal? CurrentQty);
 
     private IQueryable<StockItemListRow> BuildGroceryStockQuery(int outletId, string? search, int? unitId)
     {
-        var query =
-            from stock in db.GroceryStockItems
-            where stock.OutletId == outletId && !stock.IsDeleted
-            join unit in db.Units.Where(u => u.OutletId == outletId && !u.IsDeleted) on stock.UnitId equals (int?)unit.UnitId into unitJoin
-            from unit in unitJoin.DefaultIfEmpty()
-            select new StockItemListRow
+        var query = db.GroceryStockItems
+            .Where(stock => stock.OutletId == outletId && !stock.IsDeleted)
+            .Select(stock => new StockItemListRow
             {
                 ItemId = stock.GroceryStockItemId,
                 ItemCode = $"GRC{stock.GroceryStockItemId:000}",
-                ItemName = stock.GroceryName,
-                PurchasePrice = stock.PurchaseRate,
+                GroceryId = stock.GroceryId,
+                ItemName = $"Grocery {stock.GroceryId}",
                 ReorderLevel = stock.ReorderLevel,
                 IsActive = stock.IsActive,
                 UnitId = stock.UnitId,
-                UnitName = unit == null ? string.Empty : unit.UnitName,
+                UnitName = stock.UnitId.HasValue ? $"Unit {stock.UnitId.Value}" : string.Empty,
                 CurrentQty = stock.CurrentQty
-            };
+            });
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var term = $"%{search.Trim()}%";
+            var term = search.Trim();
             query = query.Where(x =>
-                EF.Functions.Like(x.ItemName, term) ||
-                EF.Functions.Like(x.ItemCode ?? string.Empty, term));
+                x.ItemName.Contains(term) ||
+                (x.ItemCode ?? string.Empty).Contains(term) ||
+                x.GroceryId.ToString().Contains(term));
         }
 
         if (unitId.HasValue && unitId.Value > 0)
@@ -232,20 +212,7 @@ public class InventoryController(AppDbContext db) : Controller
             query = query.Where(x => x.UnitId == unitId.Value);
         }
 
-        return query.OrderBy(x => x.ItemName);
-    }
-
-    private sealed class StockItemListRow
-    {
-        public int ItemId { get; set; }
-        public string? ItemCode { get; set; }
-        public string ItemName { get; set; } = string.Empty;
-        public decimal PurchasePrice { get; set; }
-        public decimal ReorderLevel { get; set; }
-        public bool IsActive { get; set; }
-        public int? UnitId { get; set; }
-        public string? UnitName { get; set; }
-        public decimal CurrentQty { get; set; }
+        return query.OrderBy(x => x.GroceryId);
     }
 
     private static string Escape(string value)
@@ -256,4 +223,24 @@ public class InventoryController(AppDbContext db) : Controller
         }
         return value;
     }
+
+    private sealed class StockItemListRow
+    {
+        public int ItemId { get; set; }
+        public string? ItemCode { get; set; }
+        public int GroceryId { get; set; }
+        public string ItemName { get; set; } = string.Empty;
+        public decimal ReorderLevel { get; set; }
+        public bool IsActive { get; set; }
+        public int? UnitId { get; set; }
+        public string? UnitName { get; set; }
+        public decimal CurrentQty { get; set; }
+    }
+
+    public sealed record StockItemInputDto(
+        int? OutletId,
+        int? GroceryId,
+        int? UnitId,
+        decimal? ReorderLevel,
+        decimal? CurrentQty);
 }

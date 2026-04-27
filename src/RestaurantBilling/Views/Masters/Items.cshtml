@@ -1,12 +1,11 @@
 @model RestaurantBilling.Models.Masters.ItemInputModel
 @{
-    if ((ViewData["EmbedMode"] as bool?) == true)
-    {
-        Layout = null;
-    }
     var rows = ViewBag.Rows;
     var categories = (IEnumerable<Entities.Masters.Category>)ViewBag.Categories;
 }
+
+<partial name="_MastersCoreTabs" />
+
 <div class="app-surface mb-3 d-flex justify-content-end">
     <button type="button" class="btn-accent" id="openAddItem">
         <i class="fas fa-plus"></i> Add Item

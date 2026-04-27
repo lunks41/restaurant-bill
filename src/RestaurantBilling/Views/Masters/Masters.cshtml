@@ -1,0 +1,58 @@
+@{
+    ViewData["Title"] = "Masters";
+}
+
+<div class="app-module-header">
+    <h1 class="h3 mb-1">Masters</h1>
+    <p class="app-muted mb-0">Manage categories, menu items, units and tables from one place.</p>
+</div>
+
+<div class="card p-2 mb-3">
+    <div class="card-body-custom py-2">
+        <ul class="nav app-switch-tabs mb-0" role="tablist">
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" href="/master/categories" role="tab">Categories</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" href="/master/items" role="tab">Menu Items</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" href="/master/units" role="tab">Units</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" href="/master/table" role="tab">Tables</a>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="app-surface h-100 p-3">
+            <div class="fw-semibold mb-1">Categories</div>
+            <div class="text-muted-custom mb-3">Create and manage item categories.</div>
+            <a class="btn btn-outline-secondary btn-sm" href="/master/categories">Open Categories</a>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="app-surface h-100 p-3">
+            <div class="fw-semibold mb-1">Menu Items</div>
+            <div class="text-muted-custom mb-3">Manage menu item details and pricing.</div>
+            <a class="btn btn-outline-secondary btn-sm" href="/master/items">Open Menu Items</a>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="app-surface h-100 p-3">
+            <div class="fw-semibold mb-1">Units</div>
+            <div class="text-muted-custom mb-3">Manage measurement units for stock items.</div>
+            <a class="btn btn-outline-secondary btn-sm" href="/master/units">Open Units</a>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="app-surface h-100 p-3">
+            <div class="fw-semibold mb-1">Tables</div>
+            <div class="text-muted-custom mb-3">Manage dining tables and capacities.</div>
+            <a class="btn btn-outline-secondary btn-sm" href="/master/table">Open Tables</a>
+        </div>
+    </div>
+</div>

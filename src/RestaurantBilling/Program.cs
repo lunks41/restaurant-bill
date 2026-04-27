@@ -82,7 +82,17 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    try { await db.Database.MigrateAsync(); } catch { db.Database.EnsureCreated(); }
+    // Auto migration/ensure is intentionally disabled during app startup.
+    // Run schema changes manually using dotnet ef commands when needed.
+    // var migrations = db.Database.GetMigrations();
+    // if (migrations.Any())
+    // {
+    //     await db.Database.MigrateAsync();
+    // }
+    // else
+    // {
+    //     await db.Database.EnsureCreatedAsync();
+    // }
     var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Microsoft.AspNetCore.Identity.IdentityUser<int>>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole<int>>>();
     await DbSeeder.SeedAsync(db, userManager, roleManager);
@@ -111,7 +121,6 @@ app.UseAuthorization();
 app.UseHangfireDashboard("/hangfire");
 
 RecurringJob.AddOrUpdate<OutboxProcessorJob>("outbox-processor", j => j.Execute(default), "*/2 * * * *");
-RecurringJob.AddOrUpdate<EInvoiceRetryJob>("einvoice-retry", j => j.Execute(default), "*/15 * * * *");
 
 app.MapControllers().RequireRateLimiting("api-fixed");
 app.MapRazorPages();

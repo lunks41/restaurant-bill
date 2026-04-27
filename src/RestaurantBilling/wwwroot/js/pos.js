@@ -7,6 +7,7 @@ const posState = {
   selectedPayMethod: "Cash",
   partialSplitEnabled: false,
   billLevelDiscount: 0,
+  manualGrandTotal: null,
   hasPendingKot: false,
   customerName: "",
   customerPhone: ""
@@ -43,6 +44,10 @@ function markPendingKot() {
   posState.hasPendingKot = posState.cart.length > 0;
   updateKotHintVisibility();
   updateKotActionButtons();
+}
+
+function clearManualGrandTotal() {
+  posState.manualGrandTotal = null;
 }
 
 /* ─── Init ─── */
@@ -149,12 +154,14 @@ function addPosItem(item) {
   const ex = posState.cart.find(x => x.itemId === item.id);
   if (ex) ex.qty += 1;
   else posState.cart.push({ itemId: item.id, name: item.name, price: item.price, taxPercent: item.taxPercent || 0, qty: 1 });
+  clearManualGrandTotal();
   markPendingKot();
   renderPosCart();
 }
 
 function removePosItem(itemId) {
   posState.cart = posState.cart.filter(x => x.itemId !== itemId);
+  clearManualGrandTotal();
   markPendingKot();
   renderPosCart();
 }
@@ -164,6 +171,7 @@ function changePosQty(itemId, delta) {
   if (!line) return;
   line.qty += delta;
   if (line.qty <= 0) posState.cart = posState.cart.filter(x => x.itemId !== itemId);
+  clearManualGrandTotal();
   markPendingKot();
   renderPosCart();
 }
@@ -182,8 +190,13 @@ function getPosTotals() {
     // Business rule: bill-level discount does not reduce tax base.
     taxTotal += l.lineSub * l.lineTaxRate;
   });
-  const grand = subtotal - discount + taxTotal;
-  return { subtotal, discount, taxTotal, grand };
+  const rawGrand = subtotal - discount + taxTotal;
+  const autoGrand = Math.round(rawGrand);
+  const grand = Number.isInteger(posState.manualGrandTotal) && posState.manualGrandTotal >= 0
+    ? posState.manualGrandTotal
+    : autoGrand;
+  const roundOff = grand - rawGrand;
+  return { subtotal, discount, taxTotal, rawGrand, roundOff, grand };
 }
 
 function calcGrand() {
@@ -196,6 +209,7 @@ function renderPosCart() {
   const subEl = document.getElementById("posSubTotal");
   const taxEl = document.getElementById("posTaxTotal");
   const taxLabelEl = document.getElementById("posTaxLabel");
+  const roundOffEl = document.getElementById("posRoundOff");
   const discountEl = document.getElementById("posDiscountTotal");
   if (!host || !totalEl) return;
   host.innerHTML = "";
@@ -205,6 +219,7 @@ function renderPosCart() {
     if (subEl) subEl.textContent = fmtINR(0);
     if (taxEl) taxEl.textContent = fmtINR(0);
     if (taxLabelEl) taxLabelEl.textContent = "Tax (5.00%)";
+    if (roundOffEl) roundOffEl.textContent = fmtINR(0);
     if (discountEl) discountEl.textContent = fmtINR(0);
     totalEl.textContent = fmtINR(0);
     updateKotHintVisibility();
@@ -241,6 +256,7 @@ function renderPosCart() {
   if (subEl) subEl.textContent = fmtINR(subtotal);
   if (taxEl) taxEl.textContent = fmtINR(totals.taxTotal);
   if (taxLabelEl) taxLabelEl.textContent = taxLabel;
+  if (roundOffEl) roundOffEl.textContent = fmtINR(totals.roundOff);
   if (discountEl) discountEl.textContent = fmtINR(totals.discount);
   totalEl.textContent = fmtINR(totals.grand);
   updateKotHintVisibility();
@@ -335,6 +351,7 @@ function bindPosEvents() {
     if (!confirm("Clear all line items from current order?")) return;
     posState.cart = [];
     posState.billLevelDiscount = 0;
+    clearManualGrandTotal();
     posState.hasPendingKot = false;
     renderPosCart();
   });
@@ -353,7 +370,25 @@ function bindPosEvents() {
       return;
     }
     posState.billLevelDiscount = Math.min(next, subtotal);
+    clearManualGrandTotal();
     markPendingKot();
+    renderPosCart();
+  });
+  document.getElementById("btnEditRoundOff")?.addEventListener("click", () => {
+    if (!posState.cart.length) {
+      posNotify("info", "Add items first.");
+      return;
+    }
+    const totals = getPosTotals();
+    const defaultGrand = Number.isInteger(posState.manualGrandTotal) ? posState.manualGrandTotal : totals.grand;
+    const raw = prompt("Enter final payable amount (whole number)", String(defaultGrand));
+    if (raw === null) return;
+    const next = Number(raw);
+    if (!Number.isFinite(next) || next < 0) {
+      posNotify("warning", "Invalid total amount.");
+      return;
+    }
+    posState.manualGrandTotal = Math.round(next);
     renderPosCart();
   });
   document.getElementById("posQuickBtn")?.addEventListener("click", async () => {
@@ -461,6 +496,7 @@ async function cancelOrderDraft() {
   posState.selectedTableId = null;
   posState.selectedTableName = null;
   posState.billLevelDiscount = 0;
+  clearManualGrandTotal();
   posState.hasPendingKot = false;
   updateCartHeader();
   renderPosCart();
@@ -493,6 +529,7 @@ function recallBill(b) {
   posState.currentBillNo = b.billNo;
   posState.selectedTableName = b.tableName || null;
   posState.billLevelDiscount = Number(b.discountAmount || 0);
+  clearManualGrandTotal();
   if (typeof b.hasPendingKot === "boolean") posState.hasPendingKot = b.hasPendingKot;
   else if (typeof b.hasAnyKot === "boolean") posState.hasPendingKot = !b.hasAnyKot;
   else posState.hasPendingKot = true;
@@ -593,8 +630,11 @@ function bindSettleModal() {
   const partialRow = partialToggle?.closest(".settle-split-row");
   const partialCashGroup = document.getElementById("settlePartialCashGroup");
   const partialCashInput = document.getElementById("settlePartialCashInput");
+  const partialSelectedInput = document.getElementById("settlePartialSelectedInput");
+  const partialSelectedLabel = document.getElementById("settlePartialSelectedLabel");
   const partialRemaining = document.getElementById("settlePartialRemaining");
   const amountInput = document.getElementById("settleAmtInput");
+  const amountEditableToggle = document.getElementById("settleAmtEditable");
 
   const updatePartialPaymentUi = () => {
     const grand = calcGrand();
@@ -603,14 +643,18 @@ function bindSettleModal() {
     if (!isPartial) {
       posState.partialSplitEnabled = false;
       if (partialCashInput) partialCashInput.value = "";
+      if (partialSelectedInput) partialSelectedInput.value = "";
       if (partialRemaining) partialRemaining.textContent = `Remaining in selected mode: ${fmtINR(grand)}`;
       return;
     }
     posState.partialSplitEnabled = true;
+    const selectedMethod = (posState.selectedPayMethod || "Card");
+    if (partialSelectedLabel) partialSelectedLabel.textContent = `${selectedMethod} Amount`;
     const cash = Math.max(0, Number.parseFloat(partialCashInput?.value || "0") || 0);
     const clampedCash = Math.min(cash, grand);
     if (partialCashInput && cash !== clampedCash) partialCashInput.value = clampedCash.toFixed(2);
     const remaining = Math.max(0, grand - clampedCash);
+    if (partialSelectedInput) partialSelectedInput.value = remaining.toFixed(2);
     if (partialRemaining) partialRemaining.textContent = `Remaining in selected mode: ${fmtINR(remaining)}`;
   };
 
@@ -649,6 +693,10 @@ function bindSettleModal() {
     updatePartialPaymentUi();
   });
   partialCashInput?.addEventListener("input", updatePartialPaymentUi);
+  amountEditableToggle?.addEventListener("change", () => {
+    if (!amountInput) return;
+    amountInput.readOnly = !amountEditableToggle.checked;
+  });
   amountInput?.addEventListener("input", () => {
     const grand = calcGrand();
     const paid = parseFloat(amountInput.value) || 0;
@@ -665,6 +713,7 @@ function openSettleModal() {
   const grand = totals.grand;
   const sub = totals.subtotal;
   const tax = totals.taxTotal;
+  const roundOff = totals.roundOff;
   const discount = totals.discount;
   const summaryEl = document.getElementById("settleSummary");
   if (summaryEl) summaryEl.innerHTML = `
@@ -672,13 +721,17 @@ function openSettleModal() {
     <div class="settle-summary-row" style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;"><span>Subtotal</span><span>${fmtINR(sub)}</span></div>
     <div class="settle-summary-row"><span>Discount</span><span>${fmtINR(discount)}</span></div>
     <div class="settle-summary-row"><span>Tax</span><span>${fmtINR(tax)}</span></div>
+    <div class="settle-summary-row"><span>Round Off</span><span>${fmtINR(roundOff)}</span></div>
     <div class="settle-summary-row grand"><span>Grand Total</span><span>${fmtINR(grand)}</span></div>`;
   const amtInput = document.getElementById("settleAmtInput");
-  if (amtInput) amtInput.value = grand.toFixed(2);
+  if (amtInput) amtInput.value = String(grand);
   const partialToggle = document.getElementById("settlePartialSplit");
   const partialCashInput = document.getElementById("settlePartialCashInput");
+  const partialSelectedInput = document.getElementById("settlePartialSelectedInput");
+  const partialSelectedLabel = document.getElementById("settlePartialSelectedLabel");
   const partialCashGroup = document.getElementById("settlePartialCashGroup");
   const partialRemaining = document.getElementById("settlePartialRemaining");
+  const amountEditableToggle = document.getElementById("settleAmtEditable");
   if (partialToggle) {
     partialToggle.checked = false;
     partialToggle.disabled = (posState.selectedPayMethod || "Cash") === "Cash";
@@ -686,8 +739,12 @@ function openSettleModal() {
   }
   if (partialCashGroup) partialCashGroup.style.display = "none";
   if (partialCashInput) partialCashInput.value = "";
+  if (partialSelectedInput) partialSelectedInput.value = "";
+  if (partialSelectedLabel) partialSelectedLabel.textContent = `${posState.selectedPayMethod || "Card"} Amount`;
   if (partialRemaining) partialRemaining.textContent = `Remaining in selected mode: ${fmtINR(grand)}`;
   posState.partialSplitEnabled = false;
+  if (amountEditableToggle) amountEditableToggle.checked = false;
+  if (amtInput) amtInput.readOnly = true;
   document.getElementById("settleChangeRow").style.display = "none";
   document.getElementById("settleOverlay")?.classList.add("show");
 }
@@ -705,8 +762,8 @@ async function confirmSettle() {
       return [{ mode: method, amount: grand }];
     }
     const enteredCash = Math.max(0, Number.parseFloat(partialCashInput?.value || "0") || 0);
-    const cashAmount = Number(Math.min(enteredCash, grand).toFixed(2));
-    const digitalAmount = Number((grand - cashAmount).toFixed(2));
+    const cashAmount = Math.min(Math.round(enteredCash), grand);
+    const digitalAmount = grand - cashAmount;
     return [
       { mode: "Cash", amount: cashAmount },
       { mode: method, amount: digitalAmount }
@@ -748,6 +805,7 @@ async function confirmSettle() {
     await printReceipt(result, amtPaid, method, payments);
 
     posState.cart = []; posState.currentBillId = null; posState.currentBillNo = null; posState.billLevelDiscount = 0; posState.hasPendingKot = false;
+    clearManualGrandTotal();
     posState.selectedTableId = null; posState.selectedTableName = null;
     updateCartHeader();
     renderPosCart();
@@ -767,6 +825,7 @@ async function printReceipt(bill, amtPaid, method, payments) {
   const discount = bill?.discountAmount ?? liveTotals.discount;
   const taxTotal = bill?.taxAmount ?? liveTotals.taxTotal;
   const grand = bill?.grandTotal ?? liveTotals.grand;
+  const roundOff = bill?.roundOff ?? liveTotals.roundOff;
   const change = Math.max(0, amtPaid - grand);
   const effectivePayments = Array.isArray(payments) && payments.length ? payments : [{ mode: method, amount: amtPaid }];
   const items = (bill?.items || posState.cart).map(l =>
@@ -801,6 +860,7 @@ async function printReceipt(bill, amtPaid, method, payments) {
     <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>${fmtINR(subtotal)}</span></div>
     <div style="display:flex;justify-content:space-between;"><span>Tax</span><span>${fmtINR(taxTotal)}</span></div>
     <div style="display:flex;justify-content:space-between;"><span>Discount</span><span>${fmtINR(discount)}</span></div>
+    <div style="display:flex;justify-content:space-between;"><span>Round Off</span><span>${fmtINR(roundOff)}</span></div>
     <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;margin-top:4px;"><span>TOTAL</span><span>${fmtINR(grand)}</span></div>
     ${paymentRows}
     ${change > 0 ? `<div style="display:flex;justify-content:space-between;"><span>Change</span><span>${fmtINR(change)}</span></div>` : ""}

@@ -52,9 +52,9 @@
     <div class="kpi-card">
         <div class="kpi-icon-wrap red"><i class="fas fa-triangle-exclamation"></i></div>
         <div style="flex:1;">
-            <div class="kpi-label">Low Stock</div>
+            <div class="kpi-label">Alerts</div>
             <div class="kpi-value" id="kpiLowStock">0</div>
-            <div class="kpi-sub" id="kpiLowStockSub"></div>
+            <div class="kpi-sub" id="kpiLowStockSub">module removed</div>
         </div>
     </div>
 </div>
@@ -105,6 +105,10 @@
                     style="padding:11px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px;">
                     <i class="fas fa-fire-burner"></i> View KOT List
                 </a>
+                <a href="/reports/dayclosereports" class="btn-accent"
+                    style="padding:11px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px;">
+                    <i class="fas fa-calendar-check"></i> Day Close Reports
+                </a>
                 <a href="/reports/dailysales" class="btn-ghost"
                     style="padding:11px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px;">
                     <i class="fas fa-chart-bar"></i> Daily Sales Report
@@ -137,31 +141,7 @@
             </div>
         </div>
     </div>
-    <div class="col-lg-4 col-12">
-        <div class="card">
-            <div class="card-header-custom">
-                <div class="card-title-custom"><i class="fas fa-box-open" style="color:var(--danger);"></i> Low Stock
-                    Alerts</div>
-                <a href="/reports/stockreport" style="font-size:12px;color:var(--accent);">View All</a>
-            </div>
-            <div class="card-body-custom" style="padding:0;">
-                <table class="table-custom" id="lowStockTable">
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Balance</th>
-                            <th>Reorder</th>
-                        </tr>
-                    </thead>
-                    <tbody id="lowStockBody">
-                        <tr>
-                            <td colspan="3" class="text-center text-muted" style="padding:20px;">Loading...</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    <div class="col-lg-4 col-12"></div>
 </div>
 
 <!-- Recent Bills -->
@@ -195,11 +175,10 @@
     <script>
         async function loadDashboard() {
             try {
-                const [kpi, bills, kots, lowStock, topItems] = await Promise.all([
+                const [kpi, bills, kots, topItems] = await Promise.all([
                     getJSON('/dashboard/kpi'),
                     getJSON('/dashboard/recent-bills'),
                     getJSON('/kot/kots-data?outletId=1').catch(() => []),
-                    getJSON('/dashboard/low-stock'),
                     getJSON('/dashboard/top-items').catch(() => [])
                 ]);
 
@@ -208,7 +187,7 @@
                 document.getElementById('kpiBills').textContent = kpi.billsCount || 0;
                 document.getElementById('kpiPendingBills').textContent = kpi.pendingBills || 0;
                 document.getElementById('kpiTables').textContent = kpi.activeTables || 0;
-                document.getElementById('kpiLowStock').textContent = kpi.lowStock || 0;
+                document.getElementById('kpiLowStock').textContent = 0;
                 const sub = document.getElementById('kpiSalesSub');
                 if (sub && kpi.yesterdaySales != null) {
                     const diff = ((kpi.todaySales - kpi.yesterdaySales) / Math.max(1, kpi.yesterdaySales)) * 100;
@@ -265,16 +244,6 @@
               </tr>`).join('')
                         : '<tr><td colspan="4" class="text-center text-muted" style="padding:20px;">No sales data today yet.</td></tr>';
                 }
-
-                // Low Stock
-                const lowBody = document.getElementById('lowStockBody');
-                lowBody.innerHTML = lowStock?.length
-                    ? lowStock.slice(0, 5).map(x => `<tr class="low-stock-row">
-              <td><span class="low-stock-indicator"></span>${x.itemName}</td>
-              <td><strong>${x.balance}</strong></td>
-              <td>${x.reorderLevel}</td>
-            </tr>`).join('')
-                    : '<tr><td colspan="3" class="text-center text-muted" style="padding:20px;"><i class="fas fa-check-circle" style="color:var(--success);"></i> All normal</td></tr>';
 
                 const ts = document.getElementById('dashLastUpdated');
                 if (ts) ts.textContent = 'Updated: ' + new Date().toLocaleTimeString('en-IN');

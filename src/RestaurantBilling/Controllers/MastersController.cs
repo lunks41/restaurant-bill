@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+
 using Entities.Masters;
 using Data.Persistence;
 using RestaurantBilling.Models.Masters;
@@ -13,22 +14,8 @@ namespace RestaurantBilling.Controllers;
 [Route("master")]
 public class MastersController(AppDbContext db, IWebHostEnvironment env) : Controller
 {
-    [HttpGet("menu-categories")]
-    public IActionResult MenuCategories()
-    {
-        ViewData["Title"] = "Menu & Categories";
-        return View();
-    }
-
-    [HttpGet("groceries-units")]
-    public IActionResult GroceriesUnits()
-    {
-        ViewData["Title"] = "Groceries & Unit";
-        return View();
-    }
-
     [HttpGet("categories")]
-    public async Task<IActionResult> Categories([FromQuery] int? editId, [FromQuery] bool embed, CancellationToken cancellationToken)
+    public async Task<IActionResult> Categories([FromQuery] int? editId, CancellationToken cancellationToken = default)
     {
         var categories = await db.Categories
             .Where(x => !x.IsDeleted)
@@ -37,7 +24,6 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
             .ToListAsync(cancellationToken);
         ViewBag.Rows = categories;
         ViewBag.UseDataTables = true;
-        ViewData["EmbedMode"] = embed;
 
         if (editId.HasValue)
         {
@@ -62,7 +48,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     {
         if (!ModelState.IsValid)
         {
-            return await Categories(editId: null, embed: false, cancellationToken);
+            return await Categories(editId: null, cancellationToken: cancellationToken);
         }
 
         if (model.CategoryId.HasValue && model.CategoryId.Value > 0)
@@ -105,7 +91,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     }
 
     [HttpGet("items")]
-    public async Task<IActionResult> Items([FromQuery] int? editId, [FromQuery] bool embed, CancellationToken cancellationToken)
+    public async Task<IActionResult> Items([FromQuery] int? editId, CancellationToken cancellationToken = default)
     {
         var rows = await db.Items
             .Join(db.Categories, i => i.CategoryId, c => c.CategoryId, (i, c) => new { i, CategoryName = c.CategoryName })
@@ -114,7 +100,6 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         ViewBag.Rows = rows;
         ViewBag.Categories = await db.Categories.Where(x => x.IsActive && !x.IsDeleted).OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
         ViewBag.UseDataTables = true;
-        ViewData["EmbedMode"] = embed;
 
         if (editId.HasValue)
         {
@@ -144,7 +129,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     {
         if (!ModelState.IsValid)
         {
-            return await Items(editId: null, embed: false, cancellationToken);
+            return await Items(editId: null, cancellationToken: cancellationToken);
         }
 
         var uploadedImagePath = await SaveItemImageAsync(model.ImageFile, cancellationToken);
@@ -253,11 +238,82 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     }
 
     [HttpGet("units")]
-    public IActionResult Units([FromQuery] bool embed)
+    public IActionResult Units()
     {
         ViewBag.UseDataTables = true;
-        ViewData["EmbedMode"] = embed;
         return View();
+    }
+
+    [HttpGet("groceries")]
+    public IActionResult Groceries()
+    {
+        ViewBag.UseDataTables = true;
+        return View();
+    }
+
+    [HttpGet("groceries-data")]
+    public async Task<IActionResult> GroceriesData([FromQuery] int outletId, CancellationToken cancellationToken)
+    {
+        var rows = await db.Groceries
+            .Where(x => x.OutletId == outletId)
+            .OrderBy(x => x.GroceryName)
+            .Select(x => new { x.GroceryId, x.GroceryName, x.IsActive })
+            .ToListAsync(cancellationToken);
+        return Ok(rows);
+    }
+
+    [HttpPost("groceries-create")]
+    public async Task<IActionResult> CreateGrocery([FromBody] GroceryInputDto request, CancellationToken cancellationToken)
+    {
+        var name = request.Name?.Trim() ?? string.Empty;
+        if (name.Length == 0) return BadRequest("Grocery name is required.");
+
+        var exists = await db.Groceries
+            .AnyAsync(x => x.OutletId == 1 && x.GroceryName == name && !x.IsDeleted, cancellationToken);
+        if (exists) return BadRequest("This grocery already exists.");
+
+        db.Groceries.Add(new Grocery
+        {
+            OutletId = 1,
+            GroceryName = name,
+            IsActive = true,
+            IsDeleted = false
+        });
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { status = "Created" });
+    }
+
+    [HttpPost("groceries-update/{id:int}")]
+    public async Task<IActionResult> UpdateGrocery(int id, [FromBody] GroceryInputDto request, CancellationToken cancellationToken)
+    {
+        var grocery = await db.Groceries.FirstOrDefaultAsync(x => x.GroceryId == id, cancellationToken);
+        if (grocery is null) return NotFound();
+
+        var name = request.Name?.Trim() ?? string.Empty;
+        if (name.Length == 0) return BadRequest("Grocery name is required.");
+
+        var duplicate = await db.Groceries
+            .AnyAsync(x => x.OutletId == grocery.OutletId && x.GroceryId != id && x.GroceryName == name && !x.IsDeleted, cancellationToken);
+        if (duplicate) return BadRequest("This grocery already exists.");
+
+        grocery.GroceryName = name;
+        grocery.IsActive = true;
+        grocery.IsDeleted = false;
+        grocery.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { status = "Updated" });
+    }
+
+    [HttpPost("groceries-delete/{id:int}")]
+    public async Task<IActionResult> DeleteGrocery(int id, CancellationToken cancellationToken)
+    {
+        var grocery = await db.Groceries.FirstOrDefaultAsync(x => x.GroceryId == id, cancellationToken);
+        if (grocery is null) return NotFound();
+        grocery.IsActive = false;
+        grocery.IsDeleted = false;
+        grocery.UpdatedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { status = "Inactivated" });
     }
 
     [HttpGet("units-data")]
@@ -315,7 +371,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     [HttpGet("tables-data")]
     public async Task<IActionResult> TablesData([FromQuery] int outletId, CancellationToken cancellationToken)
     {
-        var rows = await db.TableMasters
+        var rows = await db.DiningTables
             .Where(x => x.OutletId == outletId && x.IsActive)
             .OrderBy(x => x.TableName)
             .Select(x => new
@@ -334,7 +390,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     [HttpPost("tables-create")]
     public async Task<IActionResult> CreateTable([FromBody] MasterInputDto request, CancellationToken cancellationToken)
     {
-        db.TableMasters.Add(new TableMaster
+        db.DiningTables.Add(new DiningTables
         {
             OutletId = 1,
             TableName = request.Name.Trim(),
@@ -350,7 +406,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     [HttpPost("tables-update/{id:int}")]
     public async Task<IActionResult> UpdateTable(int id, [FromBody] MasterInputDto request, CancellationToken cancellationToken)
     {
-        var row = await db.TableMasters.FirstOrDefaultAsync(x => x.TableMasterId == id, cancellationToken);
+        var row = await db.DiningTables.FirstOrDefaultAsync(x => x.TableMasterId == id, cancellationToken);
         if (row is null) return NotFound();
         row.TableName = request.Name.Trim();
         row.Area = NormalizeTableArea(request.Area);
@@ -365,7 +421,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     [HttpPost("tables-delete/{id:int}")]
     public async Task<IActionResult> DeleteTable(int id, CancellationToken cancellationToken)
     {
-        var row = await db.TableMasters.FirstOrDefaultAsync(x => x.TableMasterId == id, cancellationToken);
+        var row = await db.DiningTables.FirstOrDefaultAsync(x => x.TableMasterId == id, cancellationToken);
         if (row is null) return NotFound();
         row.IsActive = false;
         row.IsDeleted = false;
@@ -397,5 +453,9 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         string? PrinterType,
         string? DevicePath,
         bool? IsDefault);
+
+    public sealed record GroceryInputDto(
+        string? Name);
+
 }
 

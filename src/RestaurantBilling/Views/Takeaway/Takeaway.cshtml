@@ -36,6 +36,12 @@
             <div class="cart-total-row"><span>Subtotal</span><span id="twSubTotal">&#8377;0.00</span></div>
             <div class="cart-total-row"><span>Tax</span><span id="twTaxTotal">&#8377;0.00</span></div>
             <div class="cart-total-row cart-total-discount">
+                <span>Round Off</span>
+                <button type="button" class="cart-discount-btn" id="twBtnEditRoundOff">
+                    <span id="twRoundOff">&#8377;0.00</span>
+                </button>
+            </div>
+            <div class="cart-total-row cart-total-discount">
                 <span>Discount</span>
                 <button type="button" class="cart-discount-btn" id="twBtnEditDiscount">
                     <span id="twDiscountTotal">&#8377;0.00</span>
@@ -75,11 +81,17 @@
             <div class="form-group-custom" id="twPartialCashGroup" style="display:none;">
                 <label class="form-label-custom">Cash Amount</label>
                 <input type="number" id="twPartialCashInput" class="form-control-custom" step="0.01" min="0" placeholder="Enter cash amount" />
+                <label class="form-label-custom mt-2" id="twPartialSelectedLabel">Card/UPI Amount</label>
+                <input type="number" id="twPartialSelectedInput" class="form-control-custom" step="0.01" readonly />
                 <div class="app-muted mt-1" id="twPartialRemaining">Remaining in selected mode: ₹0.00</div>
             </div>
             <div class="form-group-custom">
                 <label class="form-label-custom">Amount Received</label>
-                <input type="number" id="twAmtInput" class="form-control-custom" step="0.01" />
+                <input type="number" id="twAmtInput" class="form-control-custom" step="0.01" readonly />
+                <div class="settle-split-row mt-2">
+                    <input type="checkbox" id="twAmtEditable" />
+                    <label for="twAmtEditable">Allow editing amount received</label>
+                </div>
             </div>
             <div id="twChangeRow" style="display:none;background:var(--success-bg);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;font-weight:600;color:var(--success);margin-top:8px;">
                 <i class="fas fa-coins me-1"></i>Change: <span id="twChangeDue">&#8377;0.00</span>
@@ -99,9 +111,13 @@
 const twState = {
   categories: [], items: [], cart: [],
   searchTerm: "", selectedCategoryId: null, payMethod: "Cash", partialSplitEnabled: false,
-  currentBillId: null, currentBillNo: null, billLevelDiscount: 0, hasPendingKot: false
+  currentBillId: null, currentBillNo: null, billLevelDiscount: 0, manualGrandTotal: null, hasPendingKot: false
 };
 const TW_AUTOSAVE_TOAST_KEY = "tw.autosave.toast";
+
+function twClearManualGrandTotal() {
+  twState.manualGrandTotal = null;
+}
 
 function twHasUnsavedOrderChanges() {
   return twState.cart.length > 0 && (twState.hasPendingKot || !twState.currentBillId);
@@ -416,6 +432,7 @@ function twAdd(item) {
   const ex = twState.cart.find((x) => x.itemId == item.id);
   if (ex) ex.qty++;
   else twState.cart.push({ itemId: item.id, name: item.name, price: item.price, taxPercent: item.taxPercent || 0, qty: 1 });
+  twClearManualGrandTotal();
   twMarkPendingKot();
   twRenderCart();
 }
@@ -433,8 +450,13 @@ function twGetTotals() {
     const proportionalDiscount = subtotal > 0 ? (discount * l.lineSub) / subtotal : 0;
     tax += (l.lineSub - proportionalDiscount) * l.lineTaxRate;
   });
-  const grand = subtotal - discount + tax;
-  return { subtotal, tax, discount, grand };
+  const rawGrand = subtotal - discount + tax;
+  const autoGrand = Math.round(rawGrand);
+  const grand = Number.isInteger(twState.manualGrandTotal) && twState.manualGrandTotal >= 0
+    ? twState.manualGrandTotal
+    : autoGrand;
+  const roundOff = grand - rawGrand;
+  return { subtotal, tax, discount, rawGrand, roundOff, grand };
 }
 
 function twCalcGrand() {
@@ -446,7 +468,7 @@ function twRenderCart() {
   if (!host) return;
   if (!twState.cart.length) {
     host.innerHTML = `<div class="cart-empty"><div class="cart-empty-icon"><i class="fas fa-shopping-bag"></i></div><p>Cart is empty</p><span>Click items to add</span></div>`;
-    ["twSubTotal","twTaxTotal","twGrandTotal"].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = fmtINR(0); });
+    ["twSubTotal","twTaxTotal","twRoundOff","twGrandTotal"].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = fmtINR(0); });
     const disEl = document.getElementById("twDiscountTotal");
     if (disEl) disEl.textContent = fmtINR(0);
     twUpdateKotActionButtons();
@@ -470,6 +492,7 @@ function twRenderCart() {
   const totals = twGetTotals();
   document.getElementById("twSubTotal").textContent = fmtINR(sub);
   document.getElementById("twTaxTotal").textContent  = fmtINR(totals.tax);
+  document.getElementById("twRoundOff").textContent = fmtINR(totals.roundOff);
   document.getElementById("twGrandTotal").textContent = fmtINR(totals.grand);
   const disEl = document.getElementById("twDiscountTotal");
   if (disEl) disEl.textContent = fmtINR(totals.discount);
@@ -478,11 +501,13 @@ function twRenderCart() {
 window.twQty = (idx, d) => {
   twState.cart[idx].qty += d;
   if (twState.cart[idx].qty <= 0) twState.cart.splice(idx, 1);
+  twClearManualGrandTotal();
   twMarkPendingKot();
   twRenderCart();
 };
 window.twRemove = (idx) => {
   twState.cart.splice(idx, 1);
+  twClearManualGrandTotal();
   twMarkPendingKot();
   twRenderCart();
 };
@@ -509,6 +534,24 @@ function twBindEvents() {
       return;
     }
     twState.billLevelDiscount = Math.min(next, subtotal);
+    twClearManualGrandTotal();
+    twRenderCart();
+  });
+  document.getElementById("twBtnEditRoundOff")?.addEventListener("click", () => {
+    if (!twState.cart.length) {
+      if (typeof toastr !== "undefined") toastr.info("Add items first.");
+      return;
+    }
+    const totals = twGetTotals();
+    const defaultGrand = Number.isInteger(twState.manualGrandTotal) ? twState.manualGrandTotal : totals.grand;
+    const raw = prompt("Enter final payable amount (whole number)", String(defaultGrand));
+    if (raw === null) return;
+    const next = Number(raw);
+    if (!Number.isFinite(next) || next < 0) {
+      if (typeof toastr !== "undefined") toastr.warning("Invalid total amount.");
+      return;
+    }
+    twState.manualGrandTotal = Math.round(next);
     twRenderCart();
   });
   document.getElementById("twBtnClear")?.addEventListener("click", () => {
@@ -516,6 +559,7 @@ function twBindEvents() {
     twState.currentBillId = null;
     twState.currentBillNo = null;
     twState.billLevelDiscount = 0;
+    twClearManualGrandTotal();
     twState.hasPendingKot = false;
     twRenderCart();
     twUpdateHeaderLabel();
@@ -552,20 +596,26 @@ function twBindEvents() {
     const splitToggle = document.getElementById("twPartialSplit");
     const partialCashGroup = document.getElementById("twPartialCashGroup");
     const partialCashInput = document.getElementById("twPartialCashInput");
+    const partialSelectedInput = document.getElementById("twPartialSelectedInput");
+    const partialSelectedLabel = document.getElementById("twPartialSelectedLabel");
     const partialRemaining = document.getElementById("twPartialRemaining");
     const isPartial = Boolean(splitToggle?.checked) && (twState.payMethod || "Cash") !== "Cash";
     if (partialCashGroup) partialCashGroup.style.display = isPartial ? "" : "none";
     if (!isPartial) {
       twState.partialSplitEnabled = false;
       if (partialCashInput) partialCashInput.value = "";
+      if (partialSelectedInput) partialSelectedInput.value = "";
       if (partialRemaining) partialRemaining.textContent = `Remaining in selected mode: ${fmtINR(grand)}`;
       return;
     }
     twState.partialSplitEnabled = true;
+    const selectedMethod = twState.payMethod || "Card";
+    if (partialSelectedLabel) partialSelectedLabel.textContent = `${selectedMethod} Amount`;
     const cash = Math.max(0, Number.parseFloat(partialCashInput?.value || "0") || 0);
     const clampedCash = Math.min(cash, grand);
     if (partialCashInput && cash !== clampedCash) partialCashInput.value = clampedCash.toFixed(2);
     const remaining = Math.max(0, grand - clampedCash);
+    if (partialSelectedInput) partialSelectedInput.value = remaining.toFixed(2);
     if (partialRemaining) partialRemaining.textContent = `Remaining in selected mode: ${fmtINR(remaining)}`;
   };
 
@@ -585,6 +635,11 @@ function twBindEvents() {
   document.getElementById("twPartialCashInput")?.addEventListener("input", twUpdatePartialPaymentUi);
 
   const amtInput = document.getElementById("twAmtInput");
+  const amtEditable = document.getElementById("twAmtEditable");
+  amtEditable?.addEventListener("change", () => {
+    if (!amtInput) return;
+    amtInput.readOnly = !amtEditable.checked;
+  });
   if (amtInput) amtInput.addEventListener("input", () => {
     const change = parseFloat(amtInput.value||0) - twCalcGrand();
     const row = document.getElementById("twChangeRow");
@@ -682,6 +737,7 @@ function twOpenSettle() {
   const grand = totals.grand;
   const sub = totals.subtotal;
   const tax = totals.tax;
+  const roundOff = totals.roundOff;
   const discount = totals.discount;
   const summaryEl = document.getElementById("twSettleSummary");
   if (summaryEl) summaryEl.innerHTML = `
@@ -689,12 +745,16 @@ function twOpenSettle() {
     <div class="settle-summary-row" style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;"><span>Subtotal</span><span>${fmtINR(sub)}</span></div>
     <div class="settle-summary-row"><span>Discount</span><span>${fmtINR(discount)}</span></div>
     <div class="settle-summary-row"><span>Tax</span><span>${fmtINR(tax)}</span></div>
+    <div class="settle-summary-row"><span>Round Off</span><span>${fmtINR(roundOff)}</span></div>
     <div class="settle-summary-row grand"><span>Grand Total</span><span>${fmtINR(grand)}</span></div>`;
-  document.getElementById("twAmtInput").value = grand.toFixed(2);
+  document.getElementById("twAmtInput").value = String(grand);
   document.getElementById("twChangeRow").style.display = "none";
   const twPartialCashGroup = document.getElementById("twPartialCashGroup");
   const twPartialCashInput = document.getElementById("twPartialCashInput");
+  const twPartialSelectedInput = document.getElementById("twPartialSelectedInput");
+  const twPartialSelectedLabel = document.getElementById("twPartialSelectedLabel");
   const twPartialRemaining = document.getElementById("twPartialRemaining");
+  const twAmtEditable = document.getElementById("twAmtEditable");
   const splitToggle = document.getElementById("twPartialSplit");
   if (splitToggle) {
     const isCashOnly = (twState.payMethod || "Cash") === "Cash";
@@ -704,8 +764,12 @@ function twOpenSettle() {
   }
   if (twPartialCashGroup) twPartialCashGroup.style.display = "none";
   if (twPartialCashInput) twPartialCashInput.value = "";
+  if (twPartialSelectedInput) twPartialSelectedInput.value = "";
+  if (twPartialSelectedLabel) twPartialSelectedLabel.textContent = `${twState.payMethod || "Card"} Amount`;
   if (twPartialRemaining) twPartialRemaining.textContent = `Remaining in selected mode: ${fmtINR(grand)}`;
   twState.partialSplitEnabled = false;
+  if (twAmtEditable) twAmtEditable.checked = false;
+  if (document.getElementById("twAmtInput")) document.getElementById("twAmtInput").readOnly = true;
   document.getElementById("twSettleOverlay").classList.add("show");
 }
 function twCloseSettle() { document.getElementById("twSettleOverlay")?.classList.remove("show"); }
@@ -722,6 +786,7 @@ async function twTryRecallFromQuery() {
     twState.currentBillId = b.billId;
     twState.currentBillNo = b.billNo;
     twState.billLevelDiscount = Number(b.discountAmount || 0);
+    twClearManualGrandTotal();
     if (typeof b.hasPendingKot === "boolean") twState.hasPendingKot = b.hasPendingKot;
     else if (typeof b.hasAnyKot === "boolean") twState.hasPendingKot = !b.hasAnyKot;
     else twState.hasPendingKot = true;
@@ -757,8 +822,8 @@ async function twConfirmSettle() {
   const payments = (() => {
     if (!isPartialSplit) return [{ mode: twState.payMethod, amount: grand }];
     const enteredCash = Math.max(0, Number.parseFloat(twPartialCashInput?.value || "0") || 0);
-    const cashAmount = Number(Math.min(enteredCash, grand).toFixed(2));
-    const digitalAmount = Number((grand - cashAmount).toFixed(2));
+    const cashAmount = Math.min(Math.round(enteredCash), grand);
+    const digitalAmount = grand - cashAmount;
     return [
       { mode: "Cash", amount: cashAmount },
       { mode: twState.payMethod, amount: digitalAmount }
@@ -796,6 +861,7 @@ async function twConfirmSettle() {
     const sub     = totals.subtotal;
     const taxAmt  = totals.tax;
     const discAmt = totals.discount;
+    const roundOffAmt = totals.roundOff;
     const branding = typeof window.getBrandingSettings === "function"
       ? await window.getBrandingSettings()
       : { restaurantName: "RestoBill", logoUrl: "" };
@@ -812,6 +878,7 @@ async function twConfirmSettle() {
       <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>${fmtINR(sub)}</span></div>
       <div style="display:flex;justify-content:space-between;"><span>Discount</span><span>${fmtINR(discAmt)}</span></div>
       <div style="display:flex;justify-content:space-between;"><span>Tax</span><span>${fmtINR(taxAmt)}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>Round Off</span><span>${fmtINR(roundOffAmt)}</span></div>
       <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;margin-top:4px;"><span>TOTAL</span><span>${fmtINR(grand)}</span></div>
       ${payments.map(p => `<div style="display:flex;justify-content:space-between;margin-top:4px;"><span>Paid (${p.mode})</span><span>${fmtINR(p.amount || 0)}</span></div>`).join("")}
       ${change>0?`<div style="display:flex;justify-content:space-between;"><span>Change</span><span>${fmtINR(change)}</span></div>`:""}
@@ -820,6 +887,7 @@ async function twConfirmSettle() {
     twPrintNow();
     twState.cart = [];
     twState.billLevelDiscount = 0;
+    twClearManualGrandTotal();
     twState.hasPendingKot = false;
     twRenderCart();
     if (typeof toastr !== "undefined") toastr.success(`Takeaway bill ${result.billNo||""} settled!`);

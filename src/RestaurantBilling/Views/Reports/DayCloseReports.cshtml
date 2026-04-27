@@ -1,0 +1,64 @@
+@{
+    ViewData["Title"] = "Day Close Reports";
+}
+<div class="page-header"><div><h1 class="page-title-h">Day Close Reports</h1><div class="page-sub">Day-end lock and cash closure summary.</div></div></div>
+<div class="filter-bar"><div><label class="form-label-custom">From</label><input id="fromDate" type="date" class="form-control-custom" /></div><div><label class="form-label-custom">To</label><input id="toDate" type="date" class="form-control-custom" /></div><button id="runDayClose" class="btn-accent">Run</button><button id="exportDayCloseCsv" class="btn-ghost"><i class="fas fa-file-csv"></i> CSV</button><button id="exportDayCloseXlsx" class="btn-ghost" style="color:var(--success);"><i class="fas fa-file-excel"></i> Excel</button></div>
+<div class="card"><div class="card-body-custom"><table class="table-custom"><thead><tr><th>Date</th><th>Opened At</th><th>Closed At</th><th>Opening</th><th>Closing</th><th>Sales</th><th>Tax</th><th>Over/Short</th><th>Locked</th></tr></thead><tbody id="dayCloseBody"><tr><td colspan="9" class="text-center text-muted">No data</td></tr></tbody></table></div></div>
+
+@section Scripts {
+<script>
+(() => {
+  const today = new Date();
+  const from = new Date(today);
+  from.setDate(today.getDate() - 6);
+  const fmt = d => d.toISOString().slice(0, 10);
+
+  const fromDate = document.getElementById('fromDate');
+  const toDate = document.getElementById('toDate');
+  fromDate.value = fmt(from);
+  toDate.value = fmt(today);
+
+  function getDateRange() {
+    const fromVal = fromDate.value;
+    const toVal = toDate.value;
+    if (!fromVal || !toVal) {
+      if (typeof toastr !== "undefined") toastr.warning("Select both From and To dates.");
+      return null;
+    }
+    if (fromVal > toVal) {
+      if (typeof toastr !== "undefined") toastr.warning("From date cannot be after To date.");
+      return null;
+    }
+    return { fromVal, toVal };
+  }
+
+  async function run() {
+    const body = document.getElementById('dayCloseBody');
+    const range = getDateRange();
+    if (!range) return;
+    try {
+      const rows = await getJSON(`/reports/day-close-reports?outletId=1&from=${encodeURIComponent(range.fromVal)}&to=${encodeURIComponent(range.toVal)}`);
+      body.innerHTML = rows.length
+        ? rows.map(x => `<tr><td>${x.businessDate}</td><td>${x.openedAt}</td><td>${x.closedAt}</td><td>${fmtINR(x.openingCash)}</td><td>${fmtINR(x.closingCash)}</td><td>${fmtINR(x.totalSales)}</td><td>${fmtINR(x.totalTax)}</td><td>${fmtINR(x.cashOverShort)}</td><td>${x.isLocked ? 'Yes' : 'No'}</td></tr>`).join('')
+        : '<tr><td colspan="9" class="text-center text-muted">No data</td></tr>';
+    } catch {
+      body.innerHTML = '<tr><td colspan="9" class="text-center text-danger">Failed to load day close report.</td></tr>';
+      if (typeof toastr !== "undefined") toastr.error("Failed to load day close report.");
+    }
+  }
+
+  document.getElementById('runDayClose').addEventListener('click', run);
+  document.getElementById('exportDayCloseCsv').addEventListener('click', () => {
+    const range = getDateRange();
+    if (!range) return;
+    window.open(`/reports/day-close-reports-export?outletId=1&from=${encodeURIComponent(range.fromVal)}&to=${encodeURIComponent(range.toVal)}&format=csv`, '_blank');
+  });
+  document.getElementById('exportDayCloseXlsx').addEventListener('click', () => {
+    const range = getDateRange();
+    if (!range) return;
+    window.open(`/reports/day-close-reports-export?outletId=1&from=${encodeURIComponent(range.fromVal)}&to=${encodeURIComponent(range.toVal)}&format=xlsx`, '_blank');
+  });
+  document.addEventListener('DOMContentLoaded', run);
+})();
+</script>
+}

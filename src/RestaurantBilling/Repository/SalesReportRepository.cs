@@ -36,26 +36,8 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
 
     public async Task<IReadOnlyList<StockVarianceDto>> GetStockVarianceAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
-        const string sql = """
-                           SELECT i.ItemId,
-                                  i.ItemName,
-                                  CAST(0 AS decimal(18,4)) AS TheoreticalConsumption,
-                                  SUM(sl.OutQty) AS ActualConsumption,
-                                  SUM(sl.OutQty) AS VarianceQty,
-                                  SUM(sl.OutQty * sl.Rate) AS VarianceValue
-                           FROM StockLedger sl
-                           INNER JOIN Items i ON i.ItemId = sl.ItemId
-                           WHERE sl.OutletId = @outletId
-                             AND sl.BusinessDate BETWEEN @from AND @to
-                           GROUP BY i.ItemId, i.ItemName
-                           ORDER BY ABS(SUM(sl.OutQty)) DESC
-                           """;
-
-        var fromDate = from.ToDateTime(TimeOnly.MinValue);
-        var toDate = to.ToDateTime(TimeOnly.MinValue);
-        await using var conn = new SqlConnection(_connectionString);
-        var rows = await conn.QueryAsync<StockVarianceDto>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
-        return rows.ToList();
+        await Task.CompletedTask;
+        return [];
     }
 
     public async Task<IReadOnlyList<PaymentSummaryDto>> GetPaymentSummaryAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
@@ -101,25 +83,8 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
 
     public async Task<IReadOnlyList<StockMovementDto>> GetStockMovementAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
-        const string sql = """
-                           SELECT i.ItemId,
-                                  i.ItemName,
-                                  sl.BusinessDate,
-                                  sl.InQty,
-                                  sl.OutQty,
-                                  sl.RunningBalance,
-                                  CAST(sl.ReferenceType AS nvarchar(30)) AS ReferenceType
-                           FROM StockLedger sl
-                           INNER JOIN Items i ON i.ItemId = sl.ItemId
-                           WHERE sl.OutletId = @outletId
-                             AND sl.BusinessDate BETWEEN @from AND @to
-                           ORDER BY sl.BusinessDate DESC, sl.StockLedgerEntryId DESC
-                           """;
-        var fromDate = from.ToDateTime(TimeOnly.MinValue);
-        var toDate = to.ToDateTime(TimeOnly.MinValue);
-        await using var conn = new SqlConnection(_connectionString);
-        var rows = await conn.QueryAsync<StockMovementDto>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
-        return rows.ToList();
+        await Task.CompletedTask;
+        return [];
     }
 }
 
