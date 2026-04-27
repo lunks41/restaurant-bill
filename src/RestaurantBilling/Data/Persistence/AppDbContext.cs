@@ -40,6 +40,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
     public DbSet<Purchase> Purchases => Set<Purchase>();
     public DbSet<PurchaseItem> PurchaseItems => Set<PurchaseItem>();
+    public DbSet<GroceryStockItem> GroceryStockItems => Set<GroceryStockItem>();
     public DbSet<KitchenStation> KitchenStations => Set<KitchenStation>();
     public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
     public DbSet<EInvoiceQueueItem> EInvoiceQueue => Set<EInvoiceQueueItem>();
@@ -323,6 +324,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(x => x.Rate).HasPrecision(18, 4);
             entity.Property(x => x.TaxPercent).HasPrecision(5, 2);
             entity.Property(x => x.LineTotal).HasPrecision(18, 2);
+            entity.Property(x => x.RowVersion).IsRowVersion();
+            entity.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        builder.Entity<GroceryStockItem>(entity =>
+        {
+            entity.HasKey(x => x.GroceryStockItemId);
+            entity.Property(x => x.GroceryName).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.PurchaseRate).HasPrecision(18, 4);
+            entity.Property(x => x.CurrentQty).HasPrecision(18, 4);
+            entity.Property(x => x.ReorderLevel).HasPrecision(18, 4);
             entity.Property(x => x.RowVersion).IsRowVersion();
             entity.HasQueryFilter(x => !x.IsDeleted);
         });

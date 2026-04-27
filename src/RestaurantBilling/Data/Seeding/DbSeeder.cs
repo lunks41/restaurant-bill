@@ -466,6 +466,54 @@ public static class DbSeeder
         }
         await db.SaveChangesAsync();
 
+        var grocerySeedItems = new[]
+        {
+            new { Name = "Milk", UnitCode = "LTR" },
+            new { Name = "Eggs", UnitCode = "NOS" },
+            new { Name = "Bread", UnitCode = "NOS" },
+            new { Name = "Butter", UnitCode = "KG" },
+            new { Name = "Apples", UnitCode = "KG" },
+            new { Name = "Rice", UnitCode = "KG" },
+            new { Name = "Millets", UnitCode = "KG" },
+            new { Name = "Pasta", UnitCode = "KG" },
+            new { Name = "Chicken", UnitCode = "KG" },
+            new { Name = "Beans", UnitCode = "KG" },
+            new { Name = "Cooking Oil", UnitCode = "LTR" },
+            new { Name = "Salt", UnitCode = "KG" },
+            new { Name = "Pepper", UnitCode = "KG" },
+            new { Name = "Coffee", UnitCode = "KG" },
+            new { Name = "Tea", UnitCode = "KG" },
+            new { Name = "Toilet Paper", UnitCode = "NOS" },
+            new { Name = "Dish Soap", UnitCode = "LTR" },
+            new { Name = "All-purpose Cleaner", UnitCode = "LTR" }
+        };
+
+        var groceryUnitMap = db.Units
+            .Where(x => x.OutletId == outletId)
+            .ToDictionary(x => x.UnitCode, x => x.UnitId);
+
+        foreach (var grocery in grocerySeedItems)
+        {
+            if (db.GroceryStockItems.Any(x => x.OutletId == outletId && x.GroceryName == grocery.Name))
+            {
+                continue;
+            }
+
+            groceryUnitMap.TryGetValue(grocery.UnitCode, out var unitId);
+            db.GroceryStockItems.Add(new GroceryStockItem
+            {
+                OutletId = outletId,
+                GroceryName = grocery.Name,
+                UnitId = unitId > 0 ? unitId : null,
+                PurchaseRate = 0m,
+                CurrentQty = 0m,
+                ReorderLevel = 0m,
+                IsActive = true,
+                IsDeleted = false
+            });
+        }
+        await db.SaveChangesAsync();
+
         var trackedDefaultItems = db.Items.Where(x => x.OutletId == outletId).ToList();
         var existingStockItemIds = db.StockItems.Where(x => x.OutletId == outletId).Select(x => x.ItemId).ToHashSet();
         var missingStockItems = trackedDefaultItems.Where(x => !existingStockItemIds.Contains(x.ItemId)).ToList();

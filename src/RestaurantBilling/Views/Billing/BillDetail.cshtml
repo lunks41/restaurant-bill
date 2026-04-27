@@ -23,7 +23,8 @@
 <div class="receipt-wrap" id="billReceiptWrap">
     <div style="font-family:'Courier New',monospace;font-size:12px;max-width:80mm;margin:0 auto;padding:2mm;">
         <div style="text-align:center;margin-bottom:10px;">
-            <div style="font-size:18px;font-weight:bold;">RestoBill</div>
+            <div id="billBrandLogo" style="margin-bottom:4px;"></div>
+            <div id="billBrandName" style="font-size:18px;font-weight:bold;">RestoBill</div>
             <div style="font-size:11px;color:#666;">@(Model.BillType == BillType.Takeaway ? "Takeaway Receipt" : "Dine-In Receipt")</div>
             @if (!string.IsNullOrWhiteSpace(Model.TableName))
             {
@@ -76,9 +77,25 @@
 
 @section Scripts {
 <script>
-  function printBillReceipt() {
+  async function printBillReceipt() {
     const receipt = document.getElementById('billReceiptWrap');
-    const content = receipt?.innerHTML?.trim();
+    if (!receipt) return;
+    if (typeof window.getBrandingSettings === 'function') {
+      try {
+        const branding = await window.getBrandingSettings();
+        const brandNameEl = document.getElementById('billBrandName');
+        const brandLogoEl = document.getElementById('billBrandLogo');
+        if (brandNameEl) brandNameEl.textContent = branding?.restaurantName || 'RestoBill';
+        if (brandLogoEl) {
+          if (branding?.logoUrl) {
+            brandLogoEl.innerHTML = `<img src="${branding.logoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto;display:block;" />`;
+          } else {
+            brandLogoEl.innerHTML = '';
+          }
+        }
+      } catch {}
+    }
+    const content = receipt.innerHTML.trim();
     if (!content) return;
 
     const win = window.open('', '_blank', 'width=420,height=760');
@@ -129,9 +146,21 @@
   }
 
   (() => {
+    if (typeof window.getBrandingSettings === 'function') {
+      window.getBrandingSettings().then((branding) => {
+        const brandNameEl = document.getElementById('billBrandName');
+        const brandLogoEl = document.getElementById('billBrandLogo');
+        if (brandNameEl) brandNameEl.textContent = branding?.restaurantName || 'RestoBill';
+        if (brandLogoEl) {
+          brandLogoEl.innerHTML = branding?.logoUrl
+            ? `<img src="${branding.logoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto;display:block;" />`
+            : '';
+        }
+      }).catch(() => {});
+    }
     const params = new URLSearchParams(window.location.search);
     if (params.get('autoprint') !== '1') return;
-    const printNow = () => requestAnimationFrame(() => setTimeout(() => printBillReceipt(), 40));
+    const printNow = () => requestAnimationFrame(() => setTimeout(() => { printBillReceipt(); }, 40));
     window.addEventListener('load', () => {
       printNow();
     }, { once: true });

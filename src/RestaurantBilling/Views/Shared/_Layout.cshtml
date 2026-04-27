@@ -42,8 +42,11 @@
     <div class="app-shell">
       <aside class="sidebar" id="appSidebar">
         <div class="sidebar-logo">
-          <div class="logo-icon"><i class="fas fa-utensils"></i></div>
-          <a href="/dashbord" class="logo-text" style="text-decoration:none;">RestoBill</a>
+          <div class="logo-icon" id="brandLogoIcon">
+            <img id="brandLogoImage" alt="Restaurant logo" style="display:none; width:100%; height:100%; object-fit:cover; border-radius:10px;" />
+            <i class="fas fa-utensils" id="brandLogoFallback"></i>
+          </div>
+          <a href="/dashbord" class="logo-text" id="brandNameText" style="text-decoration:none;">RestoBill</a>
         </div>
         <nav class="sidebar-nav">
           <div class="nav-group">

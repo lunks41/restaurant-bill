@@ -1,16 +1,16 @@
 @{
-    ViewData["Title"] = "Stock Items";
+    ViewData["Title"] = "Grocery Stock";
 }
 
 <div class="app-module-header">
-    <h1 class="h3 mb-1">Stock Items</h1>
-    <p class="app-muted mb-0">Maintain raw materials with units, qty and reorder levels.</p>
+    <h1 class="h3 mb-1">Grocery Stock</h1>
+    <p class="app-muted mb-0">Maintain only grocery and kitchen consumable stock items.</p>
 </div>
 
 <div class="app-surface mb-3 d-flex flex-wrap align-items-end gap-2">
     <div style="min-width:220px;">
         <label class="form-label mb-1">Search</label>
-        <input id="stockSearch" class="form-control" placeholder="Code or name" />
+        <input id="stockSearch" class="form-control" placeholder="Grocery name" />
     </div>
     <div style="min-width:180px;">
         <label class="form-label mb-1">Unit filter</label>
@@ -22,7 +22,7 @@
         <i class="fas fa-file-csv"></i> Export CSV
     </button>
     <button type="button" class="btn-accent ms-auto" id="openAddStockItem">
-        <i class="fas fa-plus"></i> Add Stock Item
+        <i class="fas fa-plus"></i> Add Grocery Stock
     </button>
 </div>
 
@@ -61,18 +61,16 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="stockItemModalTitle">Add Stock Item</h5>
+                <h5 class="modal-title" id="stockItemModalTitle">Add Grocery Stock</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <input id="stockItemId" type="hidden" />
                 <div class="mb-3">
-                    <label class="form-label">Code</label>
-                    <input id="stockCode" class="form-control" placeholder="Auto if blank" />
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Name</label>
-                    <input id="stockName" class="form-control" placeholder="Stock item name" />
+                    <label class="form-label">Grocery Item</label>
+                    <select id="stockName" class="form-select">
+                        <option value="">Select grocery item</option>
+                    </select>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Unit</label>
@@ -111,7 +109,6 @@
   const modal = new window.bootstrap.Modal(modalEl);
 
   const idEl = document.getElementById('stockItemId');
-  const codeEl = document.getElementById('stockCode');
   const nameEl = document.getElementById('stockName');
   const unitEl = document.getElementById('stockUnitId');
   const rateEl = document.getElementById('stockRate');
@@ -140,6 +137,11 @@
     unitFilterEl.innerHTML = '<option value="">All units</option>' + rows.map(u => `<option value="${u.unitId}">${u.unitName} (${u.unitCode})</option>`).join('');
   }
 
+  async function loadGroceries() {
+    const rows = await getJSON('/master/grocery-options');
+    nameEl.innerHTML = '<option value="">Select grocery item</option>' + rows.map(n => `<option value="${n}">${n}</option>`).join('');
+  }
+
   async function loadItems(resetPage = false) {
     if (resetPage) currentPage = 1;
     if (window.jQuery && jQuery.fn.DataTable) {
@@ -160,7 +162,7 @@
       currentPage = result.page || 1;
     }
     document.getElementById('stockItemsBody').innerHTML = rows.length
-      ? rows.map(x => `<tr><td>${x.itemCode || ''}</td><td>${x.itemName}</td><td>${x.unitName || '-'}</td><td>${x.purchasePrice ?? 0}</td><td>${x.currentQty ?? 0}</td><td>${x.reorderLevel ?? 0}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.itemId}" data-code="${x.itemCode || ''}" data-name="${x.itemName}" data-unit-id="${x.unitId || ''}" data-rate="${x.purchasePrice ?? 0}" data-current-qty="${x.currentQty ?? 0}" data-reorder="${x.reorderLevel ?? 0}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.itemId}">Delete</button></td></tr>`).join('')
+      ? rows.map(x => `<tr><td>${x.itemCode || ''}</td><td>${x.itemName}</td><td>${x.unitName || '-'}</td><td>${x.purchasePrice ?? 0}</td><td>${x.currentQty ?? 0}</td><td>${x.reorderLevel ?? 0}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.itemId}" data-name="${x.itemName}" data-unit-id="${x.unitId || ''}" data-rate="${x.purchasePrice ?? 0}" data-current-qty="${x.currentQty ?? 0}" data-reorder="${x.reorderLevel ?? 0}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.itemId}">Delete</button></td></tr>`).join('')
       : `<tr>
            <td class="text-center text-muted">No stock items found.</td>
            <td></td>
@@ -177,28 +179,28 @@
 
   const openAdd = async () => {
     await loadUnits();
+    await loadGroceries();
     idEl.value = '';
-    codeEl.value = '';
     nameEl.value = '';
     unitEl.value = '';
     rateEl.value = '0';
     currentQtyEl.value = '0';
     reorderEl.value = '0';
-    titleEl.textContent = 'Add Stock Item';
+    titleEl.textContent = 'Add Grocery Stock';
     saveBtnEl.textContent = 'Add';
     modal.show();
   };
 
   const openEdit = async (btn) => {
     await loadUnits();
+    await loadGroceries();
     idEl.value = btn.getAttribute('data-edit') || '';
-    codeEl.value = btn.getAttribute('data-code') || '';
     nameEl.value = btn.getAttribute('data-name') || '';
     unitEl.value = btn.getAttribute('data-unit-id') || '';
     rateEl.value = btn.getAttribute('data-rate') || '0';
     currentQtyEl.value = btn.getAttribute('data-current-qty') || '0';
     reorderEl.value = btn.getAttribute('data-reorder') || '0';
-    titleEl.textContent = 'Edit Stock Item';
+    titleEl.textContent = 'Edit Grocery Stock';
     saveBtnEl.textContent = 'Update';
     modal.show();
   };
@@ -206,13 +208,12 @@
   async function save() {
     const name = nameEl.value.trim();
     if (!name) {
-      notifySafe('Stock item name is required', 'warning');
+      notifySafe('Please select grocery item', 'warning');
       return;
     }
 
     const payload = {
       outletId: 1,
-      code: codeEl.value.trim(),
       name,
       unitId: unitEl.value ? parseInt(unitEl.value, 10) : null,
       purchasePrice: parseFloat(rateEl.value || '0'),
@@ -224,28 +225,28 @@
       const id = idEl.value;
       if (id) {
         await postJSON(`/master/stock-items-update/${id}`, payload);
-        notifySafe('Stock item updated', 'success');
+        notifySafe('Grocery stock updated', 'success');
       } else {
         await postJSON('/master/stock-items-create', payload);
-        notifySafe('Stock item added', 'success');
+        notifySafe('Grocery stock added', 'success');
       }
       modal.hide();
       await loadItems();
     } catch (_) {
-      notifySafe('Unable to save stock item right now', 'error');
+      notifySafe('Unable to save grocery stock right now', 'error');
     }
   }
 
   function bindRowActions() {
     document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => openEdit(btn)));
     document.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', async () => {
-      if (!confirm('Delete this stock item?')) return;
+      if (!confirm('Delete this grocery stock item?')) return;
       try {
         await postJSON(`/master/stock-items-delete/${btn.getAttribute('data-delete')}`, {});
-        notifySafe('Stock item deleted', 'success');
+        notifySafe('Grocery stock deleted', 'success');
         await loadItems();
       } catch (_) {
-        notifySafe('Unable to delete stock item right now', 'error');
+        notifySafe('Unable to delete grocery stock right now', 'error');
       }
     }));
   }
@@ -263,10 +264,11 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', async () => {
       await loadUnits();
+      await loadGroceries();
       await loadItems();
     });
   } else {
-    loadUnits().then(loadItems);
+    Promise.all([loadUnits(), loadGroceries()]).then(() => loadItems());
   }
 })();
 </script>

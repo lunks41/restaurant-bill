@@ -188,6 +188,45 @@ function refreshDataTableById(tableId) {
 }
 window.refreshDataTableById = refreshDataTableById;
 
+async function applyBranding() {
+  const brandName = document.getElementById('brandNameText');
+  const brandLogo = document.getElementById('brandLogoImage');
+  const brandFallback = document.getElementById('brandLogoFallback');
+  if (!brandName || !brandLogo || !brandFallback) return;
+
+  try {
+    const settings = await getJSON('/settings/get?outletId=1');
+    window.__branding = settings || {};
+    const name = (settings?.restaurantName || '').trim();
+    const logoUrl = (settings?.logoUrl || '').trim();
+
+    brandName.textContent = name || 'RestoBill';
+    if (logoUrl) {
+      brandLogo.src = logoUrl;
+      brandLogo.style.display = 'block';
+      brandFallback.style.display = 'none';
+    } else {
+      brandLogo.style.display = 'none';
+      brandFallback.style.display = '';
+    }
+  } catch (_) {
+    // Keep defaults when settings are unavailable.
+  }
+}
+
+window.getBrandingSettings = async function () {
+  if (window.__branding && (window.__branding.restaurantName || window.__branding.logoUrl)) {
+    return window.__branding;
+  }
+  try {
+    const settings = await getJSON('/settings/get?outletId=1');
+    window.__branding = settings || {};
+    return window.__branding;
+  } catch {
+    return { restaurantName: "RestoBill", logoUrl: "" };
+  }
+};
+
 /* ─── Confirm modal ─── */
 function confirmAction(msg, onYes) {
   if (confirm(msg)) onYes();
@@ -208,6 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
   startClock();
   initSidebar();
   initToastr();
+  applyBranding();
   const icon = document.getElementById('themeIcon');
   if (icon) icon.className = window.__theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
   const path = window.location.pathname.toLowerCase();

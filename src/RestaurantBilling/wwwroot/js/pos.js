@@ -745,7 +745,7 @@ async function confirmSettle() {
     }
 
     closeSettleModal();
-    printReceipt(result, amtPaid, method, payments);
+    await printReceipt(result, amtPaid, method, payments);
 
     posState.cart = []; posState.currentBillId = null; posState.currentBillNo = null; posState.billLevelDiscount = 0; posState.hasPendingKot = false;
     posState.selectedTableId = null; posState.selectedTableName = null;
@@ -761,7 +761,7 @@ async function confirmSettle() {
 }
 
 /* ─── Print ─── */
-function printReceipt(bill, amtPaid, method, payments) {
+async function printReceipt(bill, amtPaid, method, payments) {
   const liveTotals = getPosTotals();
   const subtotal = bill?.subTotal ?? liveTotals.subtotal;
   const discount = bill?.discountAmount ?? liveTotals.discount;
@@ -776,9 +776,17 @@ function printReceipt(bill, amtPaid, method, payments) {
     `<div style="display:flex;justify-content:space-between;margin-top:4px;"><span>Paid (${p.mode})</span><span>${fmtINR(p.amount || 0)}</span></div>`
   ).join("");
   const tableLine = posState.selectedTableName ? `<div style="font-size:11px;color:#666;">Table: ${posState.selectedTableName}</div>` : "";
+  const branding = typeof window.getBrandingSettings === "function"
+    ? await window.getBrandingSettings()
+    : { restaurantName: "RestoBill", logoUrl: "" };
+  const brandName = (branding?.restaurantName || "RestoBill");
+  const logoBlock = branding?.logoUrl
+    ? `<img src="${branding.logoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto 4px;display:block;" />`
+    : "";
   const html = `<div style="font-family:'Courier New',monospace;font-size:12px;max-width:300px;margin:0 auto;padding:10px;">
     <div style="text-align:center;margin-bottom:10px;">
-      <div style="font-size:18px;font-weight:bold;">RestoBill</div>
+      ${logoBlock}
+      <div style="font-size:18px;font-weight:bold;">${brandName}</div>
       <div style="font-size:11px;color:#666;">Dine-In Receipt</div>
       ${tableLine}
       <div style="font-size:11px;color:#666;">${new Date().toLocaleString("en-IN")}</div>
@@ -839,6 +847,13 @@ async function printKotSlip() {
   }
 
   const tableLine = posState.selectedTableName ? `<div style="font-size:11px;color:#666;">Table: ${posState.selectedTableName}</div>` : "";
+  const branding = typeof window.getBrandingSettings === "function"
+    ? await window.getBrandingSettings()
+    : { restaurantName: "RestoBill", logoUrl: "" };
+  const brandName = (branding?.restaurantName || "RestoBill");
+  const logoBlock = branding?.logoUrl
+    ? `<img src="${branding.logoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto 4px;display:block;" />`
+    : "";
   const lines = printItems.map((l) => `
     <tr>
       <td>${l.name}</td>
@@ -847,7 +862,8 @@ async function printKotSlip() {
     </tr>`).join("");
   wrap.innerHTML = `<div style="font-family:'Courier New',monospace;font-size:12px;max-width:300px;margin:0 auto;padding:10px;">
     <div style="text-align:center;margin-bottom:10px;">
-      <div style="font-size:18px;font-weight:bold;">RestoBill</div>
+      ${logoBlock}
+      <div style="font-size:18px;font-weight:bold;">${brandName}</div>
       <div style="font-size:11px;color:#666;">Kitchen Order Ticket</div>
       ${tableLine}
       <div style="font-size:11px;color:#666;">${new Date().toLocaleString("en-IN")}</div>
