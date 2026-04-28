@@ -24,10 +24,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<Bill> Bills => Set<Bill>();
     public DbSet<BillItem> BillItems => Set<BillItem>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<ItemStock> ItemStocks => Set<ItemStock>();
     public DbSet<KotHeader> KotHeaders => Set<KotHeader>();
     public DbSet<KotItem> KotItems => Set<KotItem>();
-    public DbSet<GroceryStockItem> GroceryStockItems => Set<GroceryStockItem>();
-    public DbSet<Grocery> Groceries => Set<Grocery>();
     public DbSet<KitchenStation> KitchenStations => Set<KitchenStation>();
     public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
     public DbSet<PaymentCallbackEvent> PaymentCallbackEvents => Set<PaymentCallbackEvent>();
@@ -151,6 +150,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(x => x.RowVersion).IsRowVersion();
         });
 
+        builder.Entity<ItemStock>(entity =>
+        {
+            entity.HasKey(x => x.ItemStockId);
+            entity.Property(x => x.CurrentQty).HasPrecision(18, 4);
+            entity.Property(x => x.ReorderLevel).HasPrecision(18, 4);
+            entity.Property(x => x.Type).HasMaxLength(30);
+            entity.Property(x => x.RowVersion).IsRowVersion();
+            entity.HasQueryFilter(x => !x.IsDeleted);
+        });
+
 
         builder.Entity<KotHeader>(entity =>
         {
@@ -169,24 +178,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(x => x.ItemNameSnapshot).HasMaxLength(200).IsRequired();
             entity.Property(x => x.Qty).HasPrecision(18, 4);
             entity.Property(x => x.RowVersion).IsRowVersion();
-        });
-
-        builder.Entity<GroceryStockItem>(entity =>
-        {
-            entity.HasKey(x => x.GroceryStockItemId);
-            entity.Property(x => x.GroceryId).IsRequired();
-            entity.Property(x => x.CurrentQty).HasPrecision(18, 4);
-            entity.Property(x => x.ReorderLevel).HasPrecision(18, 4);
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
-
-        builder.Entity<Grocery>(entity =>
-        {
-            entity.HasKey(x => x.GroceryId);
-            entity.Property(x => x.GroceryName).HasMaxLength(120).IsRequired();
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
         });
 
         builder.Entity<KitchenStation>(entity =>

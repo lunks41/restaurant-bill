@@ -245,75 +245,6 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         return View();
     }
 
-    [HttpGet("groceries")]
-    public IActionResult Groceries()
-    {
-        ViewBag.UseDataTables = true;
-        return View();
-    }
-
-    [HttpGet("groceries-data")]
-    public async Task<IActionResult> GroceriesData([FromQuery] int outletId, CancellationToken cancellationToken)
-    {
-        var rows = await db.Groceries
-            .OrderBy(x => x.GroceryName)
-            .Select(x => new { x.GroceryId, x.GroceryName, x.IsActive })
-            .ToListAsync(cancellationToken);
-        return Ok(rows);
-    }
-
-    [HttpPost("groceries-create")]
-    public async Task<IActionResult> CreateGrocery([FromBody] GroceryInputDto request, CancellationToken cancellationToken)
-    {
-        var name = request.Name?.Trim() ?? string.Empty;
-        if (name.Length == 0) return BadRequest("Grocery name is required.");
-
-        var exists = await db.Groceries
-            .AnyAsync(x => x.GroceryName == name && !x.IsDeleted, cancellationToken);
-        if (exists) return BadRequest("This grocery already exists.");
-
-        db.Groceries.Add(new Grocery
-        {
-            GroceryName = name,
-            IsActive = true,
-            IsDeleted = false
-        });
-        await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { status = "Created" });
-    }
-
-    [HttpPost("groceries-update/{id:int}")]
-    public async Task<IActionResult> UpdateGrocery(int id, [FromBody] GroceryInputDto request, CancellationToken cancellationToken)
-    {
-        var grocery = await db.Groceries.FirstOrDefaultAsync(x => x.GroceryId == id, cancellationToken);
-        if (grocery is null) return NotFound();
-
-        var name = request.Name?.Trim() ?? string.Empty;
-        if (name.Length == 0) return BadRequest("Grocery name is required.");
-
-        var duplicate = await db.Groceries
-            .AnyAsync(x => x.GroceryId != id && x.GroceryName == name && !x.IsDeleted, cancellationToken);
-        if (duplicate) return BadRequest("This grocery already exists.");
-
-        grocery.GroceryName = name;
-        grocery.IsActive = true;
-        grocery.IsDeleted = false;
-        grocery.UpdatedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { status = "Updated" });
-    }
-
-    [HttpPost("groceries-delete/{id:int}")]
-    public async Task<IActionResult> DeleteGrocery(int id, CancellationToken cancellationToken)
-    {
-        var grocery = await db.Groceries.FirstOrDefaultAsync(x => x.GroceryId == id, cancellationToken);
-        if (grocery is null) return NotFound();
-        grocery.IsActive = false;
-        grocery.IsDeleted = false;
-        grocery.UpdatedAtUtc = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { status = "Inactivated" });
-    }
 
     [HttpGet("units-data")]
     public async Task<IActionResult> UnitsData([FromQuery] int outletId, CancellationToken cancellationToken)
@@ -449,9 +380,6 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         string? PrinterType,
         string? DevicePath,
         bool? IsDefault);
-
-    public sealed record GroceryInputDto(
-        string? Name);
 
 }
 

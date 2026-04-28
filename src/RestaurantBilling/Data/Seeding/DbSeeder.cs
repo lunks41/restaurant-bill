@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Entities.Configuration;
 using Entities.Enums;
-using Entities.Inventory;
 using Entities.Kitchen;
 using Entities.Masters;
 using Data.Persistence;
@@ -99,31 +98,6 @@ public static class DbSeeder
                 new Item { CategoryId = categories["Starters"], ItemCode = "STR001", ItemName = "Paneer Tikka", SalePrice = 260m, GstPercent = 5m, TaxType = TaxType.GST },
                 new Item { CategoryId = categories["Main Course"], ItemCode = "MNC001", ItemName = "Veg Biryani", SalePrice = 220m, GstPercent = 5m, TaxType = TaxType.GST },
                 new Item { CategoryId = categories["Breads"], ItemCode = "BRD001", ItemName = "Butter Naan", SalePrice = 45m, GstPercent = 5m, TaxType = TaxType.GST });
-        }
-
-        if (!db.Groceries.Any())
-        {
-            db.Groceries.AddRange(
-                new Grocery { GroceryName = "Milk", IsActive = true },
-                new Grocery { GroceryName = "Rice", IsActive = true },
-                new Grocery { GroceryName = "Cooking Oil", IsActive = true });
-        }
-
-        await db.SaveChangesAsync();
-
-        if (!db.GroceryStockItems.Any())
-        {
-            var groceries = db.Groceries.ToList();
-            foreach (var grocery in groceries)
-            {
-                db.GroceryStockItems.Add(new GroceryStockItem
-                {
-                    GroceryId = grocery.GroceryId,
-                    CurrentQty = 0m,
-                    ReorderLevel = 0m,
-                    IsActive = true
-                });
-            }
         }
 
         await db.SaveChangesAsync();

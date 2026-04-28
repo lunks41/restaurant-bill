@@ -82,7 +82,7 @@
 <div class="app-surface mb-3 d-flex flex-wrap align-items-end gap-2 stock-compact-controls">
     <div style="min-width:220px;">
         <label class="form-label mb-1">Search</label>
-        <input id="stockSearch" class="form-control" placeholder="Grocery name" />
+        <input id="stockSearch" class="form-control" placeholder="Item name" />
     </div>
     <div style="min-width:180px;">
         <label class="form-label mb-1">Unit filter</label>
@@ -94,7 +94,7 @@
         <i class="fas fa-file-csv"></i> Export CSV
     </button>
     <button type="button" class="btn-accent ms-auto" id="openAddStockItem">
-        <i class="fas fa-plus"></i> Add Grocery Stock
+        <i class="fas fa-plus"></i> Add Item Stock
     </button>
 </div>
 
@@ -131,15 +131,15 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="stockItemModalTitle">Add Grocery Stock</h5>
+                <h5 class="modal-title" id="stockItemModalTitle">Add Item Stock</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <input id="stockItemId" type="hidden" />
                 <div class="mb-3">
-                    <label class="form-label">Grocery Item</label>
-                    <select id="stockGroceryId" class="form-select">
-                        <option value="">Select grocery item</option>
+                    <label class="form-label">Item</label>
+                    <select id="stockItemRefId" class="form-select">
+                        <option value="">Select item</option>
                     </select>
                 </div>
                 <div class="mb-3">
@@ -176,7 +176,7 @@
   const modal = new window.bootstrap.Modal(modalEl);
 
   const idEl = document.getElementById('stockItemId');
-  const groceryEl = document.getElementById('stockGroceryId');
+  const itemEl = document.getElementById('stockItemRefId');
   const unitEl = document.getElementById('stockUnitId');
   const currentQtyEl = document.getElementById('stockCurrentQty');
   const reorderEl = document.getElementById('stockReorder');
@@ -203,9 +203,9 @@
     unitFilterEl.innerHTML = '<option value="">All units</option>' + rows.map(u => `<option value="${u.unitId}">${u.unitName} (${u.unitCode})</option>`).join('');
   }
 
-  async function loadGroceries() {
-    const rows = await getJSON(`${apiPrefix}/grocery-options?outletId=1`);
-    groceryEl.innerHTML = '<option value="">Select grocery item</option>' + rows.map(g => `<option value="${g.groceryId}">${g.groceryName}</option>`).join('');
+  async function loadItemsCatalog() {
+    const rows = await getJSON(`${apiPrefix}/item-options?_=${Date.now()}`);
+    itemEl.innerHTML = '<option value="">Select item</option>' + rows.map(g => `<option value="${g.itemId}">${g.itemName}</option>`).join('');
   }
 
   async function loadItems(resetPage = false) {
@@ -228,7 +228,7 @@
       currentPage = result.page || 1;
     }
     document.getElementById('stockItemsBody').innerHTML = rows.length
-      ? rows.map(x => `<tr><td>${x.itemCode || ''}</td><td>${x.itemName}</td><td>${x.unitName || '-'}</td><td>${x.currentQty ?? 0}</td><td>${x.reorderLevel ?? 0}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.itemId}" data-grocery-id="${x.groceryId || ''}" data-unit-id="${x.unitId || ''}" data-current-qty="${x.currentQty ?? 0}" data-reorder="${x.reorderLevel ?? 0}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.itemId}">Inactivate</button></td></tr>`).join('')
+      ? rows.map(x => `<tr><td>${x.itemCode || ''}</td><td>${x.itemName}</td><td>${x.unitName || '-'}</td><td>${x.currentQty ?? 0}</td><td>${x.reorderLevel ?? 0}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.itemId}" data-item-id="${x.itemIdRef || ''}" data-unit-id="${x.unitId || ''}" data-current-qty="${x.currentQty ?? 0}" data-reorder="${x.reorderLevel ?? 0}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.itemId}">Inactivate</button></td></tr>`).join('')
       : `<tr>
            <td class="text-center text-muted">No stock items found.</td>
            <td></td>
@@ -244,39 +244,39 @@
 
   const openAdd = async () => {
     await loadUnits();
-    await loadGroceries();
+    await loadItemsCatalog();
     idEl.value = '';
-    groceryEl.value = '';
+    itemEl.value = '';
     unitEl.value = '';
     currentQtyEl.value = '0';
     reorderEl.value = '0';
-    titleEl.textContent = 'Add Grocery Stock';
+    titleEl.textContent = 'Add Item Stock';
     saveBtnEl.textContent = 'Add';
     modal.show();
   };
 
   const openEdit = async (btn) => {
     await loadUnits();
-    await loadGroceries();
+    await loadItemsCatalog();
     idEl.value = btn.getAttribute('data-edit') || '';
-    groceryEl.value = btn.getAttribute('data-grocery-id') || '';
+    itemEl.value = btn.getAttribute('data-item-id') || '';
     unitEl.value = btn.getAttribute('data-unit-id') || '';
     currentQtyEl.value = btn.getAttribute('data-current-qty') || '0';
     reorderEl.value = btn.getAttribute('data-reorder') || '0';
-    titleEl.textContent = 'Edit Grocery Stock';
+    titleEl.textContent = 'Edit Item Stock';
     saveBtnEl.textContent = 'Update';
     modal.show();
   };
 
   async function save() {
-    if (!groceryEl.value) {
-      notifySafe('Please select grocery item', 'warning');
+    if (!itemEl.value) {
+      notifySafe('Please select item', 'warning');
       return;
     }
 
     const payload = {
       outletId: 1,
-      groceryId: parseInt(groceryEl.value, 10),
+      itemId: parseInt(itemEl.value, 10),
       unitId: unitEl.value ? parseInt(unitEl.value, 10) : null,
       currentQty: parseFloat(currentQtyEl.value || '0'),
       reorderLevel: parseFloat(reorderEl.value || '0')
@@ -286,15 +286,15 @@
       const id = idEl.value;
       if (id) {
         await postJSON(`${apiPrefix}/stock-items-update/${id}`, payload);
-        notifySafe('Grocery stock updated', 'success');
+        notifySafe('Item stock updated', 'success');
       } else {
         await postJSON(`${apiPrefix}/stock-items-create`, payload);
-        notifySafe('Grocery stock added', 'success');
+        notifySafe('Item stock added', 'success');
       }
       modal.hide();
       await loadItems();
     } catch (_) {
-      notifySafe('Unable to save grocery stock right now', 'error');
+      notifySafe('Unable to save item stock right now', 'error');
     }
   }
 
@@ -302,7 +302,7 @@
     if (!itemId) return;
     if (!confirm('Inactivate this stock item?')) return;
     await postJSON(`${apiPrefix}/stock-items-delete/${itemId}`, { name: '' });
-    notifySafe('Grocery stock inactivated', 'success');
+    notifySafe('Item stock inactivated', 'success');
     await loadItems();
   }
 
@@ -324,11 +324,11 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', async () => {
       await loadUnits();
-      await loadGroceries();
+      await loadItemsCatalog();
       await loadItems();
     });
   } else {
-    Promise.all([loadUnits(), loadGroceries()]).then(() => loadItems());
+    Promise.all([loadUnits(), loadItemsCatalog()]).then(() => loadItems());
   }
 })();
 </script>

@@ -3,7 +3,6 @@
     var isCategories = path.StartsWith("/master/categories") || path.StartsWith("/masters/categories");
     var isItems = path.StartsWith("/master/items") || path.StartsWith("/masters/items");
     var isUnits = path.StartsWith("/master/units") || path.StartsWith("/masters/units");
-    var isGroceries = path.StartsWith("/master/groceries") || path.StartsWith("/masters/groceries");
     var isTables = path.StartsWith("/master/table") || path.StartsWith("/masters/table") ||
     path.StartsWith("/master/tables") || path.StartsWith("/masters/tables");
 }
@@ -24,9 +23,6 @@
             </li>
             <li class="nav-item" role="presentation">
                 <a class="nav-link @(isUnits ? "active" : "")" href="/master/units" role="tab">Units</a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link @(isGroceries ? "active" : "")" href="/master/groceries" role="tab">Groceries</a>
             </li>
             <li class="nav-item" role="presentation">
                 <a class="nav-link @(isTables ? "active" : "")" href="/master/table" role="tab">Tables</a>
