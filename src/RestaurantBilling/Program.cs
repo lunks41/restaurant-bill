@@ -57,10 +57,15 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/Account/Login";
 });
 
-builder.Services.AddControllersWithViews()
+var mvcBuilder = builder.Services.AddControllersWithViews()
     .AddJsonOptions(opts =>
         opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-builder.Services.AddRazorPages();
+var razorPagesBuilder = builder.Services.AddRazorPages();
+if (builder.Environment.IsDevelopment())
+{
+    mvcBuilder.AddRazorRuntimeCompilation();
+    razorPagesBuilder.AddRazorRuntimeCompilation();
+}
 builder.Services.AddSignalR();
 builder.Services.AddHangfireServer();
 builder.Services.AddEndpointsApiExplorer();
@@ -78,6 +83,7 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+var perishableExpiryCron = "15 2 * * *";
 
 using (var scope = app.Services.CreateScope())
 {
@@ -95,7 +101,18 @@ using (var scope = app.Services.CreateScope())
     // }
     var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Microsoft.AspNetCore.Identity.IdentityUser<int>>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole<int>>>();
-    await DbSeeder.SeedAsync(db, userManager, roleManager);
+    //await DbSeeder.SeedAsync(db, userManager, roleManager);
+
+    var closingTimeSetting = await db.RestaurantSettings
+        .AsNoTracking()
+        .Where(x => x.SettingKey == "ClosingTime")
+        .Select(x => x.SettingValue)
+        .FirstOrDefaultAsync();
+    var parsed = TimeOnly.TryParse(closingTimeSetting, out var closingTime)
+        ? closingTime
+        : new TimeOnly(2, 0);
+    var runAt = parsed.AddMinutes(15);
+    perishableExpiryCron = $"{runAt.Minute} {runAt.Hour} * * *";
 }
 
 if (app.Environment.IsDevelopment())
@@ -121,6 +138,7 @@ app.UseAuthorization();
 app.UseHangfireDashboard("/hangfire");
 
 RecurringJob.AddOrUpdate<OutboxProcessorJob>("outbox-processor", j => j.Execute(default), "*/2 * * * *");
+RecurringJob.AddOrUpdate<PerishableStockExpiryJob>("perishable-expiry", j => j.Execute(default), perishableExpiryCron);
 
 app.MapControllers().RequireRateLimiting("api-fixed");
 app.MapRazorPages();

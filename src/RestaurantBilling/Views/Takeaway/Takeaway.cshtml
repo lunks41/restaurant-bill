@@ -1,56 +1,56 @@
 @{
-  ViewData["Title"] = "Takeaway";
+    ViewData["Title"] = "Takeaway";
 }
 
 <div id="twRoot" class="pos-layout pos-layout-modern">
-  <section class="pos-items-panel">
-    <div class="pos-search-bar">
-      <div class="pos-search-wrap">
-        <i class="fas fa-magnifying-glass"></i>
-        <input id="twSearch" class="pos-search-input" placeholder="Search items..." autocomplete="off" />
-      </div>
-      <span class="pos-items-count" id="twItemsCount"></span>
-    </div>
-    <div class="pos-cats-inline" id="twCategoryTabs"></div>
-    <div class="pos-items-grid" id="twItems"></div>
-  </section>
-
-  <aside class="pos-cart">
-    <div class="cart-header">
-      <div class="cart-header-top">
-        <div class="cart-header-icon"><i class="fas fa-shopping-bag"></i></div>
-        <div class="cart-header-info">
-          <div class="cart-header-row">
-            <div class="cart-header-title" id="twHeaderTitle">Order #</div>
-          </div>
-          <div class="cart-order-meta">OPEN · takeaway</div>
+    <section class="pos-items-panel">
+        <div class="pos-search-bar">
+            <div class="pos-search-wrap">
+                <i class="fas fa-magnifying-glass"></i>
+                <input id="twSearch" class="pos-search-input" placeholder="Search items..." autocomplete="off" />
+            </div>
+            <span class="pos-items-count" id="twItemsCount"></span>
         </div>
-      </div>
-    </div>
-    <div class="cart-kot-hint" id="twCartKotHint">
-      <i class="fas fa-circle-exclamation"></i>
+        <div class="pos-cats-inline" id="twCategoryTabs"></div>
+        <div class="pos-items-grid" id="twItems"></div>
+    </section>
+
+    <aside class="pos-cart">
+        <div class="cart-header">
+            <div class="cart-header-top">
+                <div class="cart-header-icon"><i class="fas fa-shopping-bag"></i></div>
+                <div class="cart-header-info">
+                    <div class="cart-header-row">
+                        <div class="cart-header-title" id="twHeaderTitle">Order #</div>
+                    </div>
+                    <div class="cart-order-meta">OPEN · takeaway</div>
+                </div>
+            </div>
+        </div>
+        <div class="cart-kot-hint" id="twCartKotHint">
+            <i class="fas fa-circle-exclamation"></i>
       <span>Kitchen item not sent yet - use Send KOT.</span>
-    </div>
-    <div class="cart-items" id="twCartItems"></div>
-    <div class="cart-totals">
-      <div class="cart-total-row"><span>Subtotal</span><span id="twSubTotal">&#8377;0.00</span></div>
-      <div class="cart-total-row"><span>Tax</span><span id="twTaxTotal">&#8377;0.00</span></div>
+        </div>
+        <div class="cart-items" id="twCartItems"></div>
+        <div class="cart-totals">
+            <div class="cart-total-row"><span>Subtotal</span><span id="twSubTotal">&#8377;0.00</span></div>
+            <div class="cart-total-row"><span>Tax</span><span id="twTaxTotal">&#8377;0.00</span></div>
       <div class="cart-total-row cart-total-discount">
         <span>Round Off</span>
         <button type="button" class="cart-discount-btn" id="twBtnEditRoundOff">
           <span id="twRoundOff">&#8377;0.00</span>
         </button>
       </div>
-      <div class="cart-total-row cart-total-discount">
-        <span>Discount</span>
-        <button type="button" class="cart-discount-btn" id="twBtnEditDiscount">
-          <span id="twDiscountTotal">&#8377;0.00</span>
-        </button>
-      </div>
+            <div class="cart-total-row cart-total-discount">
+                <span>Discount</span>
+                <button type="button" class="cart-discount-btn" id="twBtnEditDiscount">
+                    <span id="twDiscountTotal">&#8377;0.00</span>
+                </button>
+            </div>
       <div class="cart-total-row grand"><span>Grand Total</span><span class="grand-amt"
           id="twGrandTotal">&#8377;0.00</span></div>
-    </div>
-    <div class="cart-actions">
+        </div>
+        <div class="cart-actions">
       <div class="kot-status-badge" id="twKotStatus" style="display:none;">Pending KOT</div>
       <button class="btn-kot" id="twBtnKot" disabled title="Disabled" style="display:none;"><i
           class="fas fa-paper-plane"></i> Send KOT</button>
@@ -59,58 +59,58 @@
       <button class="btn-settle" id="twBtnPrint"><i class="fas fa-print"></i> Print</button>
       <button class="btn-settle" id="twBtnSettle"><i class="fas fa-indian-rupee-sign"></i> Settle</button>
 
-      <button class="btn-hold" style="grid-column:1/-1" id="twBtnClear"><i class="fas fa-trash"></i> Clear Cart</button>
-    </div>
-  </aside>
+            <button class="btn-hold" style="grid-column:1/-1" id="twBtnClear"><i class="fas fa-trash"></i> Clear Cart</button>
+        </div>
+    </aside>
 </div>
 
 <!-- Takeaway Settle Modal -->
 <div class="settle-modal-overlay" id="twSettleOverlay">
-  <div class="settle-modal">
-    <div class="settle-modal-head">
-      <h3><i class="fas fa-shopping-bag me-2"></i>Settle Takeaway</h3>
-      <button class="settle-modal-close" id="twSettleClose">&times;</button>
-    </div>
-    <div class="settle-modal-body">
-      <div class="settle-summary" id="twSettleSummary"></div>
-      <div class="settle-pay-label">Select Payment Method</div>
-      <div class="settle-pay-grid">
+    <div class="settle-modal">
+        <div class="settle-modal-head">
+            <h3><i class="fas fa-shopping-bag me-2"></i>Settle Takeaway</h3>
+            <button class="settle-modal-close" id="twSettleClose">&times;</button>
+        </div>
+        <div class="settle-modal-body">
+            <div class="settle-summary" id="twSettleSummary"></div>
+            <div class="settle-pay-label">Select Payment Method</div>
+            <div class="settle-pay-grid">
         <div class="settle-pay-btn active" data-tw-method="Cash"><i class="fas fa-money-bill-wave"></i><span>Cash</span>
         </div>
-        <div class="settle-pay-btn" data-tw-method="Card"><i class="fas fa-credit-card"></i><span>Card</span></div>
-        <div class="settle-pay-btn" data-tw-method="UPI"><i class="fas fa-mobile-screen"></i><span>UPI</span></div>
-      </div>
-      <div class="settle-split-row">
-        <input type="checkbox" id="twPartialSplit" />
-        <label for="twPartialSplit">Partially (Cash + selected mode)</label>
-      </div>
-      <div class="form-group-custom" id="twPartialCashGroup" style="display:none;">
-        <label class="form-label-custom">Cash Amount</label>
+                <div class="settle-pay-btn" data-tw-method="Card"><i class="fas fa-credit-card"></i><span>Card</span></div>
+                <div class="settle-pay-btn" data-tw-method="UPI"><i class="fas fa-mobile-screen"></i><span>UPI</span></div>
+            </div>
+            <div class="settle-split-row">
+                <input type="checkbox" id="twPartialSplit" />
+                <label for="twPartialSplit">Partially (Cash + selected mode)</label>
+            </div>
+            <div class="form-group-custom" id="twPartialCashGroup" style="display:none;">
+                <label class="form-label-custom">Cash Amount</label>
         <input type="number" id="twPartialCashInput" class="form-control-custom" step="0.01" min="0"
           placeholder="Enter cash amount" />
         <label class="form-label-custom mt-2" id="twPartialSelectedLabel">Card/UPI Amount</label>
         <input type="number" id="twPartialSelectedInput" class="form-control-custom" step="0.01" readonly />
-        <div class="app-muted mt-1" id="twPartialRemaining">Remaining in selected mode: ₹0.00</div>
-      </div>
-      <div class="form-group-custom">
-        <label class="form-label-custom">Amount Received</label>
+                <div class="app-muted mt-1" id="twPartialRemaining">Remaining in selected mode: ₹0.00</div>
+            </div>
+            <div class="form-group-custom">
+                <label class="form-label-custom">Amount Received</label>
         <input type="number" id="twAmtInput" class="form-control-custom" step="0.01" readonly />
         <div class="settle-split-row mt-2">
           <input type="checkbox" id="twAmtEditable" />
           <label for="twAmtEditable">Allow editing amount received</label>
         </div>
-      </div>
+            </div>
       <div id="twChangeRow"
         style="display:none;background:var(--success-bg);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;font-weight:600;color:var(--success);margin-top:8px;">
-        <i class="fas fa-coins me-1"></i>Change: <span id="twChangeDue">&#8377;0.00</span>
-      </div>
-    </div>
-    <div class="settle-modal-foot">
-      <button class="btn-settle-cancel" id="twSettleCancel">Cancel</button>
+                <i class="fas fa-coins me-1"></i>Change: <span id="twChangeDue">&#8377;0.00</span>
+            </div>
+        </div>
+        <div class="settle-modal-foot">
+            <button class="btn-settle-cancel" id="twSettleCancel">Cancel</button>
       <button class="btn-settle-confirm" id="twSettleConfirm"><i class="fas fa-check-circle"></i> Confirm &amp;
         Print</button>
     </div>
-  </div>
+    </div>
 </div>
 
 <div class="receipt-wrap" id="twReceiptWrap"></div>

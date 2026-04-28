@@ -3,6 +3,7 @@ const twState = {
   searchTerm: "", selectedCategoryId: null, payMethod: "Cash", partialSplitEnabled: false,
   currentBillId: null, currentBillNo: null, billLevelDiscount: 0, manualGrandTotal: null, hasPendingKot: false
 };
+const DEFAULT_BRAND_NAME = window.__defaultBrandName || "RestoBill";
 const TW_AUTOSAVE_TOAST_KEY = "tw.autosave.toast";
 
 const twFmtQty = (value) => {
@@ -88,8 +89,8 @@ async function twPrintBillPreview() {
   const billLabel = twState.currentBillNo || "PREVIEW";
   const branding = typeof window.getBrandingSettings === "function"
     ? await window.getBrandingSettings()
-    : { restaurantName: "RestoBill", logoUrl: "" };
-  const brandName = (branding?.restaurantName || "RestoBill");
+    : { restaurantName: DEFAULT_BRAND_NAME, logoUrl: "" };
+  const brandName = (branding?.restaurantName || DEFAULT_BRAND_NAME);
   const safeLogoUrl = String(branding?.logoUrl || "").trim();
   const logoBlock = safeLogoUrl && !safeLogoUrl.includes("${")
     ? `<img src="${safeLogoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto 4px;display:block;" />`
@@ -123,8 +124,8 @@ async function twPrintKotSlip() {
       </tr>`).join("");
   const branding = typeof window.getBrandingSettings === "function"
     ? await window.getBrandingSettings()
-    : { restaurantName: "RestoBill", logoUrl: "" };
-  const brandName = (branding?.restaurantName || "RestoBill");
+    : { restaurantName: DEFAULT_BRAND_NAME, logoUrl: "" };
+  const brandName = (branding?.restaurantName || DEFAULT_BRAND_NAME);
   const safeLogoUrl = String(branding?.logoUrl || "").trim();
   const logoBlock = safeLogoUrl && !safeLogoUrl.includes("${")
     ? `<img src="${safeLogoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto 4px;display:block;" />`
@@ -489,7 +490,7 @@ function twBindEvents() {
     }
     const totals = twGetTotals();
     const defaultGrand = Number.isInteger(twState.manualGrandTotal) ? twState.manualGrandTotal : totals.grand;
-    const raw = prompt("Enter final payable amount (whole number)", String(defaultGrand));
+    const raw = prompt("Enter final payable amount (whole number)", Number(defaultGrand || 0).toFixed(2));
     if (raw === null) return;
     const next = Number(raw);
     if (!Number.isFinite(next) || next < 0) {
@@ -696,7 +697,7 @@ function twOpenSettle() {
       <div class="settle-summary-row"><span>Tax</span><span>${fmtINR(tax)}</span></div>
       <div class="settle-summary-row"><span>Round Off</span><span>${fmtINR(roundOff)}</span></div>
       <div class="settle-summary-row grand"><span>Grand Total</span><span>${fmtINR(grand)}</span></div>`;
-  document.getElementById("twAmtInput").value = String(grand);
+  document.getElementById("twAmtInput").value = Number(grand || 0).toFixed(2);
   document.getElementById("twChangeRow").style.display = "none";
   const twPartialCashGroup = document.getElementById("twPartialCashGroup");
   const twPartialCashInput = document.getElementById("twPartialCashInput");
@@ -814,8 +815,8 @@ async function twConfirmSettle() {
     const roundOffAmt = totals.roundOff;
     const branding = typeof window.getBrandingSettings === "function"
       ? await window.getBrandingSettings()
-      : { restaurantName: "RestoBill", logoUrl: "" };
-    const brandName = (branding?.restaurantName || "RestoBill");
+      : { restaurantName: DEFAULT_BRAND_NAME, logoUrl: "" };
+    const brandName = (branding?.restaurantName || DEFAULT_BRAND_NAME);
     const safeLogoUrl = String(branding?.logoUrl || "").trim();
     const logoBlock = safeLogoUrl && !safeLogoUrl.includes("${")
       ? `<img src="${safeLogoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto 4px;display:block;" />`

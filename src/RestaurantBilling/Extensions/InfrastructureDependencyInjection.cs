@@ -47,6 +47,7 @@ public static class InfrastructureDependencyInjection
         services.AddScoped<IStockService, StockService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<OutboxProcessorJob>();
+        services.AddScoped<PerishableStockExpiryJob>();
         services.AddScoped<CashPaymentProvider>();
 
         services.AddHttpClient<RazorpayUpiProvider>(client =>

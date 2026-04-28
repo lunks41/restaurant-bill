@@ -12,6 +12,7 @@ const posState = {
   customerName: "",
   customerPhone: ""
 };
+const DEFAULT_BRAND_NAME = window.__defaultBrandName || "RestoBill";
 const POS_AUTOSAVE_TOAST_KEY = "pos.autosave.toast";
 let kotPrintInProgress = false;
 function posNotify(type, message) {
@@ -387,7 +388,7 @@ function bindPosEvents() {
     }
     const totals = getPosTotals();
     const defaultGrand = Number.isInteger(posState.manualGrandTotal) ? posState.manualGrandTotal : totals.grand;
-    const raw = prompt("Enter final payable amount (whole number)", String(defaultGrand));
+    const raw = prompt("Enter final payable amount (whole number)", Number(defaultGrand || 0).toFixed(2));
     if (raw === null) return;
     const next = Number(raw);
     if (!Number.isFinite(next) || next < 0) {
@@ -730,7 +731,7 @@ function openSettleModal() {
     <div class="settle-summary-row"><span>Round Off</span><span>${fmtINR(roundOff)}</span></div>
     <div class="settle-summary-row grand"><span>Grand Total</span><span>${fmtINR(grand)}</span></div>`;
   const amtInput = document.getElementById("settleAmtInput");
-  if (amtInput) amtInput.value = String(grand);
+  if (amtInput) amtInput.value = Number(grand || 0).toFixed(2);
   const partialToggle = document.getElementById("settlePartialSplit");
   const partialCashInput = document.getElementById("settlePartialCashInput");
   const partialSelectedInput = document.getElementById("settlePartialSelectedInput");
@@ -856,8 +857,8 @@ async function printReceipt(bill, amtPaid, method, payments) {
   const tableLine = posState.selectedTableName ? `<div style="font-size:11px;color:#666;">Table: ${posState.selectedTableName}</div>` : "";
   const branding = typeof window.getBrandingSettings === "function"
     ? await window.getBrandingSettings()
-    : { restaurantName: "RestoBill", logoUrl: "" };
-  const brandName = (branding?.restaurantName || "RestoBill");
+    : { restaurantName: DEFAULT_BRAND_NAME, logoUrl: "" };
+  const brandName = (branding?.restaurantName || DEFAULT_BRAND_NAME);
   const safeLogoUrl = String(branding?.logoUrl || "").trim();
   const logoBlock = safeLogoUrl && !safeLogoUrl.includes("${")
     ? `<img src="${safeLogoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto 4px;display:block;" />`
@@ -929,8 +930,8 @@ async function printKotSlip() {
   const tableLine = posState.selectedTableName ? `<div style="font-size:11px;color:#666;">Table: ${posState.selectedTableName}</div>` : "";
   const branding = typeof window.getBrandingSettings === "function"
     ? await window.getBrandingSettings()
-    : { restaurantName: "RestoBill", logoUrl: "" };
-  const brandName = (branding?.restaurantName || "RestoBill");
+    : { restaurantName: DEFAULT_BRAND_NAME, logoUrl: "" };
+  const brandName = (branding?.restaurantName || DEFAULT_BRAND_NAME);
   const safeLogoUrl = String(branding?.logoUrl || "").trim();
   const logoBlock = safeLogoUrl && !safeLogoUrl.includes("${")
     ? `<img src="${safeLogoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto 4px;display:block;" />`

@@ -55,28 +55,16 @@
                     <label class="form-label">Capacity</label>
                     <input id="capacity" type="number" class="form-control" placeholder="Capacity"/>
                 </div>
+                <div class="mt-3">
+                    <div class="form-check">
+                        <input id="tableIsActive" type="checkbox" class="form-check-input" checked />
+                        <label class="form-check-label" for="tableIsActive">Is Active</label>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="saveTable">Save</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="tableConfirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirm Inactivate</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Inactivate this table?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmTableInactivate">Inactivate</button>
             </div>
         </div>
     </div>
@@ -88,18 +76,15 @@
   const modalEl = document.getElementById('tableModal');
   if (!modalEl || !window.bootstrap) return;
   const modal = new window.bootstrap.Modal(modalEl);
-  const confirmModalEl = document.getElementById('tableConfirmModal');
-  const confirmModal = confirmModalEl ? new window.bootstrap.Modal(confirmModalEl) : null;
-  const confirmBtn = document.getElementById('confirmTableInactivate');
   const idEl = document.getElementById('tableId');
   const nameEl = document.getElementById('tableName');
   const areaEl = document.getElementById('tableArea');
   const areaFilterEl = document.getElementById('tableAreaFilter');
   const capacityEl = document.getElementById('capacity');
+  const isActiveEl = document.getElementById('tableIsActive');
   const titleEl = document.getElementById('tableModalTitle');
   const saveBtnEl = document.getElementById('saveTable');
   let dataTable = null;
-  let pendingDeleteId = null;
 
   const notifySafe = (message, type = 'info') => {
     if (typeof window.notify === 'function') {
@@ -119,7 +104,7 @@
         table.DataTable().destroy();
       }
     }
-    document.getElementById('tablesBody').innerHTML = rows.length ? rows.map(x => `<tr><td>${x.tableName}</td><td>${x.area}</td><td>${x.capacity}</td><td>${x.isOccupied ? 'Occupied' : 'Available'}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.tableMasterId}" data-name="${x.tableName}" data-area="${x.area}" data-capacity="${x.capacity}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.tableMasterId}">Inactivate</button></td></tr>`).join('') : '<tr><td colspan="6" class="text-center text-muted">No tables added.</td></tr>';
+    document.getElementById('tablesBody').innerHTML = rows.length ? rows.map(x => `<tr><td>${x.tableName}</td><td>${x.area}</td><td>${x.capacity}</td><td>${x.isOccupied ? 'Occupied' : 'Available'}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.tableMasterId}" data-name="${x.tableName}" data-area="${x.area}" data-capacity="${x.capacity}" data-is-active="${x.isActive}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.tableMasterId}">Delete</button></td></tr>`).join('') : '<tr><td colspan="6" class="text-center text-muted">No tables added.</td></tr>';
     bindRowActions();
     if (window.jQuery && jQuery.fn.DataTable) {
       const table = jQuery('#tablesTable');
@@ -147,6 +132,7 @@
     nameEl.value = '';
     areaEl.value = 'Ground';
     capacityEl.value = '';
+    isActiveEl.checked = true;
     titleEl.textContent = 'Add Table';
     saveBtnEl.textContent = 'Add';
     modal.show();
@@ -157,6 +143,7 @@
     nameEl.value = btn.getAttribute('data-name') || '';
     areaEl.value = btn.getAttribute('data-area') || 'Ground';
     capacityEl.value = btn.getAttribute('data-capacity') || '';
+    isActiveEl.checked = (btn.getAttribute('data-is-active') !== 'false');
     titleEl.textContent = 'Edit Table';
     saveBtnEl.textContent = 'Update';
     modal.show();
@@ -174,10 +161,10 @@
     const capacity = parseInt(capacityEl.value || '2', 10);
     try {
       if (id) {
-        await postJSON(`/masters/tables-update/${id}`, { name: tableName, area, capacity });
+        await postJSON(`/masters/tables-update/${id}`, { name: tableName, area, capacity, isActive: isActiveEl.checked });
         notifySafe('Table updated', 'success');
       } else {
-        await postJSON('/masters/tables-create', { name: tableName, area, capacity });
+        await postJSON('/masters/tables-create', { name: tableName, area, capacity, isActive: isActiveEl.checked });
         notifySafe('Table added', 'success');
       }
       modal.hide();
@@ -190,26 +177,19 @@
   function bindRowActions() {
     document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => openEdit(btn)));
     document.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', async () => {
-      pendingDeleteId = btn.getAttribute('data-delete');
-      confirmModal?.show();
+      const id = btn.getAttribute('data-delete');
+      if (!id) return;
+      confirmAction('Delete this table? It will be marked as inactive.', async () => {
+        await postJSON(`/masters/tables-delete/${id}`, { name: '' });
+        notifySafe('Table deleted (inactive)', 'success');
+        await load();
+      });
     }));
   }
 
   document.getElementById('openAddTable')?.addEventListener('click', openAdd);
   areaFilterEl?.addEventListener('change', applyAreaFilter);
   saveBtnEl.addEventListener('click', save);
-  confirmBtn?.addEventListener('click', async () => {
-    if (!pendingDeleteId) return;
-    try {
-      await postJSON(`/masters/tables-delete/${pendingDeleteId}`, { name: '' });
-      notifySafe('Table inactivated', 'success');
-      confirmModal?.hide();
-      pendingDeleteId = null;
-      await load();
-    } catch (_) {
-      notifySafe('Unable to inactivate table right now', 'error');
-    }
-  });
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', load);
   } else {

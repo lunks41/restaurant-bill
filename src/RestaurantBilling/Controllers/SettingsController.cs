@@ -3,12 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Data.Persistence;
 using Entities.Configuration;
+using Services.Jobs;
 using System.Text.RegularExpressions;
 
 namespace RestaurantBilling.Controllers;
 
 [Authorize]
-public class SettingsController(AppDbContext db, IWebHostEnvironment env) : Controller
+public class SettingsController(AppDbContext db, IWebHostEnvironment env, PerishableStockExpiryJob perishableStockExpiryJob) : Controller
 {
     [HttpGet("/settings")]
     [HttpGet("/setting/info")]
@@ -30,6 +31,7 @@ public class SettingsController(AppDbContext db, IWebHostEnvironment env) : Cont
         map.TryGetValue("ManagerPin", out var managerPin);
         map.TryGetValue("RestaurantName", out var restaurantName);
         map.TryGetValue("LogoUrl", out var logoUrl);
+        map.TryGetValue("ClosingTime", out var closingTime);
         var safeLogoUrl = SanitizeLogoUrl(logoUrl);
 
         return Ok(new
@@ -38,18 +40,26 @@ public class SettingsController(AppDbContext db, IWebHostEnvironment env) : Cont
             logoUrl = safeLogoUrl,
             fssai = fssai ?? string.Empty,
             gstin = gstin ?? string.Empty,
-            managerPin = managerPin ?? string.Empty
+            managerPin = managerPin ?? string.Empty,
+            closingTime = string.IsNullOrWhiteSpace(closingTime) ? "02:00" : closingTime
         });
     }
 
     [HttpPost("/settings/save")]
     public async Task<IActionResult> Save([FromBody] SettingsPayloadDto payload, CancellationToken cancellationToken)
     {
+        var closingTime = NormalizeClosingTime(payload.ClosingTime);
+        if (closingTime is null)
+        {
+            return BadRequest("ClosingTime must be in HH:mm format.");
+        }
+
         await Upsert("RestaurantName", payload.RestaurantName, cancellationToken);
         await Upsert("LogoUrl", SanitizeLogoUrl(payload.LogoUrl), cancellationToken);
         await Upsert("FssaiLicenseNo", payload.Fssai, cancellationToken);
         await Upsert("Gstin", payload.Gstin, cancellationToken);
         await Upsert("ManagerPin", payload.ManagerPin, cancellationToken);
+        await Upsert("ClosingTime", closingTime, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return Ok(new { status = "Saved" });
     }
@@ -82,6 +92,13 @@ public class SettingsController(AppDbContext db, IWebHostEnvironment env) : Cont
         await Upsert("LogoUrl", logoUrl, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return Ok(new { logoUrl });
+    }
+
+    [HttpPost("/settings/run-expiry-now")]
+    public async Task<IActionResult> RunExpiryNow(CancellationToken cancellationToken)
+    {
+        await perishableStockExpiryJob.Execute(cancellationToken);
+        return Ok(new { status = "Triggered" });
     }
 
     private async Task Upsert(string key, string value, CancellationToken cancellationToken)
@@ -137,11 +154,19 @@ public class SettingsController(AppDbContext db, IWebHostEnvironment env) : Cont
         return string.Empty;
     }
 
+    private static string? NormalizeClosingTime(string? value)
+    {
+        var raw = (value ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        return TimeOnly.TryParse(raw, out var parsed) ? parsed.ToString("HH:mm") : null;
+    }
+
     public sealed record SettingsPayloadDto(
         string RestaurantName,
         string LogoUrl,
         string Fssai,
         string Gstin,
-        string ManagerPin);
+        string ManagerPin,
+        string ClosingTime);
 }
 

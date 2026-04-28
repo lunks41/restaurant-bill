@@ -4,16 +4,18 @@
 
 @section Styles {
 <style>
-  /* Compact inventory table layout */
+  /* Inventory table layout */
   #stockItemsTable {
     table-layout: fixed;
     width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
   }
 
   #stockItemsTable th,
   #stockItemsTable td {
-    padding: 7px 10px;
-    font-size: 12px;
+    padding: 9px 10px;
+    font-size: 12.5px;
     line-height: 1.25;
     white-space: nowrap;
     vertical-align: middle;
@@ -26,13 +28,13 @@
   #stockItemsTable th:nth-child(3),
   #stockItemsTable td:nth-child(3) { width: 90px; }   /* Unit */
   #stockItemsTable th:nth-child(4),
-  #stockItemsTable td:nth-child(4) { width: 90px; }   /* Current Qty */
+  #stockItemsTable td:nth-child(4) { width: 110px; text-align: right; }   /* Current Qty */
   #stockItemsTable th:nth-child(5),
-  #stockItemsTable td:nth-child(5) { width: 80px; }   /* Reorder */
+  #stockItemsTable td:nth-child(5) { width: 100px; text-align: right; }   /* Reorder */
   #stockItemsTable th:nth-child(6),
   #stockItemsTable td:nth-child(6) { width: 90px; }   /* Status */
   #stockItemsTable th:nth-child(7),
-  #stockItemsTable td:nth-child(7) { width: 140px; text-align: right; } /* Actions */
+  #stockItemsTable td:nth-child(7) { width: 90px; text-align: right; } /* Action */
 
   #stockItemsTable td:nth-child(2) {
     overflow: hidden;
@@ -56,10 +58,16 @@
   #stockItemsTable thead th {
     font-size: 11px;
     letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text-muted);
   }
 
   #stockItemsTable td:last-child {
     white-space: nowrap;
+  }
+
+  #stockItemsTable tbody tr:hover {
+    background: color-mix(in srgb, var(--bg-surface) 82%, #ffffff 18%);
   }
 
   #stockItemsTable_wrapper .dataTables_filter input,
@@ -109,7 +117,7 @@
                     <th>Current Qty</th>
                     <th>Reorder</th>
                     <th>Status</th>
-                    <th></th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody id="stockItemsBody">
@@ -228,7 +236,7 @@
       currentPage = result.page || 1;
     }
     document.getElementById('stockItemsBody').innerHTML = rows.length
-      ? rows.map(x => `<tr><td>${x.itemCode || ''}</td><td>${x.itemName}</td><td>${x.unitName || '-'}</td><td>${x.currentQty ?? 0}</td><td>${x.reorderLevel ?? 0}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary me-1" data-edit="${x.itemId}" data-item-id="${x.itemIdRef || ''}" data-unit-id="${x.unitId || ''}" data-current-qty="${x.currentQty ?? 0}" data-reorder="${x.reorderLevel ?? 0}">Edit</button><button class="btn btn-sm btn-outline-danger" data-delete="${x.itemId}">Inactivate</button></td></tr>`).join('')
+      ? rows.map(x => `<tr><td>${x.itemCode || ''}</td><td>${x.itemName}</td><td>${x.unitName || '-'}</td><td>${Number(x.currentQty ?? 0).toFixed(2)}</td><td>${Number(x.reorderLevel ?? 0).toFixed(2)}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary" data-edit="${x.itemId}" data-item-id="${x.itemIdRef || ''}" data-unit-id="${x.unitId || ''}" data-current-qty="${x.currentQty ?? 0}" data-reorder="${x.reorderLevel ?? 0}">Edit</button></td></tr>`).join('')
       : `<tr>
            <td class="text-center text-muted">No stock items found.</td>
            <td></td>
@@ -298,17 +306,8 @@
     }
   }
 
-  async function inactivate(itemId) {
-    if (!itemId) return;
-    if (!confirm('Inactivate this stock item?')) return;
-    await postJSON(`${apiPrefix}/stock-items-delete/${itemId}`, { name: '' });
-    notifySafe('Item stock inactivated', 'success');
-    await loadItems();
-  }
-
   function bindRowActions() {
     document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => openEdit(btn)));
-    document.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', () => inactivate(btn.getAttribute('data-delete'))));
   }
 
   document.getElementById('openAddStockItem')?.addEventListener('click', openAdd);

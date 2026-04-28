@@ -1,18 +1,107 @@
 using IServices;
+using Data.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Entities.Inventory;
 using Entities.Sales;
 
 namespace Services;
 
-public class StockService : IStockService
+public class StockService(AppDbContext db) : IStockService
 {
     public async Task DeductSaleStockAsync(DateOnly businessDate, IReadOnlyCollection<BillItem> billItems, CancellationToken cancellationToken)
     {
-        await Task.CompletedTask;
+        if (billItems.Count == 0) return;
+
+        var itemIds = billItems.Select(x => x.ItemId).Distinct().ToList();
+        if (itemIds.Count == 0) return;
+
+        var stockItemIds = (await db.Items
+            .Where(x => !x.IsDeleted && x.IsStock && itemIds.Contains(x.ItemId))
+            .Select(x => x.ItemId)
+            .ToListAsync(cancellationToken))
+            .ToHashSet();
+
+        if (stockItemIds.Count == 0) return;
+
+        var stockRows = await db.ItemStocks
+            .Where(x => !x.IsDeleted && stockItemIds.Contains(x.ItemId))
+            .ToListAsync(cancellationToken);
+
+        foreach (var billItem in billItems)
+        {
+            if (billItem.IsStockReduced) continue;
+            if (!stockItemIds.Contains(billItem.ItemId)) continue;
+
+            var row = stockRows.FirstOrDefault(x => x.ItemId == billItem.ItemId);
+            if (row is null)
+            {
+                row = new ItemStock
+                {
+                    ItemId = billItem.ItemId,
+                    CurrentQty = 0m,
+                    ReorderLevel = 10m,
+                    Type = "Opening",
+                    StockDate = businessDate,
+                    IsActive = true,
+                    IsDeleted = false
+                };
+                db.ItemStocks.Add(row);
+                stockRows.Add(row);
+            }
+
+            row.CurrentQty -= billItem.Qty;
+            row.IsActive = true;
+            row.StockDate = businessDate;
+            billItem.MarkStockReduced();
+        }
     }
 
     public async Task ReverseSaleStockAsync(long billId, DateOnly businessDate, IReadOnlyCollection<BillItem> billItems, CancellationToken cancellationToken)
     {
-        await Task.CompletedTask;
+        if (billItems.Count == 0) return;
+
+        var itemIds = billItems.Select(x => x.ItemId).Distinct().ToList();
+        if (itemIds.Count == 0) return;
+
+        var stockItemIds = (await db.Items
+            .Where(x => !x.IsDeleted && x.IsStock && itemIds.Contains(x.ItemId))
+            .Select(x => x.ItemId)
+            .ToListAsync(cancellationToken))
+            .ToHashSet();
+
+        if (stockItemIds.Count == 0) return;
+
+        var stockRows = await db.ItemStocks
+            .Where(x => !x.IsDeleted && stockItemIds.Contains(x.ItemId))
+            .ToListAsync(cancellationToken);
+
+        foreach (var billItem in billItems)
+        {
+            if (!billItem.IsStockReduced) continue;
+            if (!stockItemIds.Contains(billItem.ItemId)) continue;
+
+            var row = stockRows.FirstOrDefault(x => x.ItemId == billItem.ItemId);
+            if (row is null)
+            {
+                row = new ItemStock
+                {
+                    ItemId = billItem.ItemId,
+                    CurrentQty = 0m,
+                    ReorderLevel = 10m,
+                    Type = "Opening",
+                    StockDate = businessDate,
+                    IsActive = true,
+                    IsDeleted = false
+                };
+                db.ItemStocks.Add(row);
+                stockRows.Add(row);
+            }
+
+            row.CurrentQty += billItem.Qty;
+            row.IsActive = true;
+            row.StockDate = businessDate;
+            billItem.MarkStockRestored();
+        }
     }
 }
 

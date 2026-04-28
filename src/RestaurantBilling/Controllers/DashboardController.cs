@@ -50,7 +50,25 @@ public class DashboardController(AppDbContext db) : Controller
             .Where(x => x.Status == BillStatus.Draft)
             .CountAsync(cancellationToken);
 
-        var lowStock = 0;
+        var lowStock = await (
+            from stock in db.ItemStocks
+            join item in db.Items on stock.ItemId equals item.ItemId
+            where !stock.IsDeleted
+                  && stock.IsActive
+                  && item.IsStock
+                  && stock.CurrentQty <= stock.ReorderLevel
+            select stock.ItemId
+        ).Distinct().CountAsync(cancellationToken);
+
+        var outOfStock = await (
+            from stock in db.ItemStocks
+            join item in db.Items on stock.ItemId equals item.ItemId
+            where !stock.IsDeleted
+                  && stock.IsActive
+                  && item.IsStock
+                  && stock.CurrentQty <= 0
+            select stock.ItemId
+        ).Distinct().CountAsync(cancellationToken);
 
         return Ok(new
         {
@@ -60,7 +78,8 @@ public class DashboardController(AppDbContext db) : Controller
             pendingKot,
             activeTables,
             pendingBills,
-            lowStock
+            lowStock,
+            outOfStock
         });
     }
 
@@ -141,8 +160,28 @@ public class DashboardController(AppDbContext db) : Controller
     [HttpGet("/dashboard/low-stock")]
     public async Task<IActionResult> LowStock(CancellationToken cancellationToken)
     {
-        await Task.CompletedTask;
-        return Ok(Array.Empty<object>());
+        var rows = await (
+            from stock in db.ItemStocks
+            join item in db.Items on stock.ItemId equals item.ItemId
+            join unit in db.Units on stock.UnitId equals unit.UnitId into unitJoin
+            from unit in unitJoin.DefaultIfEmpty()
+            where !stock.IsDeleted
+                  && stock.IsActive
+                  && item.IsStock
+                  && stock.CurrentQty <= stock.ReorderLevel
+            orderby stock.CurrentQty ascending, item.ItemName
+            select new
+            {
+                stock.ItemId,
+                item.ItemName,
+                unitName = unit != null ? unit.UnitName : null,
+                stock.CurrentQty,
+                stock.ReorderLevel
+            })
+            .Take(20)
+            .ToListAsync(cancellationToken);
+
+        return Ok(rows);
     }
 }
 

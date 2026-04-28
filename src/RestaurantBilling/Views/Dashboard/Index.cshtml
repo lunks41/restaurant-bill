@@ -2,6 +2,74 @@
     ViewData["Title"] = "Dashboard";
 }
 
+@section Styles {
+<style>
+    .dash-section-card {
+        height: 320px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .dash-section-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: thin;
+    }
+
+    .dash-section-scroll::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+
+    .dash-section-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .dash-section-scroll::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 999px;
+    }
+
+    .dash-section-scroll::-webkit-scrollbar-thumb:hover {
+        background: var(--text-muted);
+    }
+
+    .dash-fixed-card {
+        height: 320px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .dash-fixed-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: thin;
+    }
+
+    .dash-fixed-scroll::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+
+    .dash-fixed-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .dash-fixed-scroll::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 999px;
+    }
+
+    .dash-fixed-scroll::-webkit-scrollbar-thumb:hover {
+        background: var(--text-muted);
+    }
+</style>
+}
+
 <div class="page-header">
     <div>
         <h1 class="page-title-h">Dashboard</h1>
@@ -54,19 +122,19 @@
         <div style="flex:1;">
             <div class="kpi-label">Alerts</div>
             <div class="kpi-value" id="kpiLowStock">0</div>
-            <div class="kpi-sub" id="kpiLowStockSub">module removed</div>
+            <div class="kpi-sub" id="kpiLowStockSub">all items healthy</div>
         </div>
     </div>
 </div>
 
 <!-- Top Selling Items -->
-<div class="card mb-3">
+<div class="card mb-3 dash-section-card">
     <div class="card-header-custom">
         <div class="card-title-custom"><i class="fas fa-trophy" style="color:var(--warning);"></i> Top Selling Items
             &mdash; Today</div>
         <a href="/reports/itemwise" style="font-size:12px;color:var(--accent);">Full Report</a>
     </div>
-    <div class="card-body-custom" style="padding:0;">
+    <div class="card-body-custom dash-section-scroll" style="padding:0;">
         <table class="table-custom">
             <thead>
                 <tr>
@@ -87,43 +155,14 @@
 
 <!-- Quick Actions + Status Row -->
 <div class="row g-3 mb-3">
-    <div class="col-lg-4 col-12">
-        <div class="card">
-            <div class="card-header-custom">
-                <div class="card-title-custom"><i class="fas fa-bolt" style="color:var(--warning);"></i> Quick Actions
-                </div>
-            </div>
-            <div class="card-body-custom" style="display:flex;flex-direction:column;gap:10px;">
-                <a href="/floor" class="btn-accent" style="justify-content:center;padding:12px;text-decoration:none;">
-                    <i class="fas fa-chair"></i> New Dine-In Order
-                </a>
-                <a href="/takeaway" class="btn-outline-accent"
-                    style="padding:11px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px;">
-                    <i class="fas fa-shopping-bag"></i> New Takeaway
-                </a>
-                <a href="/kot/kotlist" class="btn-ghost"
-                    style="padding:11px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px;">
-                    <i class="fas fa-fire-burner"></i> View KOT List
-                </a>
-                <a href="/reports/dayclosereports" class="btn-accent"
-                    style="padding:11px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px;">
-                    <i class="fas fa-calendar-check"></i> Day Close Reports
-                </a>
-                <a href="/reports/dailysales" class="btn-ghost"
-                    style="padding:11px;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px;">
-                    <i class="fas fa-chart-bar"></i> Daily Sales Report
-                </a>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-4 col-12">
-        <div class="card">
+    <div class="col-lg-6 col-12">
+        <div class="card dash-fixed-card">
             <div class="card-header-custom">
                 <div class="card-title-custom"><i class="fas fa-fire-burner" style="color:var(--warning);"></i> Active
                     KOTs</div>
                 <a href="/kot/kotlist" style="font-size:12px;color:var(--accent);">View All</a>
             </div>
-            <div class="card-body-custom" style="padding:0;">
+            <div class="card-body-custom dash-fixed-scroll" style="padding:0;">
                 <table class="table-custom" id="activeKotTable">
                     <thead>
                         <tr>
@@ -141,16 +180,40 @@
             </div>
         </div>
     </div>
-    <div class="col-lg-4 col-12"></div>
+    <div class="col-lg-6 col-12">
+        <div class="card dash-fixed-card">
+            <div class="card-header-custom">
+                <div class="card-title-custom"><i class="fas fa-boxes-stacked" style="color:var(--danger);"></i> Low Stock
+                    Inventory</div>
+                <a href="/inventory/stock" style="font-size:12px;color:var(--accent);">View Inventory</a>
+            </div>
+            <div class="card-body-custom dash-fixed-scroll" style="padding:0;">
+                <table class="table-custom">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Current</th>
+                            <th>Reorder</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lowStockBody">
+                        <tr>
+                            <td colspan="3" class="text-center text-muted" style="padding:20px;">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Recent Bills -->
-<div class="card">
+<div class="card dash-section-card">
     <div class="card-header-custom">
         <div class="card-title-custom"><i class="fas fa-list" style="color:var(--info);"></i> Recent Bills</div>
         <a href="/bills" style="font-size:12px;color:var(--accent);">View All Bills</a>
     </div>
-    <div class="table-scroll">
+    <div class="table-scroll dash-section-scroll">
         <table class="table-custom">
             <thead>
                 <tr>
@@ -175,11 +238,12 @@
     <script>
         async function loadDashboard() {
             try {
-                const [kpi, bills, kots, topItems] = await Promise.all([
+                const [kpi, bills, kots, topItems, lowStockItems] = await Promise.all([
                     getJSON('/dashboard/kpi'),
                     getJSON('/dashboard/recent-bills'),
                     getJSON('/kot/kots-data?outletId=1').catch(() => []),
-                    getJSON('/dashboard/top-items').catch(() => [])
+                    getJSON('/dashboard/top-items').catch(() => []),
+                    getJSON('/dashboard/low-stock').catch(() => [])
                 ]);
 
                 // KPI Cards
@@ -187,7 +251,17 @@
                 document.getElementById('kpiBills').textContent = kpi.billsCount || 0;
                 document.getElementById('kpiPendingBills').textContent = kpi.pendingBills || 0;
                 document.getElementById('kpiTables').textContent = kpi.activeTables || 0;
-                document.getElementById('kpiLowStock').textContent = 0;
+                document.getElementById('kpiLowStock').textContent = kpi.lowStock || 0;
+                const lowStockSub = document.getElementById('kpiLowStockSub');
+                if (lowStockSub) {
+                    if ((kpi.outOfStock || 0) > 0) {
+                        lowStockSub.textContent = `${kpi.outOfStock} out of stock`;
+                    } else if ((kpi.lowStock || 0) > 0) {
+                        lowStockSub.textContent = 'needs reorder';
+                    } else {
+                        lowStockSub.textContent = 'all items healthy';
+                    }
+                }
                 const sub = document.getElementById('kpiSalesSub');
                 if (sub && kpi.yesterdaySales != null) {
                     const diff = ((kpi.todaySales - kpi.yesterdaySales) / Math.max(1, kpi.yesterdaySales)) * 100;
@@ -243,6 +317,18 @@
                 <td><strong style="color:var(--accent);">${fmtINR(x.totalSales)}</strong></td>
               </tr>`).join('')
                         : '<tr><td colspan="4" class="text-center text-muted" style="padding:20px;">No sales data today yet.</td></tr>';
+                }
+
+                // Low Stock Inventory
+                const lowStockBody = document.getElementById('lowStockBody');
+                if (lowStockBody) {
+                    lowStockBody.innerHTML = lowStockItems?.length
+                        ? lowStockItems.slice(0, 6).map(x => `<tr>
+                <td><strong>${x.itemName}</strong><div style="font-size:11px;color:var(--text-muted);">${x.unitName || '-'}</div></td>
+                <td><span class="badge-custom badge-danger">${Number(x.currentQty || 0).toFixed(2)}</span></td>
+                <td>${Number(x.reorderLevel || 0).toFixed(2)}</td>
+              </tr>`).join('')
+                        : '<tr><td colspan="3" class="text-center text-muted" style="padding:20px;"><i class="fas fa-check-circle" style="color:var(--success);"></i> No low stock alerts</td></tr>';
                 }
 
                 const ts = document.getElementById('dashLastUpdated');

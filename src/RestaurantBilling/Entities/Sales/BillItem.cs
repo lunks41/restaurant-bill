@@ -34,5 +34,10 @@ public class BillItem : BaseEntity
     {
         IsStockReduced = true;
     }
+
+    public void MarkStockRestored()
+    {
+        IsStockReduced = false;
+    }
 }
 

@@ -94,7 +94,7 @@ public class InventoryController(AppDbContext db) : Controller
     public async Task<IActionResult> ItemOptions(CancellationToken cancellationToken = default)
     {
         var items = await db.Items
-            .Where(x => !x.IsDeleted)
+            .Where(x => !x.IsDeleted && x.IsStock)
             .OrderBy(x => x.ItemName)
             .Select(x => new { itemId = x.ItemId, itemName = x.ItemName })
             .ToListAsync(cancellationToken);

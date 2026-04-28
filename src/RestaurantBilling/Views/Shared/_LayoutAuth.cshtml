@@ -1,9 +1,17 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
+  @{
+    var brandName = ViewData["BrandName"] as string;
+    if (string.IsNullOrWhiteSpace(brandName))
+    {
+      brandName = "RestoBill";
+    }
+  }
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>@ViewData["Title"] | RestoBill</title>
+  <title>@ViewData["Title"] | @brandName</title>
+  <meta name="app-brand-default" content="@brandName"/>
   <meta name="theme-color" content="#09090b"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>

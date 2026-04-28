@@ -1,6 +1,7 @@
 @model RestaurantBilling.Models.Masters.ItemInputModel
 @{
-    var rows = ViewBag.Rows;
+    IEnumerable<RestaurantBilling.Controllers.ItemListRow> rows = ViewBag.Rows as IEnumerable<RestaurantBilling.Controllers.ItemListRow>
+        ?? Enumerable.Empty<RestaurantBilling.Controllers.ItemListRow>();
     var categories = (IEnumerable<Entities.Masters.Category>)ViewBag.Categories;
 }
 
@@ -12,8 +13,9 @@
     </button>
 </div>
 
-<div class="app-surface">
-    <table id="itemsTable" class="table table-sm app-table mb-0">
+<div class="card">
+    <div class="card-body-custom">
+    <table id="itemsTable" class="table-custom">
         <thead>
             <tr>
                 <th>Image</th>
@@ -22,6 +24,7 @@
                 <th>Category</th>
                 <th>Sale</th>
                 <th>GST</th>
+                <th>IsStock</th>
                 <th>Status</th>
                 <th></th>
             </tr>
@@ -31,22 +34,32 @@
             {
                 <tr>
                     <td>
-                        @if (!string.IsNullOrWhiteSpace(row.i.ImagePath))
+                        @if (!string.IsNullOrWhiteSpace(row.Item.ImagePath))
                         {
-                            <img src="@row.i.ImagePath" alt="@row.i.ItemName" style="width:36px;height:36px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" />
+                            <img src="@row.Item.ImagePath" alt="@row.Item.ItemName" style="width:36px;height:36px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" />
                         }
                         else
                         {
                             <span class="badge-custom badge-muted">No image</span>
                         }
                     </td>
-                    <td>@row.i.ItemCode</td>
-                    <td>@row.i.ItemName</td>
+                    <td>@row.Item.ItemCode</td>
+                    <td>@row.Item.ItemName</td>
                     <td>@row.CategoryName</td>
-                    <td>@row.i.SalePrice</td>
-                    <td>@row.i.GstPercent</td>
+                    <td>@row.Item.SalePrice.ToString("0.00")</td>
+                    <td>@row.Item.GstPercent.ToString("0.00")</td>
                     <td>
-                        @if (row.i.IsActive)
+                        @if (row.Item.IsStock)
+                        {
+                            <span class="badge-custom badge-info">Yes</span>
+                        }
+                        else
+                        {
+                            <span class="badge-custom badge-muted">No</span>
+                        }
+                    </td>
+                    <td>
+                        @if (row.Item.IsActive)
                         {
                             <span class="badge-custom badge-success">Active</span>
                         }
@@ -58,23 +71,28 @@
                     <td class="d-flex gap-2">
                         <button type="button"
                                 class="btn btn-sm btn-outline-primary btn-edit-item"
-                                data-id="@row.i.ItemId"
-                                data-code="@row.i.ItemCode"
-                                data-name="@row.i.ItemName"
-                                data-category-id="@row.i.CategoryId"
-                                data-sale="@row.i.SalePrice"
-                                data-gst="@row.i.GstPercent"
-                                data-is-active="@row.i.IsActive.ToString().ToLowerInvariant()"
-                                data-is-stock="@row.i.IsStock.ToString().ToLowerInvariant()"
-                                data-tax-inclusive="@row.i.IsTaxInclusive.ToString().ToLowerInvariant()"
-                                data-image-path="@row.i.ImagePath">
+                                data-id="@row.Item.ItemId"
+                                data-code="@row.Item.ItemCode"
+                                data-name="@row.Item.ItemName"
+                                data-category-id="@row.Item.CategoryId"
+                                data-sale="@row.Item.SalePrice.ToString("0.00")"
+                                data-gst="@row.Item.GstPercent.ToString("0.00")"
+                                data-is-active="@row.Item.IsActive.ToString().ToLowerInvariant()"
+                                data-is-stock="@row.Item.IsStock.ToString().ToLowerInvariant()"
+                                data-tax-inclusive="@row.Item.IsTaxInclusive.ToString().ToLowerInvariant()"
+                                data-image-path="@row.Item.ImagePath">
                             Edit
                         </button>
+                        <form method="post" action="/masters/items/@row.Item.ItemId/delete" class="m-0">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-danger btn-delete-item">Delete</button>
+                        </form>
                     </td>
                 </tr>
             }
         </tbody>
     </table>
+    </div>
 </div>
 
 <div class="modal fade" id="itemModal" tabindex="-1" aria-hidden="true">
@@ -192,8 +210,8 @@
     codeEl.value = '';
     nameEl.value = '';
     categoryEl.value = '';
-    saleEl.value = '0';
-    gstEl.value = '5';
+    saleEl.value = '0.00';
+    gstEl.value = '5.00';
     isActiveEl.checked = true;
     isStockEl.checked = true;
     taxInclusiveEl.checked = false;
@@ -223,6 +241,14 @@
 
   document.getElementById('openAddItem')?.addEventListener('click', openAdd);
   document.querySelectorAll('.btn-edit-item').forEach((btn) => btn.addEventListener('click', () => openEdit(btn)));
+  document.querySelectorAll('.btn-delete-item').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const deleteForm = btn.closest('form');
+      if (!deleteForm) return;
+      confirmAction('Delete this item? It will be marked as inactive.', () => deleteForm.submit());
+    });
+  });
 
   imageFileEl?.addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];

@@ -179,9 +179,9 @@
                 <tr>
                     <td>@line.ItemNameSnapshot</td>
                     <td>@line.Qty.ToString("0.##")</td>
-                    <td>@line.RateSnapshot</td>
-                    <td>@line.TaxAmount</td>
-                    <td>@line.LineTotal</td>
+                    <td>₹@line.RateSnapshot.ToString("N2")</td>
+                    <td>₹@line.TaxAmount.ToString("N2")</td>
+                    <td>₹@line.LineTotal.ToString("N2")</td>
                 </tr>
             }
             </tbody>

@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Data.Persistence;
 using RestaurantBilling.Models.Identity;
 
 namespace RestaurantBilling.Controllers;
@@ -8,16 +10,18 @@ namespace RestaurantBilling.Controllers;
 [AllowAnonymous]
 public class AccountController(
     SignInManager<IdentityUser<int>> signInManager,
-    UserManager<IdentityUser<int>> userManager) : Controller
+    UserManager<IdentityUser<int>> userManager,
+    AppDbContext db) : Controller
 {
     [HttpGet]
-    public IActionResult Login(string? returnUrl = null)
+    public async Task<IActionResult> Login(string? returnUrl = null, CancellationToken cancellationToken = default)
     {
         if (User.Identity?.IsAuthenticated == true)
         {
             return RedirectToLocal(returnUrl);
         }
 
+        ViewData["BrandName"] = await GetBrandNameAsync(cancellationToken);
         ViewData["ReturnUrl"] = returnUrl;
         return View(new LoginViewModel());
     }
@@ -26,6 +30,7 @@ public class AccountController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(LoginViewModel model, string? returnUrl = null)
     {
+        ViewData["BrandName"] = await GetBrandNameAsync(HttpContext.RequestAborted);
         ViewData["ReturnUrl"] = returnUrl;
         if (!ModelState.IsValid)
         {
@@ -77,5 +82,16 @@ public class AccountController(
         }
 
         return RedirectToAction("Index", "Dashboard");
+    }
+
+    private async Task<string> GetBrandNameAsync(CancellationToken cancellationToken)
+    {
+        var brand = await db.RestaurantSettings
+            .AsNoTracking()
+            .Where(x => x.SettingKey == "RestaurantName")
+            .Select(x => x.SettingValue)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return string.IsNullOrWhiteSpace(brand) ? "RestoBill" : brand.Trim();
     }
 }

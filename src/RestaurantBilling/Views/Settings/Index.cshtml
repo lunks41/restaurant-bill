@@ -27,9 +27,14 @@
                 <label class="form-label-custom">Manager PIN</label>
                 <input id="managerPin" class="form-control-custom" />
             </div>
+            <div class="col-md-4">
+                <label class="form-label-custom">Closing Time</label>
+                <input id="closingTime" type="time" class="form-control-custom" required />
+            </div>
         </div>
         <div class="mt-3">
             <button id="saveSettings" class="btn-accent">Save Settings</button>
+            <button id="runExpiryNow" type="button" class="btn btn-outline-secondary ms-2">Run Expiry Now</button>
         </div>
     </div>
 </div>
@@ -51,6 +56,7 @@
     document.getElementById('fssai').value = data.fssai || '';
     document.getElementById('gstin').value = data.gstin || '';
     document.getElementById('managerPin').value = data.managerPin || '';
+    document.getElementById('closingTime').value = data.closingTime || '02:00';
   }
 
   async function uploadLogo() {
@@ -85,20 +91,41 @@
   }
 
   async function save() {
+    const closingTime = (document.getElementById('closingTime').value || '').trim();
+    if (!closingTime) {
+      toastr.warning('Closing Time is required');
+      return;
+    }
     await postJSON('/settings/save', {
       outletId: 1,
       restaurantName: document.getElementById('restaurantName').value,
       logoUrl: document.getElementById('logoUrl').value,
       fssai: document.getElementById('fssai').value,
       gstin: document.getElementById('gstin').value,
-      managerPin: document.getElementById('managerPin').value
+      managerPin: document.getElementById('managerPin').value,
+      closingTime
     });
     if (typeof applyBranding === 'function') applyBranding();
     toastr.success('Settings saved');
   }
 
+  async function runExpiryNow() {
+    const response = await fetch('/settings/run-expiry-now', {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
+    if (!response.ok) {
+      toastr.error('Expiry run failed');
+      return;
+    }
+    toastr.success('Perishable expiry executed');
+  }
+
   document.getElementById('saveSettings').addEventListener('click', save);
   document.getElementById('uploadLogoBtn').addEventListener('click', uploadLogo);
+  document.getElementById('runExpiryNow').addEventListener('click', runExpiryNow);
   document.addEventListener('DOMContentLoaded', load);
 })();
 </script>

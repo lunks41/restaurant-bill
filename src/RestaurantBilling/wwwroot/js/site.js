@@ -1,18 +1,19 @@
 ﻿/* ─── Theme Toggle ─── */
 (function () {
-  const saved = localStorage.getItem('theme') || 'light';
-  document.documentElement.setAttribute('data-theme', saved);
-  window.__theme = saved;
+  const savedTheme = localStorage.getItem('theme');
+  const initialTheme = savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : 'dark';
+  document.documentElement.setAttribute('data-theme', initialTheme);
+  window.__theme = initialTheme;
+  localStorage.setItem('theme', initialTheme);
 })();
 
 function toggleTheme() {
-  const current = document.documentElement.getAttribute('data-theme');
-  const next = current === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('theme', next);
-  window.__theme = next;
   const icon = document.getElementById('themeIcon');
-  if (icon) icon.className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+  const nextTheme = window.__theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', nextTheme);
+  localStorage.setItem('theme', nextTheme);
+  window.__theme = nextTheme;
+  if (icon) icon.className = nextTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 }
 
 /* ─── Live Clock ─── */
@@ -37,6 +38,8 @@ function initSidebar() {
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
   const saved = !isMobile && localStorage.getItem('sidebarCollapsed') === 'true';
   if (saved) sidebar.classList.add('collapsed');
+  // Remove the no-transition init attribute so subsequent toggles animate
+  document.documentElement.removeAttribute('data-sidebar-init');
 
   let overlay = document.querySelector('.sidebar-overlay');
   if (!overlay) {
@@ -118,6 +121,8 @@ function initToastr() {
 window.notify = function(msg, type) {
   if (typeof toastr !== 'undefined') (toastr[type] || toastr.info)(msg);
 };
+const metaBrandName = document.querySelector('meta[name="app-brand-default"]')?.getAttribute('content')?.trim();
+window.__defaultBrandName = window.__defaultBrandName || metaBrandName || 'RestoBill';
 
 /* ─── Format INR ─── */
 function fmtINR(n) {
@@ -210,7 +215,7 @@ async function applyBranding() {
     const name = (settings?.restaurantName || '').trim();
     const logoUrl = normalizeLogoUrl(settings?.logoUrl);
 
-    brandName.textContent = name || 'RestoBill';
+    brandName.textContent = name || window.__defaultBrandName;
     if (logoUrl) {
       brandLogo.src = logoUrl;
       brandLogo.style.display = 'block';
@@ -248,13 +253,30 @@ window.getBrandingSettings = async function () {
     };
     return window.__branding;
   } catch {
-    return { restaurantName: "RestoBill", logoUrl: "" };
+    return { restaurantName: window.__defaultBrandName, logoUrl: "" };
   }
 };
 
 /* ─── Confirm modal ─── */
 function confirmAction(msg, onYes) {
-  if (confirm(msg)) onYes();
+  const modalEl = document.getElementById('globalConfirmModal');
+  const messageEl = document.getElementById('globalConfirmMessage');
+  const yesBtn = document.getElementById('globalConfirmYes');
+
+  if (!modalEl || !window.bootstrap || !yesBtn) {
+    if (confirm(msg)) onYes();
+    return;
+  }
+
+  if (messageEl) messageEl.textContent = msg || 'Are you sure?';
+  const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+  const newYesBtn = yesBtn.cloneNode(true);
+  yesBtn.parentNode?.replaceChild(newYesBtn, yesBtn);
+  newYesBtn.addEventListener('click', () => {
+    modal.hide();
+    onYes();
+  });
+  modal.show();
 }
 
 /* ─── Manager PIN prompt ─── */
@@ -265,6 +287,32 @@ function requireManagerPin(onSuccess) {
       .then(r => { if (r.success) onSuccess(); else toastr.error('Invalid PIN'); })
       .catch(() => toastr.error('Server error'));
   }
+}
+
+/* ─── Modal safety cleanup (prevents stuck backdrop) ─── */
+function initModalSafety() {
+  const cleanupModalState = () => {
+    const openModals = document.querySelectorAll('.modal.show');
+    if (openModals.length > 0) return;
+
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('padding-right');
+    document.body.style.removeProperty('overflow');
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+  };
+
+  document.addEventListener('hidden.bs.modal', () => {
+    // Let Bootstrap complete transition bookkeeping first.
+    setTimeout(cleanupModalState, 0);
+  });
+
+  document.addEventListener('show.bs.modal', () => {
+    // If stale backdrops exist from previous modal flows, clear extras.
+    const backdrops = Array.from(document.querySelectorAll('.modal-backdrop'));
+    if (backdrops.length > 1) {
+      backdrops.slice(0, -1).forEach(el => el.remove());
+    }
+  });
 }
 
 /* ─── Init on DOM ready ─── */
@@ -281,5 +329,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!href) return;
     if (path.startsWith(href.toLowerCase())) a.classList.add('active');
   });
+  initModalSafety();
   initAllDataTables();
 });

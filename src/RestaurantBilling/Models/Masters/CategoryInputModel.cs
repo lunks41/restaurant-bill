@@ -12,5 +12,7 @@ public class CategoryInputModel
 
     [Range(0, 999)]
     public int SortOrder { get; set; }
+
+    public bool IsActive { get; set; } = true;
 }
 

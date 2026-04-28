@@ -34,7 +34,8 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
                 {
                     CategoryId = existing.CategoryId,
                     CategoryName = existing.CategoryName,
-                    SortOrder = existing.SortOrder
+                    SortOrder = existing.SortOrder,
+                    IsActive = existing.IsActive
                 });
             }
         }
@@ -58,7 +59,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
             {
                 existing.CategoryName = model.CategoryName.Trim();
                 existing.SortOrder = model.SortOrder;
-                existing.IsActive = true;
+                existing.IsActive = model.IsActive;
             }
         }
         else
@@ -66,7 +67,8 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
             db.Categories.Add(new Category
             {
                 CategoryName = model.CategoryName.Trim(),
-                SortOrder = model.SortOrder
+                SortOrder = model.SortOrder,
+                IsActive = model.IsActive
             });
         }
         await db.SaveChangesAsync(cancellationToken);
@@ -92,8 +94,12 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     public async Task<IActionResult> Items([FromQuery] int? editId, CancellationToken cancellationToken = default)
     {
         var rows = await db.Items
-            .Join(db.Categories, i => i.CategoryId, c => c.CategoryId, (i, c) => new { i, CategoryName = c.CategoryName })
-            .OrderBy(x => x.i.ItemName)
+            .Join(db.Categories, i => i.CategoryId, c => c.CategoryId, (i, c) => new ItemListRow
+            {
+                Item = i,
+                CategoryName = c.CategoryName
+            })
+            .OrderBy(x => x.Item.ItemName)
             .ToListAsync(cancellationToken);
         ViewBag.Rows = rows;
         ViewBag.Categories = await db.Categories.Where(x => x.IsActive && !x.IsDeleted).OrderBy(x => x.CategoryName).ToListAsync(cancellationToken);
@@ -263,7 +269,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         {
             UnitName = request.Name.Trim(),
             UnitCode = request.Code?.Trim() ?? request.Name[..Math.Min(3, request.Name.Length)].ToUpperInvariant(),
-            IsActive = true,
+            IsActive = request.IsActive ?? true,
             IsDeleted = false
         });
         await db.SaveChangesAsync(cancellationToken);
@@ -277,7 +283,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         if (unit is null) return NotFound();
         unit.UnitName = request.Name.Trim();
         unit.UnitCode = request.Code?.Trim() ?? unit.UnitCode;
-        unit.IsActive = true;
+        unit.IsActive = request.IsActive ?? unit.IsActive;
         unit.IsDeleted = false;
         unit.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
@@ -323,7 +329,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
             TableName = request.Name.Trim(),
             Area = NormalizeTableArea(request.Area),
             Capacity = request.Capacity ?? 2,
-            IsActive = true,
+            IsActive = request.IsActive ?? true,
             IsDeleted = false
         });
         await db.SaveChangesAsync(cancellationToken);
@@ -338,7 +344,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         row.TableName = request.Name.Trim();
         row.Area = NormalizeTableArea(request.Area);
         row.Capacity = request.Capacity ?? row.Capacity;
-        row.IsActive = true;
+        row.IsActive = request.IsActive ?? row.IsActive;
         row.IsDeleted = false;
         row.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
@@ -379,7 +385,14 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         string? Gstin,
         string? PrinterType,
         string? DevicePath,
-        bool? IsDefault);
+        bool? IsDefault,
+        bool? IsActive);
 
+}
+
+public sealed class ItemListRow
+{
+    public Item Item { get; set; } = default!;
+    public string CategoryName { get; set; } = string.Empty;
 }
 

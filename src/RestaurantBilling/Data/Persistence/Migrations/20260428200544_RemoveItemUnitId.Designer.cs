@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace RestaurantBilling.Data.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260428174529_AddItemStockTable")]
-    partial class AddItemStockTable
+    [Migration("20260428200544_RemoveItemUnitId")]
+    partial class RemoveItemUnitId
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -937,9 +937,6 @@ namespace RestaurantBilling.Data.Persistence.Migrations
                         .HasColumnType("decimal(18,4)");
 
                     b.Property<int>("TaxType")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("UnitId")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
