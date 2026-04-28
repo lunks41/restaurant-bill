@@ -114,6 +114,8 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
                     ItemName = item.ItemName,
                     SalePrice = item.SalePrice,
                     GstPercent = item.GstPercent,
+                    IsActive = item.IsActive,
+                    IsStock = item.IsStock,
                     IsTaxInclusive = item.IsTaxInclusive,
                     TaxType = item.TaxType
                 });
@@ -144,9 +146,10 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
                 existing.ItemName = model.ItemName.Trim();
                 existing.SalePrice = model.SalePrice;
                 existing.GstPercent = model.GstPercent;
+                existing.IsActive = model.IsActive;
+                existing.IsStock = model.IsStock;
                 existing.IsTaxInclusive = model.IsTaxInclusive;
                 existing.TaxType = model.TaxType;
-                existing.IsActive = true;
                 if (!string.IsNullOrWhiteSpace(uploadedImagePath))
                 {
                     TryDeleteItemImage(existing.ImagePath);
@@ -169,6 +172,8 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
                 ItemName = model.ItemName.Trim(),
                 SalePrice = model.SalePrice,
                 GstPercent = model.GstPercent,
+                IsActive = model.IsActive,
+                IsStock = model.IsStock,
                 IsTaxInclusive = model.IsTaxInclusive,
                 TaxType = model.TaxType,
                 ImagePath = uploadedImagePath

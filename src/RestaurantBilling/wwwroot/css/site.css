@@ -1251,7 +1251,6 @@ input[type="submit"].btn {
   background: var(--primary);
   color: var(--primary-foreground);
   border: 1px solid color-mix(in srgb, var(--primary) 88%, #000);
-  grid-column: 1 / -1;
   padding: 9px;
   border-radius: var(--radius-md);
   font-family: var(--font);
@@ -1265,8 +1264,9 @@ input[type="submit"].btn {
   gap: 8px;
   box-shadow: var(--shadow-sm);
   letter-spacing: -0.01em;
-  grid-column: 1 / -1;
+  width: 100%;
 }
+
 .btn-settle:hover {
   background: var(--primary-hover);
   box-shadow: var(--shadow-md);

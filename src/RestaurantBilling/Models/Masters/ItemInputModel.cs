@@ -25,6 +25,8 @@ public class ItemInputModel
     [Range(0, 100)]
     public decimal GstPercent { get; set; }
 
+    public bool IsActive { get; set; } = true;
+    public bool IsStock { get; set; } = true;
     public bool IsTaxInclusive { get; set; }
     public TaxType TaxType { get; set; } = TaxType.GST;
 

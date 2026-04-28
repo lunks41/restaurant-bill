@@ -64,14 +64,12 @@
                                 data-category-id="@row.i.CategoryId"
                                 data-sale="@row.i.SalePrice"
                                 data-gst="@row.i.GstPercent"
+                                data-is-active="@row.i.IsActive.ToString().ToLowerInvariant()"
+                                data-is-stock="@row.i.IsStock.ToString().ToLowerInvariant()"
                                 data-tax-inclusive="@row.i.IsTaxInclusive.ToString().ToLowerInvariant()"
                                 data-image-path="@row.i.ImagePath">
                             Edit
                         </button>
-                        <form method="post" action="/masters/items/@row.i.ItemId/delete" class="item-delete-form">
-                            @Html.AntiForgeryToken()
-                            <button class="btn btn-sm btn-outline-danger btn-inactivate-item" type="button">Inactivate</button>
-                        </form>
                     </td>
                 </tr>
             }
@@ -129,6 +127,18 @@
                                 <label class="form-check-label" for="modalTaxInclusive">Tax inclusive</label>
                             </div>
                         </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <div class="form-check">
+                                <input asp-for="IsActive" class="form-check-input" id="modalIsActive" />
+                                <label class="form-check-label" for="modalIsActive">Is Active</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <div class="form-check">
+                                <input asp-for="IsStock" class="form-check-input" id="modalIsStock" />
+                                <label class="form-check-label" for="modalIsStock">Is Stock</label>
+                            </div>
+                        </div>
                         <div class="col-12">
                             <img id="modalImagePreview" src="" alt="Preview" style="display:none;width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--border);" />
                         </div>
@@ -143,34 +153,12 @@
     </div>
 </div>
 
-<div class="modal fade" id="itemConfirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirm Inactivate</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Inactivate this item?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmItemInactivate">Inactivate</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 @section Scripts {
 <script>
 (() => {
   const modalEl = document.getElementById('itemModal');
   if (!modalEl || !window.bootstrap) return;
   const modal = new window.bootstrap.Modal(modalEl);
-  const confirmModalEl = document.getElementById('itemConfirmModal');
-  const confirmModal = confirmModalEl ? new window.bootstrap.Modal(confirmModalEl) : null;
-  const confirmBtn = document.getElementById('confirmItemInactivate');
-  let pendingDeleteForm = null;
 
   const titleEl = document.getElementById('itemModalTitle');
   const saveBtn = document.getElementById('saveItemBtn');
@@ -181,6 +169,8 @@
   const saleEl = document.getElementById('modalSalePrice');
   const gstEl = document.getElementById('modalGstPercent');
   const taxInclusiveEl = document.getElementById('modalTaxInclusive');
+  const isActiveEl = document.getElementById('modalIsActive');
+  const isStockEl = document.getElementById('modalIsStock');
   const imagePathEl = document.getElementById('modalImagePath');
   const imageFileEl = document.getElementById('modalImageFile');
   const imagePreviewEl = document.getElementById('modalImagePreview');
@@ -204,6 +194,8 @@
     categoryEl.value = '';
     saleEl.value = '0';
     gstEl.value = '5';
+    isActiveEl.checked = true;
+    isStockEl.checked = true;
     taxInclusiveEl.checked = false;
     imagePathEl.value = '';
     imageFileEl.value = '';
@@ -220,6 +212,8 @@
     categoryEl.value = btn.getAttribute('data-category-id') || '';
     saleEl.value = btn.getAttribute('data-sale') || '0';
     gstEl.value = btn.getAttribute('data-gst') || '0';
+    isActiveEl.checked = (btn.getAttribute('data-is-active') !== 'false');
+    isStockEl.checked = (btn.getAttribute('data-is-stock') !== 'false');
     taxInclusiveEl.checked = (btn.getAttribute('data-tax-inclusive') === 'true');
     imagePathEl.value = btn.getAttribute('data-image-path') || '';
     imageFileEl.value = '';
@@ -229,17 +223,6 @@
 
   document.getElementById('openAddItem')?.addEventListener('click', openAdd);
   document.querySelectorAll('.btn-edit-item').forEach((btn) => btn.addEventListener('click', () => openEdit(btn)));
-  document.querySelectorAll('.btn-inactivate-item').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      pendingDeleteForm = btn.closest('form');
-      confirmModal?.show();
-    });
-  });
-
-  confirmBtn?.addEventListener('click', () => {
-    if (!pendingDeleteForm) return;
-    pendingDeleteForm.submit();
-  });
 
   imageFileEl?.addEventListener('change', (e) => {
     const file = e.target.files && e.target.files[0];

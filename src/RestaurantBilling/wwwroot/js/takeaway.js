@@ -70,6 +70,46 @@ function twUpdateHeaderLabel() {
   title.textContent = twState.currentBillNo ? `Order #${twState.currentBillNo}` : "Order #";
 }
 
+async function twPrintBillPreview() {
+  if (!twState.cart.length) {
+    if (typeof toastr !== "undefined") toastr.warning("Cart is empty.");
+    return;
+  }
+
+  const wrap = document.getElementById("twReceiptWrap");
+  if (!wrap) return;
+
+  const totals = twGetTotals();
+  const grand = totals.grand;
+  const sub = totals.subtotal;
+  const tax = totals.tax;
+  const discount = totals.discount;
+  const roundOff = totals.roundOff;
+  const billLabel = twState.currentBillNo || "PREVIEW";
+  const branding = typeof window.getBrandingSettings === "function"
+    ? await window.getBrandingSettings()
+    : { restaurantName: "RestoBill", logoUrl: "" };
+  const brandName = (branding?.restaurantName || "RestoBill");
+  const safeLogoUrl = String(branding?.logoUrl || "").trim();
+  const logoBlock = safeLogoUrl && !safeLogoUrl.includes("${")
+    ? `<img src="${safeLogoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto 4px;display:block;" />`
+    : "";
+
+  wrap.innerHTML = `<div style="font-family:'Courier New',monospace;font-size:12px;max-width:300px;margin:0 auto;padding:10px;">
+      <div style="text-align:center;margin-bottom:10px;">${logoBlock}<div style="font-size:18px;font-weight:bold;">${brandName}</div><div style="font-size:11px;color:#666;">Takeaway Receipt</div><div style="font-size:11px;color:#666;">${new Date().toLocaleString("en-IN")}</div><div style="font-size:12px;font-weight:bold;margin-top:4px;">Bill: ${billLabel}</div></div>
+      <hr style="border-top:1px dashed #000;margin:6px 0;"/>
+      <table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left">Item</th><th>Qty</th><th style="text-align:right">Amt</th></tr></thead>
+      <tbody>${twState.cart.map(l => `<tr><td>${l.name}</td><td style="text-align:center">${twFmtQty(l.qty)}</td><td style="text-align:right">${fmtINR(l.qty * l.price)}</td></tr>`).join("")}</tbody></table>
+      <hr style="border-top:1px dashed #000;margin:6px 0;"/>
+      <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>${fmtINR(sub)}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>Discount</span><span>${fmtINR(discount)}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>Tax</span><span>${fmtINR(tax)}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>Round Off</span><span>${fmtINR(roundOff)}</span></div>
+      <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;margin-top:4px;"><span>TOTAL</span><span>${fmtINR(grand)}</span></div>
+      <hr style="border-top:1px dashed #000;margin:8px 0;"/><div style="text-align:center;font-size:11px;color:#666;">Thank you! Visit again.</div></div>`;
+  twPrintNow();
+}
+
 async function twPrintKotSlip() {
   const wrap = document.getElementById("twReceiptWrap");
   if (!wrap) {
@@ -423,6 +463,7 @@ function twBindEvents() {
   document.getElementById("twBtnKot")?.addEventListener("click", twGenerateKot);
   document.getElementById("twBtnKotPrint")?.addEventListener("click", twGenerateKotAndPrint);
   document.getElementById("twBtnSettle")?.addEventListener("click", twOpenSettle);
+  document.getElementById("twBtnPrint")?.addEventListener("click", twPrintBillPreview);
   document.getElementById("twBtnEditDiscount")?.addEventListener("click", () => {
     const subtotal = twState.cart.reduce((s, x) => s + x.qty * x.price, 0);
     if (!subtotal) {

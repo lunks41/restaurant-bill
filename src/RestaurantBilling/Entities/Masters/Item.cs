@@ -14,6 +14,7 @@ public class Item : BaseEntity
     public decimal SalePrice { get; set; }
     public decimal GstPercent { get; set; }
     public bool IsTaxInclusive { get; set; }
+    public bool IsStock { get; set; } = true;
     public TaxType TaxType { get; set; } = TaxType.GST;
     public string? ImagePath { get; set; }
 }

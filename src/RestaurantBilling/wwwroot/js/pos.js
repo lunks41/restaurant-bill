@@ -348,6 +348,7 @@ function bindPosEvents() {
     await cancelOrderDraft();
   });
   document.getElementById("btnSettle")?.addEventListener("click", openSettleModal);
+  document.getElementById("btnPrint")?.addEventListener("click", posPrintBillPreview);
   document.getElementById("btnKot")?.addEventListener("click", generateKot);
   document.getElementById("btnKotPrint")?.addEventListener("click", generateKotAndPrint);
   document.getElementById("btnTable")?.addEventListener("click", openTablePicker);
@@ -755,6 +756,19 @@ function openSettleModal() {
 }
 
 function closeSettleModal() { document.getElementById("settleOverlay")?.classList.remove("show"); }
+
+async function posPrintBillPreview() {
+  if (!posState.cart.length) {
+    posNotify("warning", "Cart is empty.");
+    return;
+  }
+  await printReceipt(
+    null,
+    calcGrand(),
+    posState.selectedPayMethod || "Cash",
+    []
+  );
+}
 
 async function confirmSettle() {
   const method = posState.selectedPayMethod || "Cash";

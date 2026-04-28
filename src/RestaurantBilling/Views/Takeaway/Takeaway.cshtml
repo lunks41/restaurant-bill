@@ -51,10 +51,14 @@
           id="twGrandTotal">&#8377;0.00</span></div>
     </div>
     <div class="cart-actions">
-      <div class="kot-status-badge" id="twKotStatus">Pending KOT</div>
-      <button class="btn-kot" id="twBtnKot"><i class="fas fa-paper-plane"></i> Send KOT</button>
-      <button class="btn-kot" id="twBtnKotPrint"><i class="fas fa-print"></i> KOT Print</button>
-      <button class="btn-settle" id="twBtnSettle"><i class="fas fa-indian-rupee-sign"></i> Settle &amp; Print</button>
+      <div class="kot-status-badge" id="twKotStatus" style="display:none;">Pending KOT</div>
+      <button class="btn-kot" id="twBtnKot" disabled title="Disabled" style="display:none;"><i
+          class="fas fa-paper-plane"></i> Send KOT</button>
+      <button class="btn-kot" id="twBtnKotPrint" disabled title="Disabled" style="display:none;"><i
+          class="fas fa-print"></i> KOT Print</button>
+      <button class="btn-settle" id="twBtnPrint"><i class="fas fa-print"></i> Print</button>
+      <button class="btn-settle" id="twBtnSettle"><i class="fas fa-indian-rupee-sign"></i> Settle</button>
+
       <button class="btn-hold" style="grid-column:1/-1" id="twBtnClear"><i class="fas fa-trash"></i> Clear Cart</button>
     </div>
   </aside>
