@@ -24,9 +24,8 @@ public class AdminController(AppDbContext db) : Controller
     [AllowAnonymous]
     public async Task<IActionResult> VerifyPin([FromBody] VerifyPinRequest request, CancellationToken cancellationToken)
     {
-        var outletId = await db.Outlets.Select(x => x.OutletId).FirstOrDefaultAsync(cancellationToken);
         var pin = await db.RestaurantSettings
-            .Where(x => x.OutletId == outletId && x.SettingKey == "ManagerPin")
+            .Where(x => x.SettingKey == "ManagerPin")
             .Select(x => x.SettingValue)
             .FirstOrDefaultAsync(cancellationToken);
         return Ok(new { success = !string.IsNullOrWhiteSpace(pin) && pin == request.Pin });

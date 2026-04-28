@@ -4,10 +4,10 @@ namespace IServices;
 
 public interface ISalesReportRepository
 {
-    Task<IReadOnlyList<DailySalesReportDto>> GetDailySalesAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken);
-    Task<IReadOnlyList<StockVarianceDto>> GetStockVarianceAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken);
-    Task<IReadOnlyList<PaymentSummaryDto>> GetPaymentSummaryAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken);
-    Task<IReadOnlyList<VoidReportDto>> GetVoidReportAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken);
-    Task<IReadOnlyList<StockMovementDto>> GetStockMovementAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken);
+    Task<IReadOnlyList<DailySalesReportDto>> GetDailySalesAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken);
+    Task<IReadOnlyList<StockVarianceDto>> GetStockVarianceAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken);
+    Task<IReadOnlyList<PaymentSummaryDto>> GetPaymentSummaryAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken);
+    Task<IReadOnlyList<VoidReportDto>> GetVoidReportAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken);
+    Task<IReadOnlyList<StockMovementDto>> GetStockMovementAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken);
 }
 

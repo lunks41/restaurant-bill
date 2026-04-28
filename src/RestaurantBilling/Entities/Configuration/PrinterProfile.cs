@@ -5,7 +5,6 @@ namespace Entities.Configuration;
 public class PrinterProfile : BaseEntity
 {
     public int PrinterProfileId { get; set; }
-    public int OutletId { get; set; }
     public string PrinterName { get; set; } = string.Empty;
     public string PrinterType { get; set; } = "Thermal";
     public string? DevicePath { get; set; }

@@ -41,7 +41,7 @@ public class InventoryController(AppDbContext db) : Controller
             _ => pageSize
         };
 
-        var query = BuildGroceryStockQuery(outletId, search, unitId);
+        var query = BuildGroceryStockQuery(search, unitId);
         var totalCount = await query.CountAsync(cancellationToken);
         var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
         if (totalPages > 0 && page > totalPages) page = totalPages;
@@ -68,7 +68,7 @@ public class InventoryController(AppDbContext db) : Controller
         [FromQuery] int? unitId,
         CancellationToken cancellationToken)
     {
-        var rows = await BuildGroceryStockQuery(outletId, search, unitId).ToListAsync(cancellationToken);
+        var rows = await BuildGroceryStockQuery(search, unitId).ToListAsync(cancellationToken);
         var csv = new StringBuilder("Code,GroceryId,UnitId,CurrentQty,ReorderLevel,Status\n");
         foreach (var row in rows)
         {
@@ -83,7 +83,7 @@ public class InventoryController(AppDbContext db) : Controller
     public async Task<IActionResult> StockUnitsData([FromQuery] int outletId, CancellationToken cancellationToken)
     {
         var units = await db.GroceryStockItems
-    .Where(x => x.OutletId == outletId && !x.IsDeleted && x.UnitId.HasValue)
+    .Where(x => !x.IsDeleted && x.UnitId.HasValue)
     // Join with the Units table to get actual names/codes
     .Join(db.Units,
           stock => stock.UnitId,
@@ -100,7 +100,7 @@ public class InventoryController(AppDbContext db) : Controller
     public async Task<IActionResult> GroceryOptions([FromQuery] int outletId = 1, CancellationToken cancellationToken = default)
     {
         var groceries = await db.GroceryStockItems
-     .Where(x => x.OutletId == outletId && !x.IsDeleted)
+     .Where(x => !x.IsDeleted)
      // Join with the Groceries table to get the name directly
      .Join(db.Groceries,
            stock => stock.GroceryId,
@@ -121,9 +121,8 @@ public class InventoryController(AppDbContext db) : Controller
             return BadRequest("GroceryId is required.");
         }
 
-        var outletId = request.OutletId ?? 1;
         var exists = await db.GroceryStockItems
-            .AnyAsync(x => x.OutletId == outletId && x.GroceryId == request.GroceryId.Value && !x.IsDeleted, cancellationToken);
+            .AnyAsync(x => x.GroceryId == request.GroceryId.Value && !x.IsDeleted, cancellationToken);
         if (exists)
         {
             return BadRequest("This grocery stock item already exists. Use edit.");
@@ -134,7 +133,6 @@ public class InventoryController(AppDbContext db) : Controller
 
         db.GroceryStockItems.Add(new GroceryStockItem
         {
-            OutletId = outletId,
             GroceryId = request.GroceryId.Value,
             UnitId = request.UnitId,
             CurrentQty = openingQty,
@@ -155,7 +153,7 @@ public class InventoryController(AppDbContext db) : Controller
         if (request.GroceryId.HasValue && request.GroceryId.Value > 0 && request.GroceryId.Value != row.GroceryId)
         {
             var duplicate = await db.GroceryStockItems.AnyAsync(
-                x => x.OutletId == row.OutletId && x.GroceryStockItemId != id && x.GroceryId == request.GroceryId.Value && !x.IsDeleted,
+                x => x.GroceryStockItemId != id && x.GroceryId == request.GroceryId.Value && !x.IsDeleted,
                 cancellationToken);
             if (duplicate)
             {
@@ -188,15 +186,15 @@ public class InventoryController(AppDbContext db) : Controller
         return Ok(new { status = "Inactivated" });
     }
 
-    private IQueryable<StockItemListRow> BuildGroceryStockQuery(int outletId, string? search, int? unitId)
+    private IQueryable<StockItemListRow> BuildGroceryStockQuery(string? search, int? unitId)
     {
         var query =
             from stock in db.GroceryStockItems
-            where stock.OutletId == outletId && !stock.IsDeleted
-            join grocery in db.Groceries.Where(x => x.OutletId == outletId && !x.IsDeleted)
+            where !stock.IsDeleted
+            join grocery in db.Groceries.Where(x => !x.IsDeleted)
                 on stock.GroceryId equals grocery.GroceryId into groceryJoin
             from grocery in groceryJoin.DefaultIfEmpty()
-            join unit in db.Units.Where(x => x.OutletId == outletId && !x.IsDeleted)
+            join unit in db.Units.Where(x => !x.IsDeleted)
                 on stock.UnitId equals unit.UnitId into unitJoin
             from unit in unitJoin.DefaultIfEmpty()
             select new StockItemListRow

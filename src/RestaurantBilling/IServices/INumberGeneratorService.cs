@@ -4,6 +4,6 @@ namespace IServices;
 
 public interface INumberGeneratorService
 {
-    Task<string> GenerateAsync(int outletId, NumberSeriesKey key, CancellationToken cancellationToken);
+    Task<string> GenerateAsync(NumberSeriesKey key, CancellationToken cancellationToken);
 }
 

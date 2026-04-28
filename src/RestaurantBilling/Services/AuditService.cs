@@ -10,7 +10,6 @@ namespace Services;
 public class AuditService(AppDbContext db) : IAuditService
 {
     public async Task LogAsync(
-        int outletId,
         int userId,
         string action,
         string entityType,
@@ -22,17 +21,15 @@ public class AuditService(AppDbContext db) : IAuditService
         CancellationToken cancellationToken)
     {
         var previousHash = await db.AuditLogs
-            .Where(x => x.OutletId == outletId)
             .OrderByDescending(x => x.AuditLogId)
             .Select(x => x.EntryHash)
             .FirstOrDefaultAsync(cancellationToken);
 
-        var payload = $"{outletId}|{userId}|{action}|{entityType}|{entityId}|{oldValuesJson}|{newValuesJson}|{ipAddress}|{userAgent}|{previousHash}";
+        var payload = $"{userId}|{action}|{entityType}|{entityId}|{oldValuesJson}|{newValuesJson}|{ipAddress}|{userAgent}|{previousHash}";
         var currentHash = ComputeSha256(payload);
 
         db.AuditLogs.Add(new AuditLog
         {
-            OutletId = outletId,
             UserId = userId,
             Action = action,
             EntityType = entityType,

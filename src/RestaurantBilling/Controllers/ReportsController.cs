@@ -55,28 +55,28 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
     [HttpGet("daily-sales")]
     public async Task<IActionResult> DailySales([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
     {
-        var data = await repository.GetDailySalesAsync(outletId, from, to, cancellationToken);
+        var data = await repository.GetDailySalesAsync(from, to, cancellationToken);
         return Ok(data);
     }
 
     [HttpGet("payment-summary")]
     public async Task<IActionResult> PaymentSummary([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
     {
-        var data = await repository.GetPaymentSummaryAsync(outletId, from, to, cancellationToken);
+        var data = await repository.GetPaymentSummaryAsync(from, to, cancellationToken);
         return Ok(data);
     }
 
     [HttpGet("item-wise")]
     public async Task<IActionResult> ItemWiseData([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
     {
-        var data = await repository.GetStockVarianceAsync(outletId, from, to, cancellationToken);
+        var data = await repository.GetStockVarianceAsync(from, to, cancellationToken);
         return Ok(data);
     }
 
     [HttpGet("voids")]
     public async Task<IActionResult> Voids([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
     {
-        var data = await repository.GetVoidReportAsync(outletId, from, to, cancellationToken);
+        var data = await repository.GetVoidReportAsync(from, to, cancellationToken);
         return Ok(data);
     }
 
@@ -85,7 +85,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
     public async Task<IActionResult> BillWiseData([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
     {
         var rows = await db.Bills
-            .Where(x => x.OutletId == outletId && x.BusinessDate >= from && x.BusinessDate <= to)
+            .Where(x => x.BusinessDate >= from && x.BusinessDate <= to)
             .OrderByDescending(x => x.BillDate)
             .Select(x => new
             {
@@ -105,7 +105,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
     public async Task<IActionResult> VoidsData([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
     {
         var rows = await db.Bills
-            .Where(x => x.OutletId == outletId && x.BusinessDate >= from && x.BusinessDate <= to && x.Status == BillStatus.Cancelled)
+            .Where(x => x.BusinessDate >= from && x.BusinessDate <= to && x.Status == BillStatus.Cancelled)
             .OrderByDescending(x => x.BillDate)
             .Select(x => new
             {
@@ -124,7 +124,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
     public async Task<IActionResult> DayCloseReportsData([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken)
     {
         var rows = await db.DayCloseReports
-            .Where(x => x.OutletId == outletId && x.BusinessDate >= from && x.BusinessDate <= to)
+            .Where(x => x.BusinessDate >= from && x.BusinessDate <= to)
             .OrderByDescending(x => x.BusinessDate)
             .Select(x => new
             {
@@ -148,7 +148,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
     [HttpGet("daily-sales-export")]
     public async Task<IActionResult> DailySalesExport([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] string format = "csv", CancellationToken cancellationToken = default)
     {
-        var rows = await repository.GetDailySalesAsync(outletId, from, to, cancellationToken);
+        var rows = await repository.GetDailySalesAsync(from, to, cancellationToken);
         var fn = $"daily-sales-{from:yyyyMMdd}-{to:yyyyMMdd}";
         if (format == "xlsx")
         {
@@ -177,7 +177,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
     public async Task<IActionResult> BillWiseExport([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] string format = "csv", CancellationToken cancellationToken = default)
     {
         var rows = await db.Bills
-            .Where(x => x.OutletId == outletId && x.BusinessDate >= from && x.BusinessDate <= to)
+            .Where(x => x.BusinessDate >= from && x.BusinessDate <= to)
             .OrderByDescending(x => x.BillDate)
             .Select(x => new { x.BillNo, billDate = x.BillDate.ToString("dd-MMM-yyyy HH:mm"), status = x.Status.ToString(), billType = x.BillType.ToString(), x.GrandTotal, x.TaxAmount })
             .Take(5000)
@@ -210,7 +210,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
     [HttpGet("payment-summary-export")]
     public async Task<IActionResult> PaymentSummaryExport([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] string format = "csv", CancellationToken cancellationToken = default)
     {
-        var rows = await repository.GetPaymentSummaryAsync(outletId, from, to, cancellationToken);
+        var rows = await repository.GetPaymentSummaryAsync(from, to, cancellationToken);
         var fn = $"payment-summary-{from:yyyyMMdd}-{to:yyyyMMdd}";
         if (format == "xlsx")
         {
@@ -236,7 +236,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
     [HttpGet("item-wise-export")]
     public async Task<IActionResult> ItemWiseExport([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] string format = "csv", CancellationToken cancellationToken = default)
     {
-        var rows = await repository.GetStockVarianceAsync(outletId, from, to, cancellationToken);
+        var rows = await repository.GetStockVarianceAsync(from, to, cancellationToken);
         var fn = $"item-wise-{from:yyyyMMdd}-{to:yyyyMMdd}";
         if (format == "xlsx")
         {
@@ -265,7 +265,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
     public async Task<IActionResult> DayCloseReportsExport([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] string format = "csv", CancellationToken cancellationToken = default)
     {
         var rows = await db.DayCloseReports
-            .Where(x => x.OutletId == outletId && x.BusinessDate >= from && x.BusinessDate <= to)
+            .Where(x => x.BusinessDate >= from && x.BusinessDate <= to)
             .OrderByDescending(x => x.BusinessDate)
             .Select(x => new
             {
@@ -316,7 +316,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
     public async Task<IActionResult> VoidsExport([FromQuery] int outletId, [FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] string format = "csv", CancellationToken cancellationToken = default)
     {
         var rows = await db.Bills
-            .Where(x => x.OutletId == outletId && x.BusinessDate >= from && x.BusinessDate <= to && x.Status == BillStatus.Cancelled)
+            .Where(x => x.BusinessDate >= from && x.BusinessDate <= to && x.Status == BillStatus.Cancelled)
             .OrderByDescending(x => x.BillDate)
             .Select(x => new { x.BillNo, date = x.BusinessDate.ToString("yyyy-MM-dd"), x.GrandTotal, status = x.Status.ToString() })
             .Take(5000)
@@ -370,7 +370,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
     public async Task<IActionResult> DailySalesDrilldown([FromQuery] int outletId, [FromQuery] DateOnly date, CancellationToken cancellationToken)
     {
         var rows = await db.Bills
-            .Where(x => x.OutletId == outletId && x.BusinessDate == date && x.Status != BillStatus.Cancelled)
+            .Where(x => x.BusinessDate == date && x.Status != BillStatus.Cancelled)
             .OrderByDescending(x => x.BillDate)
             .Select(x => new { x.BillNo, x.GrandTotal, x.TaxAmount, status = x.Status.ToString(), billDate = x.BillDate.ToString("HH:mm") })
             .ToListAsync(cancellationToken);

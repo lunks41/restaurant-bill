@@ -7,10 +7,10 @@ namespace Services;
 
 public class NumberGeneratorService(AppDbContext db) : INumberGeneratorService
 {
-    public async Task<string> GenerateAsync(int outletId, NumberSeriesKey key, CancellationToken cancellationToken)
+    public async Task<string> GenerateAsync(NumberSeriesKey key, CancellationToken cancellationToken)
     {
         var series = await db.NumberSeries
-            .FirstOrDefaultAsync(x => x.OutletId == outletId && x.SeriesKey == key, cancellationToken);
+            .FirstOrDefaultAsync(x => x.SeriesKey == key, cancellationToken);
 
         if (series is null)
         {

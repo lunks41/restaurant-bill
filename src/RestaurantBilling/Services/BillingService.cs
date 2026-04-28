@@ -11,10 +11,10 @@ public class BillingService(
     INumberGeneratorService numberGeneratorService,
     IStockService stockService) : IBillingService
 {
-    public async Task<Bill> CreateDraftAsync(int outletId, DateOnly businessDate, IEnumerable<BillItem> items, CancellationToken cancellationToken)
+    public async Task<Bill> CreateDraftAsync(DateOnly businessDate, IEnumerable<BillItem> items, CancellationToken cancellationToken)
     {
-        var billNo = await numberGeneratorService.GenerateAsync(outletId, NumberSeriesKey.Bill, cancellationToken);
-        var bill = new Bill(outletId, billNo, businessDate, BillType.DineIn);
+        var billNo = await numberGeneratorService.GenerateAsync(NumberSeriesKey.Bill, cancellationToken);
+        var bill = new Bill(billNo, businessDate, BillType.DineIn);
         foreach (var item in items)
         {
             bill.AddItem(item);
@@ -31,7 +31,7 @@ public class BillingService(
             ?? throw new InvalidOperationException("Bill not found.");
 
         bill.Settle(payments);
-        await stockService.DeductSaleStockAsync(bill.OutletId, bill.BusinessDate, bill.Items.ToList(), cancellationToken);
+        await stockService.DeductSaleStockAsync(bill.BusinessDate, bill.Items.ToList(), cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return bill.BillId;
     }

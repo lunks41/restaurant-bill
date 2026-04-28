@@ -10,15 +10,14 @@ public class KitchenService(
     AppDbContext db,
     INumberGeneratorService numberGeneratorService) : IKitchenService
 {
-    public async Task<long[]> GenerateKotAsync(int outletId, long billId, CancellationToken cancellationToken)
+    public async Task<long[]> GenerateKotAsync(long billId, CancellationToken cancellationToken)
     {
         var bill = await db.Bills.Include(x => x.Items).FirstOrDefaultAsync(x => x.BillId == billId, cancellationToken)
             ?? throw new InvalidOperationException("Bill not found.");
 
-        var kotNo = await numberGeneratorService.GenerateAsync(outletId, NumberSeriesKey.KOT, cancellationToken);
+        var kotNo = await numberGeneratorService.GenerateAsync(NumberSeriesKey.KOT, cancellationToken);
         var header = new KotHeader
         {
-            OutletId = outletId,
             BillId = billId,
             KotNo = kotNo,
             KotDate = DateTime.UtcNow,

@@ -5,12 +5,12 @@ namespace Services;
 
 public class StockService : IStockService
 {
-    public async Task DeductSaleStockAsync(int outletId, DateOnly businessDate, IReadOnlyCollection<BillItem> billItems, CancellationToken cancellationToken)
+    public async Task DeductSaleStockAsync(DateOnly businessDate, IReadOnlyCollection<BillItem> billItems, CancellationToken cancellationToken)
     {
         await Task.CompletedTask;
     }
 
-    public async Task ReverseSaleStockAsync(int outletId, long billId, DateOnly businessDate, IReadOnlyCollection<BillItem> billItems, CancellationToken cancellationToken)
+    public async Task ReverseSaleStockAsync(long billId, DateOnly businessDate, IReadOnlyCollection<BillItem> billItems, CancellationToken cancellationToken)
     {
         await Task.CompletedTask;
     }

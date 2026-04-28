@@ -6,7 +6,6 @@ namespace Entities.Configuration;
 public class NumberSeries : BaseEntity
 {
     public int NumberSeriesId { get; set; }
-    public int OutletId { get; set; }
     public NumberSeriesKey SeriesKey { get; set; }
     public string Prefix { get; set; } = string.Empty;
     public int CurrentNumber { get; set; }

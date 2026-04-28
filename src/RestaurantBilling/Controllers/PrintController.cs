@@ -18,7 +18,7 @@ public class PrintController(
     public async Task<IActionResult> BillingReprint([FromBody] ReprintRequest request, CancellationToken cancellationToken)
     {
         var pinSetting = await db.RestaurantSettings
-            .FirstOrDefaultAsync(x => x.OutletId == request.OutletId && x.SettingKey == "ManagerPin", cancellationToken);
+            .FirstOrDefaultAsync(x => x.SettingKey == "ManagerPin", cancellationToken);
         if (pinSetting is null || pinSetting.SettingValue != request.ManagerPin)
         {
             return Unauthorized("Invalid manager PIN.");
@@ -26,7 +26,6 @@ public class PrintController(
 
         db.ReprintLogs.Add(new ReprintLog
         {
-            OutletId = request.OutletId,
             DocumentType = request.DocumentType,
             DocumentId = request.DocumentId,
             ReprintedBy = request.UserId,
@@ -35,7 +34,7 @@ public class PrintController(
         await db.SaveChangesAsync(cancellationToken);
 
         await auditService.LogAsync(
-            request.OutletId, request.UserId, "Reprint", "Document", request.DocumentId.ToString(),
+            request.UserId, "Reprint", "Document", request.DocumentId.ToString(),
             null,
             $"{{\"documentType\":\"{request.DocumentType}\",\"reason\":\"{request.Reason}\"}}",
             HttpContext.Connection.RemoteIpAddress?.ToString(),
@@ -49,7 +48,7 @@ public class PrintController(
     public async Task<IActionResult> KotReprint([FromBody] ReprintKotRequest request, CancellationToken cancellationToken)
     {
         var pinSetting = await db.RestaurantSettings
-            .FirstOrDefaultAsync(x => x.OutletId == request.OutletId && x.SettingKey == "ManagerPin", cancellationToken);
+            .FirstOrDefaultAsync(x => x.SettingKey == "ManagerPin", cancellationToken);
         if (pinSetting is null || pinSetting.SettingValue != request.ManagerPin)
         {
             return Unauthorized("Invalid manager PIN.");
@@ -64,7 +63,6 @@ public class PrintController(
         kot.KotEventType = "Addendum";
         db.ReprintLogs.Add(new ReprintLog
         {
-            OutletId = request.OutletId,
             DocumentType = "KOT",
             DocumentId = request.KotId,
             ReprintedBy = request.UserId,

@@ -23,32 +23,31 @@ public class DashboardController(AppDbContext db) : Controller
     [HttpGet("/dashboard/kpi")]
     public async Task<IActionResult> Kpi(CancellationToken cancellationToken)
     {
-        var outletId = await db.Outlets.Select(x => x.OutletId).FirstOrDefaultAsync(cancellationToken);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var yesterday = today.AddDays(-1);
 
         var todaySales = await db.Bills
-            .Where(x => x.OutletId == outletId && x.BusinessDate == today && x.Status != BillStatus.Cancelled)
+            .Where(x => x.BusinessDate == today && x.Status != BillStatus.Cancelled)
             .SumAsync(x => (decimal?)x.GrandTotal, cancellationToken) ?? 0m;
 
         var yesterdaySales = await db.Bills
-            .Where(x => x.OutletId == outletId && x.BusinessDate == yesterday && x.Status != BillStatus.Cancelled)
+            .Where(x => x.BusinessDate == yesterday && x.Status != BillStatus.Cancelled)
             .SumAsync(x => (decimal?)x.GrandTotal, cancellationToken) ?? 0m;
 
         var billsCount = await db.Bills
-            .Where(x => x.OutletId == outletId && x.BusinessDate == today && x.Status != BillStatus.Cancelled)
+            .Where(x => x.BusinessDate == today && x.Status != BillStatus.Cancelled)
             .CountAsync(cancellationToken);
 
         var pendingKot = await db.KotHeaders
-            .Where(x => x.OutletId == outletId && x.Status != "Served" && x.Status != "Cancelled")
+            .Where(x => x.Status != "Served" && x.Status != "Cancelled")
             .CountAsync(cancellationToken);
 
         var activeTables = await db.Bills
-            .Where(x => x.OutletId == outletId && x.BillType == BillType.DineIn && x.Status == BillStatus.Draft)
+            .Where(x => x.BillType == BillType.DineIn && x.Status == BillStatus.Draft)
             .CountAsync(cancellationToken);
 
         var pendingBills = await db.Bills
-            .Where(x => x.OutletId == outletId && x.Status == BillStatus.Draft)
+            .Where(x => x.Status == BillStatus.Draft)
             .CountAsync(cancellationToken);
 
         var lowStock = 0;
@@ -68,12 +67,11 @@ public class DashboardController(AppDbContext db) : Controller
     [HttpGet("/dashboard/top-items")]
     public async Task<IActionResult> TopItems(CancellationToken cancellationToken)
     {
-        var outletId = await db.Outlets.Select(x => x.OutletId).FirstOrDefaultAsync(cancellationToken);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var rows = await db.BillItems
             .Join(db.Bills, bi => bi.BillId, b => b.BillId, (bi, b) => new { bi, b })
-            .Where(x => x.b.OutletId == outletId && x.b.BusinessDate == today && x.b.Status != BillStatus.Cancelled)
+            .Where(x => x.b.BusinessDate == today && x.b.Status != BillStatus.Cancelled)
             .GroupBy(x => new { x.bi.ItemId, x.bi.ItemNameSnapshot })
             .Select(g => new
             {
@@ -91,12 +89,11 @@ public class DashboardController(AppDbContext db) : Controller
     [HttpGet("/dashboard/sales-trend")]
     public async Task<IActionResult> SalesTrend(CancellationToken cancellationToken)
     {
-        var outletId = await db.Outlets.Select(x => x.OutletId).FirstOrDefaultAsync(cancellationToken);
         var to = DateOnly.FromDateTime(DateTime.UtcNow);
         var from = to.AddDays(-6);
 
         var rows = await db.Bills
-            .Where(x => x.OutletId == outletId && x.BusinessDate >= from && x.BusinessDate <= to && x.Status != BillStatus.Cancelled)
+            .Where(x => x.BusinessDate >= from && x.BusinessDate <= to && x.Status != BillStatus.Cancelled)
             .GroupBy(x => x.BusinessDate)
             .Select(g => new { Date = g.Key, Sales = g.Sum(x => x.GrandTotal) })
             .OrderBy(x => x.Date)
@@ -108,12 +105,11 @@ public class DashboardController(AppDbContext db) : Controller
     [HttpGet("/dashboard/payment-breakdown")]
     public async Task<IActionResult> PaymentBreakdown(CancellationToken cancellationToken)
     {
-        var outletId = await db.Outlets.Select(x => x.OutletId).FirstOrDefaultAsync(cancellationToken);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var rows = await db.Payments
             .Join(db.Bills, p => p.BillId, b => b.BillId, (p, b) => new { p, b })
-            .Where(x => x.b.OutletId == outletId && x.b.BusinessDate == today && x.b.Status != BillStatus.Cancelled)
+            .Where(x => x.b.BusinessDate == today && x.b.Status != BillStatus.Cancelled)
             .GroupBy(x => x.p.PaymentMode)
             .Select(g => new { mode = g.Key.ToString(), amount = g.Sum(x => x.p.Amount) })
             .OrderByDescending(x => x.amount)
@@ -125,10 +121,7 @@ public class DashboardController(AppDbContext db) : Controller
     [HttpGet("/dashboard/recent-bills")]
     public async Task<IActionResult> RecentBills(CancellationToken cancellationToken)
     {
-        var outletId = await db.Outlets.Select(x => x.OutletId).FirstOrDefaultAsync(cancellationToken);
-
         var rows = await db.Bills
-            .Where(x => x.OutletId == outletId)
             .OrderByDescending(x => x.BillDate)
             .Take(10)
             .Select(x => new

@@ -5,7 +5,6 @@ namespace Entities.Inventory;
 public class Purchase : BaseEntity
 {
     public long PurchaseId { get; set; }
-    public int OutletId { get; set; }
     public int SupplierId { get; set; }
     public string PurchaseNo { get; set; } = string.Empty;
     public DateOnly BusinessDate { get; set; }

@@ -63,10 +63,8 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         }
         else
         {
-            var outletId = await db.Outlets.Select(x => x.OutletId).FirstAsync(cancellationToken);
             db.Categories.Add(new Category
             {
-                OutletId = outletId,
                 CategoryName = model.CategoryName.Trim(),
                 SortOrder = model.SortOrder
             });
@@ -163,10 +161,8 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         }
         else
         {
-            var outletId = await db.Outlets.Select(x => x.OutletId).FirstAsync(cancellationToken);
             db.Items.Add(new Item
             {
-                OutletId = outletId,
                 CategoryId = model.CategoryId,
                 ItemCode = model.ItemCode.Trim(),
                 ItemName = model.ItemName.Trim(),
@@ -260,7 +256,6 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     public async Task<IActionResult> GroceriesData([FromQuery] int outletId, CancellationToken cancellationToken)
     {
         var rows = await db.Groceries
-            .Where(x => x.OutletId == outletId)
             .OrderBy(x => x.GroceryName)
             .Select(x => new { x.GroceryId, x.GroceryName, x.IsActive })
             .ToListAsync(cancellationToken);
@@ -274,12 +269,11 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         if (name.Length == 0) return BadRequest("Grocery name is required.");
 
         var exists = await db.Groceries
-            .AnyAsync(x => x.OutletId == 1 && x.GroceryName == name && !x.IsDeleted, cancellationToken);
+            .AnyAsync(x => x.GroceryName == name && !x.IsDeleted, cancellationToken);
         if (exists) return BadRequest("This grocery already exists.");
 
         db.Groceries.Add(new Grocery
         {
-            OutletId = 1,
             GroceryName = name,
             IsActive = true,
             IsDeleted = false
@@ -298,7 +292,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
         if (name.Length == 0) return BadRequest("Grocery name is required.");
 
         var duplicate = await db.Groceries
-            .AnyAsync(x => x.OutletId == grocery.OutletId && x.GroceryId != id && x.GroceryName == name && !x.IsDeleted, cancellationToken);
+            .AnyAsync(x => x.GroceryId != id && x.GroceryName == name && !x.IsDeleted, cancellationToken);
         if (duplicate) return BadRequest("This grocery already exists.");
 
         grocery.GroceryName = name;
@@ -325,7 +319,6 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     public async Task<IActionResult> UnitsData([FromQuery] int outletId, CancellationToken cancellationToken)
     {
         var rows = await db.Units
-            .Where(x => x.OutletId == outletId)
             .OrderBy(x => x.UnitName)
             .Select(x => new { x.UnitId, x.UnitName, x.UnitCode, x.IsActive })
             .ToListAsync(cancellationToken);
@@ -337,7 +330,6 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     {
         db.Units.Add(new Unit
         {
-            OutletId = 1,
             UnitName = request.Name.Trim(),
             UnitCode = request.Code?.Trim() ?? request.Name[..Math.Min(3, request.Name.Length)].ToUpperInvariant(),
             IsActive = true,
@@ -377,7 +369,7 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     public async Task<IActionResult> TablesData([FromQuery] int outletId, CancellationToken cancellationToken)
     {
         var rows = await db.DiningTables
-            .Where(x => x.OutletId == outletId && x.IsActive)
+            .Where(x => x.IsActive)
             .OrderBy(x => x.TableName)
             .Select(x => new
             {
@@ -397,7 +389,6 @@ public class MastersController(AppDbContext db, IWebHostEnvironment env) : Contr
     {
         db.DiningTables.Add(new DiningTables
         {
-            OutletId = 1,
             TableName = request.Name.Trim(),
             Area = NormalizeTableArea(request.Area),
             Capacity = request.Capacity ?? 2,

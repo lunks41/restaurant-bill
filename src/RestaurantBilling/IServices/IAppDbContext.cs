@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Entities.Configuration;
 using Entities.Integration;
-using Entities.Organisation;
 using Entities.Reports;
 using Entities.Sales;
 using Entities.Audit;
@@ -17,7 +16,6 @@ public interface IAppDbContext
     DbSet<OutboxEvent> OutboxEvents { get; }
     DbSet<PaymentCallbackEvent> PaymentCallbackEvents { get; }
     DbSet<AuditLog> AuditLogs { get; }
-    DbSet<Outlet> Outlets { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 

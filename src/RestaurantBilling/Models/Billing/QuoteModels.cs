@@ -13,13 +13,11 @@ public sealed record QuoteItemInput(
     TaxType TaxType);
 
 public sealed record CreateQuoteRequest(
-    int OutletId,
     DateOnly BusinessDate,
     IReadOnlyCollection<QuoteItemInput> Items,
     decimal BillLevelDiscount);
 
 public sealed record HoldBillRequest(
-    int OutletId,
     BillType BillType,
     DateOnly BusinessDate,
     IReadOnlyCollection<QuoteItemInput> Items,
@@ -31,13 +29,11 @@ public sealed record HoldBillRequest(
     string? Phone = null);
 
 public sealed record SettleExistingRequest(
-    int OutletId,
     IReadOnlyCollection<SettleExistingPayment> Payments,
     string? CustomerName = null,
     string? Phone = null);
 
 public sealed record UpdateDraftBillRequest(
-    int OutletId,
     IReadOnlyCollection<QuoteItemInput> Items,
     decimal BillLevelDiscount,
     bool ServiceChargeOptIn,
@@ -46,8 +42,7 @@ public sealed record UpdateDraftBillRequest(
     string? CustomerName = null,
     string? Phone = null);
 
-public sealed record CancelDraftRequest(
-    int OutletId);
+public sealed record CancelDraftRequest();
 
 public sealed record SettleExistingPayment(
     PaymentMode Mode,
@@ -57,7 +52,6 @@ public sealed record SettleExistingPayment(
     string? UpiTxnId = null);
 
 public sealed record ReprintRequest(
-    int OutletId,
     string DocumentType,
     long DocumentId,
     int UserId,

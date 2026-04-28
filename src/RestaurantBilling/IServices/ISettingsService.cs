@@ -4,6 +4,6 @@ namespace IServices;
 
 public interface ISettingsService
 {
-    Task<string?> GetSettingAsync(int outletId, string key, CancellationToken cancellationToken);
-    Task<RestaurantSetting> UpsertSettingAsync(int outletId, string key, string value, CancellationToken cancellationToken);
+    Task<string?> GetSettingAsync(string key, CancellationToken cancellationToken);
+    Task<RestaurantSetting> UpsertSettingAsync(string key, string value, CancellationToken cancellationToken);
 }

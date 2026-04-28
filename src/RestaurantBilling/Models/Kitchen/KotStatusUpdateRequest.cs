@@ -1,4 +1,4 @@
 namespace RestaurantBilling.Models.Kitchen;
 
-public sealed record KotStatusUpdateRequest(int OutletId, long KotId, string Status);
+public sealed record KotStatusUpdateRequest(long KotId, string Status);
 

@@ -20,10 +20,9 @@ public class SettingsController(AppDbContext db, IWebHostEnvironment env) : Cont
     }
 
     [HttpGet("/settings/get")]
-    public async Task<IActionResult> Get([FromQuery] int outletId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
         var map = await db.RestaurantSettings
-            .Where(x => x.OutletId == outletId)
             .ToDictionaryAsync(x => x.SettingKey, x => x.SettingValue, cancellationToken);
 
         map.TryGetValue("FssaiLicenseNo", out var fssai);
@@ -46,17 +45,17 @@ public class SettingsController(AppDbContext db, IWebHostEnvironment env) : Cont
     [HttpPost("/settings/save")]
     public async Task<IActionResult> Save([FromBody] SettingsPayloadDto payload, CancellationToken cancellationToken)
     {
-        await Upsert(payload.OutletId, "RestaurantName", payload.RestaurantName, cancellationToken);
-        await Upsert(payload.OutletId, "LogoUrl", SanitizeLogoUrl(payload.LogoUrl), cancellationToken);
-        await Upsert(payload.OutletId, "FssaiLicenseNo", payload.Fssai, cancellationToken);
-        await Upsert(payload.OutletId, "Gstin", payload.Gstin, cancellationToken);
-        await Upsert(payload.OutletId, "ManagerPin", payload.ManagerPin, cancellationToken);
+        await Upsert("RestaurantName", payload.RestaurantName, cancellationToken);
+        await Upsert("LogoUrl", SanitizeLogoUrl(payload.LogoUrl), cancellationToken);
+        await Upsert("FssaiLicenseNo", payload.Fssai, cancellationToken);
+        await Upsert("Gstin", payload.Gstin, cancellationToken);
+        await Upsert("ManagerPin", payload.ManagerPin, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return Ok(new { status = "Saved" });
     }
 
     [HttpPost("/settings/upload-logo")]
-    public async Task<IActionResult> UploadLogo([FromQuery] int outletId, IFormFile? file, CancellationToken cancellationToken)
+    public async Task<IActionResult> UploadLogo(IFormFile? file, CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0) return BadRequest("No file uploaded.");
         if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)) return BadRequest("Only image files are allowed.");
@@ -80,19 +79,18 @@ public class SettingsController(AppDbContext db, IWebHostEnvironment env) : Cont
         }
 
         var logoUrl = $"/uploads/branding/{fileName}";
-        await Upsert(outletId, "LogoUrl", logoUrl, cancellationToken);
+        await Upsert("LogoUrl", logoUrl, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return Ok(new { logoUrl });
     }
 
-    private async Task Upsert(int outletId, string key, string value, CancellationToken cancellationToken)
+    private async Task Upsert(string key, string value, CancellationToken cancellationToken)
     {
-        var row = await db.RestaurantSettings.FirstOrDefaultAsync(x => x.OutletId == outletId && x.SettingKey == key, cancellationToken);
+        var row = await db.RestaurantSettings.FirstOrDefaultAsync(x => x.SettingKey == key, cancellationToken);
         if (row is null)
         {
             db.RestaurantSettings.Add(new RestaurantSetting
             {
-                OutletId = outletId,
                 SettingKey = key,
                 SettingValue = value ?? string.Empty
             });
@@ -140,7 +138,6 @@ public class SettingsController(AppDbContext db, IWebHostEnvironment env) : Cont
     }
 
     public sealed record SettingsPayloadDto(
-        int OutletId,
         string RestaurantName,
         string LogoUrl,
         string Fssai,

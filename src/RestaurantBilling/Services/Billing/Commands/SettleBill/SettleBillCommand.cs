@@ -5,7 +5,6 @@ using Entities.Enums;
 namespace Services.Billing.Commands.SettleBill;
 
 public sealed record SettleBillCommand(
-    int OutletId,
     BillType BillType,
     DateOnly BusinessDate,
     bool IsInterState,

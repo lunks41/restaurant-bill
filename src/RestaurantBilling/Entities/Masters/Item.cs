@@ -6,7 +6,6 @@ namespace Entities.Masters;
 public class Item : BaseEntity
 {
     public int ItemId { get; set; }
-    public int OutletId { get; set; }
     public int CategoryId { get; set; }
     public int? UnitId { get; set; }
     public string ItemCode { get; set; } = string.Empty;

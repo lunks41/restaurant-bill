@@ -6,7 +6,6 @@ namespace Entities.Sales;
 public class Bill : BaseEntity
 {
     public long BillId { get; private set; }
-    public int OutletId { get; private set; }
     public string BillNo { get; private set; } = string.Empty;
     public DateTime BillDate { get; private set; }
     public DateOnly BusinessDate { get; private set; }
@@ -33,9 +32,8 @@ public class Bill : BaseEntity
 
     private Bill() { }
 
-    public Bill(int outletId, string billNo, DateOnly businessDate, BillType billType)
+    public Bill(string billNo, DateOnly businessDate, BillType billType)
     {
-        OutletId = outletId;
         BillNo = billNo;
         BillDate = DateTime.UtcNow;
         BusinessDate = businessDate;
@@ -65,7 +63,7 @@ public class Bill : BaseEntity
         PaidAmount = _payments.Sum(x => x.Amount);
         BalanceAmount = GrandTotal - PaidAmount;
         Status = BalanceAmount <= 0 ? BillStatus.Paid : BillStatus.Partial;
-        AddDomainEvent(new BillSettledEvent(BillId, OutletId, BusinessDate));
+        AddDomainEvent(new BillSettledEvent(BillId, BusinessDate));
     }
 
     public void SetTableName(string? tableName) => TableName = tableName;

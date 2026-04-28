@@ -5,7 +5,6 @@ namespace Entities.Audit;
 public class AuditLog : BaseEntity
 {
     public long AuditLogId { get; set; }
-    public int OutletId { get; set; }
     public int UserId { get; set; }
     public string Action { get; set; } = string.Empty;
     public string EntityType { get; set; } = string.Empty;

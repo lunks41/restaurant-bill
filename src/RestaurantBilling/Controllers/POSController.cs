@@ -71,11 +71,11 @@ public class POSController(
         var settledBill = await db.Bills
             .AsNoTracking()
             .Where(x => x.BillId == result.Value)
-            .Select(x => new { x.OutletId, x.TableName })
+            .Select(x => new { x.TableName })
             .FirstOrDefaultAsync(cancellationToken);
         if (settledBill is not null)
         {
-            await SetTableOccupiedStateAsync(settledBill.OutletId, settledBill.TableName, false, cancellationToken);
+            await SetTableOccupiedStateAsync(settledBill.TableName, false, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
         }
 
@@ -87,12 +87,12 @@ public class POSController(
     public async Task<IActionResult> Hold([FromBody] HoldBillRequest request, CancellationToken cancellationToken)
     {
         if (request is null) return BadRequest("Invalid request body.");
-        if (await IsBusinessDateLocked(request.OutletId, request.BusinessDate, cancellationToken))
+        if (await IsBusinessDateLocked(request.BusinessDate, cancellationToken))
         {
             return Conflict("Business date is locked.");
         }
-        var billNo = await numberGeneratorService.GenerateAsync(request.OutletId, NumberSeriesKey.Bill, cancellationToken);
-        var bill = new Bill(request.OutletId, billNo, request.BusinessDate, request.BillType);
+        var billNo = await numberGeneratorService.GenerateAsync(NumberSeriesKey.Bill, cancellationToken);
+        var bill = new Bill(billNo, request.BusinessDate, request.BillType);
         if (!string.IsNullOrWhiteSpace(request.TableName))
             bill.SetTableName(request.TableName);
         bill.SetCustomerInfo(request.CustomerName, request.Phone);
@@ -127,7 +127,7 @@ public class POSController(
         }
 
         bill.SetServiceCharge(request.ServiceChargeAmount, request.ServiceChargeOptIn);
-        await SetTableOccupiedStateAsync(request.OutletId, request.TableName, true, cancellationToken);
+        await SetTableOccupiedStateAsync(request.TableName, true, cancellationToken);
         db.Bills.Add(bill);
         await db.SaveChangesAsync(cancellationToken);
         return Ok(new
@@ -145,10 +145,10 @@ public class POSController(
     public async Task<IActionResult> SettleExisting(long billId, [FromBody] SettleExistingRequest request, CancellationToken cancellationToken)
     {
         var bill = await db.Bills.Include(x => x.Items)
-            .FirstOrDefaultAsync(x => x.BillId == billId && x.OutletId == request.OutletId, cancellationToken);
+            .FirstOrDefaultAsync(x => x.BillId == billId, cancellationToken);
         if (bill is null) return NotFound("Bill not found.");
         if (bill.Status != BillStatus.Draft) return BadRequest("Bill is not in Draft state.");
-        if (await IsBusinessDateLocked(request.OutletId, bill.BusinessDate, cancellationToken))
+        if (await IsBusinessDateLocked(bill.BusinessDate, cancellationToken))
             return Conflict("Business date is locked.");
 
         var payments = request.Payments
@@ -156,12 +156,12 @@ public class POSController(
             .ToList();
         bill.SetCustomerInfo(request.CustomerName, request.Phone);
         bill.Settle(payments);
-        await SetTableOccupiedStateAsync(request.OutletId, bill.TableName, false, cancellationToken);
+        await SetTableOccupiedStateAsync(bill.TableName, false, cancellationToken);
 
-        await stockService.DeductSaleStockAsync(request.OutletId, bill.BusinessDate, bill.Items.ToList(), cancellationToken);
+        await stockService.DeductSaleStockAsync(bill.BusinessDate, bill.Items.ToList(), cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
-        await auditService.LogAsync(request.OutletId, 0, "SettleExisting", nameof(Bill), bill.BillId.ToString(),
+        await auditService.LogAsync(0, "SettleExisting", nameof(Bill), bill.BillId.ToString(),
             "{\"status\":\"Draft\"}", "{\"status\":\"Paid\"}",
             HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString(), cancellationToken);
 
@@ -174,7 +174,7 @@ public class POSController(
     {
         var bill = await db.Bills
             .Include(x => x.Items)
-            .FirstOrDefaultAsync(x => x.BillId == billId && x.OutletId == request.OutletId, cancellationToken);
+            .FirstOrDefaultAsync(x => x.BillId == billId, cancellationToken);
         if (bill is null) return NotFound("Bill not found.");
         if (bill.Status != BillStatus.Draft) return BadRequest("Only draft bills can be updated.");
         if (request.Items is null || request.Items.Count == 0) return BadRequest("At least one item is required.");
@@ -222,14 +222,14 @@ public class POSController(
     public async Task<IActionResult> CancelDraft(long billId, [FromBody] CancelDraftRequest request, CancellationToken cancellationToken)
     {
         var bill = await db.Bills
-            .FirstOrDefaultAsync(x => x.BillId == billId && x.OutletId == request.OutletId, cancellationToken);
+            .FirstOrDefaultAsync(x => x.BillId == billId, cancellationToken);
         if (bill is null) return NotFound("Bill not found.");
         if (bill.Status != BillStatus.Draft) return BadRequest("Only draft bills can be cancelled.");
-        if (await IsBusinessDateLocked(request.OutletId, bill.BusinessDate, cancellationToken))
+        if (await IsBusinessDateLocked(bill.BusinessDate, cancellationToken))
             return Conflict("Business date is locked.");
 
         bill.Cancel();
-        await SetTableOccupiedStateAsync(request.OutletId, bill.TableName, false, cancellationToken);
+        await SetTableOccupiedStateAsync(bill.TableName, false, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
         await alertHub.Clients.All.SendAsync("DashboardRefresh", "bill", cancellationToken);
@@ -241,7 +241,7 @@ public class POSController(
     {
         var row = await db.Bills
             .AsNoTracking()
-            .Where(x => x.BillId == billId && x.OutletId == outletId && x.Status == BillStatus.Draft)
+            .Where(x => x.BillId == billId && x.Status == BillStatus.Draft)
             .Select(x => new
             {
                 x.BillId,
@@ -267,7 +267,7 @@ public class POSController(
 
         var kotStatuses = await db.KotHeaders
             .AsNoTracking()
-            .Where(x => x.OutletId == outletId && x.BillId == billId && x.Status != "Cancelled")
+            .Where(x => x.BillId == billId && x.Status != "Cancelled")
             .OrderByDescending(x => x.KotDate)
             .Select(x => x.Status)
             .ToListAsync(cancellationToken);
@@ -300,7 +300,7 @@ public class POSController(
     public async Task<IActionResult> HeldBillsDetail([FromQuery] int outletId, CancellationToken cancellationToken)
     {
         var bills = await db.Bills
-            .Where(x => x.OutletId == outletId && x.Status == BillStatus.Draft)
+            .Where(x => x.Status == BillStatus.Draft)
             .OrderByDescending(x => x.BillDate)
             .Take(30)
             .Select(x => new
@@ -330,7 +330,7 @@ public class POSController(
         var billIds = bills.Select(x => x.BillId).Distinct().ToList();
         var kotRows = await db.KotHeaders
             .AsNoTracking()
-            .Where(x => x.OutletId == outletId && x.BillId.HasValue && billIds.Contains(x.BillId.Value) && x.Status != "Cancelled")
+            .Where(x => x.BillId.HasValue && billIds.Contains(x.BillId.Value) && x.Status != "Cancelled")
             .Select(x => new { billId = x.BillId!.Value, x.Status, x.KotDate })
             .ToListAsync(cancellationToken);
 
@@ -382,7 +382,7 @@ public class POSController(
     public async Task<IActionResult> Recall([FromQuery] int outletId, CancellationToken cancellationToken)
     {
         var drafts = await db.Bills
-            .Where(x => x.OutletId == outletId && x.Status == BillStatus.Draft)
+            .Where(x => x.Status == BillStatus.Draft)
             .OrderByDescending(x => x.BillDate)
             .Select(x => new { x.BillId, x.BillNo, x.BillDate, x.GrandTotal, x.BillType })
             .ToListAsync(cancellationToken);
@@ -393,19 +393,19 @@ public class POSController(
     public async Task<IActionResult> Catalog([FromQuery] int outletId, CancellationToken cancellationToken)
     {
         var activeItemCategoryIds = await db.Items
-            .Where(x => x.OutletId == outletId && !x.IsDeleted)
+            .Where(x => !x.IsDeleted)
             .Select(x => x.CategoryId)
             .Distinct()
             .ToListAsync(cancellationToken);
 
         var categories = await db.Categories
-            .Where(x => x.OutletId == outletId && !x.IsDeleted && activeItemCategoryIds.Contains(x.CategoryId))
+            .Where(x => !x.IsDeleted && activeItemCategoryIds.Contains(x.CategoryId))
             .OrderBy(x => x.SortOrder)
             .Select(x => new { id = x.CategoryId, name = x.CategoryName })
             .ToListAsync(cancellationToken);
 
         var rawItems = await db.Items
-            .Where(x => x.OutletId == outletId && !x.IsDeleted)
+            .Where(x => !x.IsDeleted)
             .OrderBy(x => x.ItemName)
             .Select(x => new
             {
@@ -471,17 +471,16 @@ public class POSController(
         return compact.Trim('-');
     }
 
-    private async Task<bool> IsBusinessDateLocked(int outletId, DateOnly businessDate, CancellationToken cancellationToken)
-        => await db.DayCloseReports.AnyAsync(x => x.OutletId == outletId && x.BusinessDate == businessDate && x.IsLocked, cancellationToken);
+    private async Task<bool> IsBusinessDateLocked(DateOnly businessDate, CancellationToken cancellationToken)
+        => await db.DayCloseReports.AnyAsync(x => x.BusinessDate == businessDate && x.IsLocked, cancellationToken);
 
-    private async Task SetTableOccupiedStateAsync(int outletId, string? tableName, bool isOccupied, CancellationToken cancellationToken)
+    private async Task SetTableOccupiedStateAsync(string? tableName, bool isOccupied, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(tableName)) return;
         var normalized = tableName.Trim();
         var table = await db.DiningTables
             .FirstOrDefaultAsync(
-                x => x.OutletId == outletId
-                     && x.IsActive
+                x => x.IsActive
                      && !x.IsDeleted
                      && x.TableName == normalized,
                 cancellationToken);

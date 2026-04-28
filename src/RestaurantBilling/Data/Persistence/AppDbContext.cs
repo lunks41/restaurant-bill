@@ -7,7 +7,6 @@ using Entities.Inventory;
 using Entities.Integration;
 using Entities.Kitchen;
 using Entities.Masters;
-using Entities.Organisation;
 using Entities.Reports;
 using Entities.Sales;
 
@@ -15,7 +14,6 @@ namespace Data.Persistence;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<Microsoft.AspNetCore.Identity.IdentityUser<int>, Microsoft.AspNetCore.Identity.IdentityRole<int>, int>(options), IAppDbContext
 {
-    public DbSet<Outlet> Outlets => Set<Outlet>();
     public DbSet<TaxConfiguration> TaxConfigurations => Set<TaxConfiguration>();
     public DbSet<NumberSeries> NumberSeries => Set<NumberSeries>();
     public DbSet<RestaurantSetting> RestaurantSettings => Set<RestaurantSetting>();
@@ -40,16 +38,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
-
-        builder.Entity<Outlet>(entity =>
-        {
-            entity.HasKey(x => x.OutletId);
-            entity.Property(x => x.OutletName).HasMaxLength(200).IsRequired();
-            entity.Property(x => x.StateCode).HasMaxLength(2).IsRequired();
-            entity.Property(x => x.FssaiNumber).HasMaxLength(14).IsRequired();
-            entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasQueryFilter(x => !x.IsDeleted);
-        });
 
         builder.Entity<TaxConfiguration>(entity =>
         {

@@ -5,7 +5,6 @@ namespace Entities.Reports;
 public class DayCloseReport : BaseEntity
 {
     public long DayCloseReportId { get; set; }
-    public int OutletId { get; set; }
     public DateOnly BusinessDate { get; set; }
     public DateTime OpenedAtUtc { get; set; }
     public DateTime ClosedAtUtc { get; set; }

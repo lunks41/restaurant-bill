@@ -5,7 +5,6 @@ namespace Entities.Sales;
 public class Quotation : BaseEntity
 {
     public long QuotationId { get; set; }
-    public int OutletId { get; set; }
     public string QuoteNo { get; set; } = string.Empty;
     public DateTime QuoteDate { get; set; } = DateTime.UtcNow;
     public DateOnly BusinessDate { get; set; }

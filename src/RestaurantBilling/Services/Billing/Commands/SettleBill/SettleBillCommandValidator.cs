@@ -6,7 +6,6 @@ public class SettleBillCommandValidator : AbstractValidator<SettleBillCommand>
 {
     public SettleBillCommandValidator()
     {
-        RuleFor(x => x.OutletId).GreaterThan(0);
         RuleFor(x => x.Items).NotEmpty();
         RuleFor(x => x.Payments).NotEmpty();
 

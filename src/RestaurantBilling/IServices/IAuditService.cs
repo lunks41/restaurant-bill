@@ -3,7 +3,6 @@ namespace IServices;
 public interface IAuditService
 {
     Task LogAsync(
-        int outletId,
         int userId,
         string action,
         string entityType,

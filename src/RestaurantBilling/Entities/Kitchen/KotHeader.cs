@@ -5,7 +5,6 @@ namespace Entities.Kitchen;
 public class KotHeader : BaseEntity
 {
     public long KotHeaderId { get; set; }
-    public int OutletId { get; set; }
     public string KotNo { get; set; } = string.Empty;
     public DateTime KotDate { get; set; }
     public DateOnly BusinessDate { get; set; }

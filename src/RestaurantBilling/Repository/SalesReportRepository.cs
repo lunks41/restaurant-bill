@@ -11,7 +11,7 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
     private readonly string _connectionString = configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("DefaultConnection missing.");
 
-    public async Task<IReadOnlyList<DailySalesReportDto>> GetDailySalesAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<DailySalesReportDto>> GetDailySalesAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
         const string sql = """
                            SELECT b.BusinessDate,
@@ -20,8 +20,7 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
                                   SUM(b.TaxAmount) AS TotalTax,
                                   SUM(b.GrandTotal) AS NetSales
                            FROM Bills b
-                           WHERE b.OutletId = @outletId
-                             AND b.BusinessDate BETWEEN @from AND @to
+                           WHERE b.BusinessDate BETWEEN @from AND @to
                              AND b.Status IN (1,2)
                            GROUP BY b.BusinessDate
                            ORDER BY b.BusinessDate DESC
@@ -30,19 +29,19 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
         var fromDate = from.ToDateTime(TimeOnly.MinValue);
         var toDate = to.ToDateTime(TimeOnly.MinValue);
         await using var conn = new SqlConnection(_connectionString);
-        var rows = await conn.QueryAsync<DailySalesRow>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
+        var rows = await conn.QueryAsync<DailySalesRow>(new CommandDefinition(sql, new { from = fromDate, to = toDate }, cancellationToken: cancellationToken));
         return rows
             .Select(x => new DailySalesReportDto(DateOnly.FromDateTime(x.BusinessDate), x.TotalBills, x.GrossSales, x.TotalTax, x.NetSales))
             .ToList();
     }
 
-    public async Task<IReadOnlyList<StockVarianceDto>> GetStockVarianceAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<StockVarianceDto>> GetStockVarianceAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
         await Task.CompletedTask;
         return [];
     }
 
-    public async Task<IReadOnlyList<PaymentSummaryDto>> GetPaymentSummaryAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<PaymentSummaryDto>> GetPaymentSummaryAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
         const string sql = """
                            SELECT CAST(p.PaymentMode AS nvarchar(50)) AS PaymentMode,
@@ -50,19 +49,18 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
                                   COUNT(1) AS TransactionCount
                            FROM Payments p
                            INNER JOIN Bills b ON b.BillId = p.BillId
-                           WHERE b.OutletId = @outletId
-                             AND b.BusinessDate BETWEEN @from AND @to
+                           WHERE b.BusinessDate BETWEEN @from AND @to
                            GROUP BY p.PaymentMode
                            ORDER BY SUM(p.Amount) DESC
                            """;
         var fromDate = from.ToDateTime(TimeOnly.MinValue);
         var toDate = to.ToDateTime(TimeOnly.MinValue);
         await using var conn = new SqlConnection(_connectionString);
-        var rows = await conn.QueryAsync<PaymentSummaryDto>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
+        var rows = await conn.QueryAsync<PaymentSummaryDto>(new CommandDefinition(sql, new { from = fromDate, to = toDate }, cancellationToken: cancellationToken));
         return rows.ToList();
     }
 
-    public async Task<IReadOnlyList<VoidReportDto>> GetVoidReportAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<VoidReportDto>> GetVoidReportAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
         const string sql = """
                            SELECT b.BillId,
@@ -71,21 +69,20 @@ public class SalesReportRepository(IConfiguration configuration) : ISalesReportR
                                   b.GrandTotal,
                                   CAST(b.Status AS nvarchar(30)) AS Status
                            FROM Bills b
-                           WHERE b.OutletId = @outletId
-                             AND b.BusinessDate BETWEEN @from AND @to
+                           WHERE b.BusinessDate BETWEEN @from AND @to
                              AND b.Status = 3
                            ORDER BY b.BusinessDate DESC, b.BillId DESC
                            """;
         var fromDate = from.ToDateTime(TimeOnly.MinValue);
         var toDate = to.ToDateTime(TimeOnly.MinValue);
         await using var conn = new SqlConnection(_connectionString);
-        var rows = await conn.QueryAsync<VoidReportRow>(new CommandDefinition(sql, new { outletId, from = fromDate, to = toDate }, cancellationToken: cancellationToken));
+        var rows = await conn.QueryAsync<VoidReportRow>(new CommandDefinition(sql, new { from = fromDate, to = toDate }, cancellationToken: cancellationToken));
         return rows
             .Select(x => new VoidReportDto(x.BillId, x.BillNo, DateOnly.FromDateTime(x.BusinessDate), x.GrandTotal, x.Status))
             .ToList();
     }
 
-    public async Task<IReadOnlyList<StockMovementDto>> GetStockMovementAsync(int outletId, DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<StockMovementDto>> GetStockMovementAsync(DateOnly from, DateOnly to, CancellationToken cancellationToken)
     {
         await Task.CompletedTask;
         return [];

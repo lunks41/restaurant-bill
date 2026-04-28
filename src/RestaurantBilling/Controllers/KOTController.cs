@@ -100,14 +100,14 @@ public class KOTController(
     {
         var bill = await db.Bills
             .Include(x => x.Items)
-            .FirstOrDefaultAsync(x => x.BillId == request.BillId && x.OutletId == request.OutletId, cancellationToken);
+            .FirstOrDefaultAsync(x => x.BillId == request.BillId, cancellationToken);
         if (bill is null)
         {
             return NotFound("Bill not found.");
         }
 
         var existingHeaders = await db.KotHeaders
-            .Where(x => x.OutletId == request.OutletId && x.BillId == request.BillId)
+            .Where(x => x.BillId == request.BillId)
             .OrderByDescending(x => x.KotDate)
             .ToListAsync(cancellationToken);
 
@@ -157,7 +157,7 @@ public class KOTController(
         var hasPreviousKotForBill = existingHeaders.Count > 0;
 
         var defaultStationId = await db.KitchenStations
-            .Where(x => x.OutletId == request.OutletId)
+            .AsQueryable()
             .OrderBy(x => x.SortOrder)
             .Select(x => x.KitchenStationId)
             .FirstOrDefaultAsync(cancellationToken);
@@ -171,10 +171,9 @@ public class KOTController(
 
         if (header is null)
         {
-            var kotNo = await numberGeneratorService.GenerateAsync(request.OutletId, NumberSeriesKey.KOT, cancellationToken);
+            var kotNo = await numberGeneratorService.GenerateAsync(NumberSeriesKey.KOT, cancellationToken);
             header = new KotHeader
             {
-                OutletId = request.OutletId,
                 BillId = request.BillId,
                 KotNo = kotNo,
                 KotDate = DateTime.UtcNow,
@@ -223,7 +222,7 @@ public class KOTController(
             return BadRequest("Invalid status.");
         }
 
-        var kot = await db.KotHeaders.FirstOrDefaultAsync(x => x.KotHeaderId == request.KotId && x.OutletId == request.OutletId, cancellationToken);
+        var kot = await db.KotHeaders.FirstOrDefaultAsync(x => x.KotHeaderId == request.KotId, cancellationToken);
         if (kot is null)
         {
             return NotFound("KOT not found.");
@@ -270,7 +269,7 @@ public class KOTController(
 
         var kotIds = request.KotIds.Distinct().ToList();
         var headers = await db.KotHeaders
-            .Where(x => x.OutletId == request.OutletId && kotIds.Contains(x.KotHeaderId))
+            .Where(x => kotIds.Contains(x.KotHeaderId))
             .ToListAsync(cancellationToken);
         if (headers.Count == 0) return NotFound("KOT not found.");
 
@@ -287,7 +286,7 @@ public class KOTController(
     [HttpGet("kots-data")]
     public async Task<IActionResult> KotsData([FromQuery] int outletId, CancellationToken cancellationToken)
     {
-        var query = db.KotHeaders.Where(x => x.OutletId == outletId);
+        var query = db.KotHeaders.AsQueryable();
 
         var headers = await query
             .OrderByDescending(x => x.KotDate)

@@ -19,14 +19,14 @@ public class SettleBillCommandHandler(
     public async Task<Result<long>> Handle(SettleBillCommand request, CancellationToken cancellationToken)
     {
         var dayLocked = await db.DayCloseReports.AnyAsync(
-            x => x.OutletId == request.OutletId && x.BusinessDate == request.BusinessDate && x.IsLocked,
+            x => x.BusinessDate == request.BusinessDate && x.IsLocked,
             cancellationToken);
         if (dayLocked)
         {
             return Result<long>.Failure("Business date is locked. Cannot settle bill.", ResultStatus.Conflict);
         }
 
-        var billNo = await numberGeneratorService.GenerateAsync(request.OutletId, NumberSeriesKey.Bill, cancellationToken);
+        var billNo = await numberGeneratorService.GenerateAsync(NumberSeriesKey.Bill, cancellationToken);
 
         var calcInput = request.Items.Select(x => new BillItemInput(
             x.ItemId,
@@ -45,7 +45,7 @@ public class SettleBillCommandHandler(
             request.ServiceChargeOptIn,
             request.IsInterState);
 
-        var bill = new Bill(request.OutletId, billNo, request.BusinessDate, request.BillType);
+        var bill = new Bill(billNo, request.BusinessDate, request.BillType);
         bill.SetTableName(request.TableName);
         bill.SetCustomerInfo(request.CustomerName, request.Phone);
         foreach (var line in computed.Lines)
@@ -69,7 +69,6 @@ public class SettleBillCommandHandler(
         db.Bills.Add(bill);
 
         await stockService.DeductSaleStockAsync(
-            request.OutletId,
             request.BusinessDate,
             bill.Items.ToList(),
             cancellationToken);
