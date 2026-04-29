@@ -1,132 +1,132 @@
 <div class="card">
-    <div class="card-body-custom">
-        <div class="row g-2">
-            <div class="col-md-6">
-                <label class="form-label-custom">Restaurant Name</label>
-                <input id="restaurantName" class="form-control-custom" placeholder="Enter restaurant name" />
-            </div>
-            <div class="col-md-6">
-                <label class="form-label-custom">Restaurant Logo</label>
-                <div class="d-flex gap-2 align-items-center">
-                    <input id="logoFile" type="file" class="form-control-custom" accept="image/*" />
-                    <button id="uploadLogoBtn" type="button" class="btn btn-outline-secondary">Upload</button>
-                </div>
-                <input id="logoUrl" type="hidden" />
-                <img id="logoPreview" alt="Restaurant logo preview"
-                    style="display:none; max-height:64px; margin-top:8px; border-radius:8px; border:1px solid #e5e7eb;" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label-custom">FSSAI License</label>
-                <input id="fssai" class="form-control-custom" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label-custom">GSTIN</label>
-                <input id="gstin" class="form-control-custom" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label-custom">Manager PIN</label>
-                <input id="managerPin" class="form-control-custom" />
-            </div>
-            <div class="col-md-4">
-                <label class="form-label-custom">Closing Time</label>
-                <input id="closingTime" type="time" class="form-control-custom" required />
-            </div>
+  <div class="card-body-custom">
+    <div class="row g-2">
+      <div class="col-md-12">
+        <label class="form-label-custom">Restaurant Name</label>
+        <input id="restaurantName" class="form-control-custom" placeholder="Enter restaurant name" />
+      </div>
+      <div class="col-md-3">
+        <label class="form-label-custom">FSSAI License</label>
+        <input id="fssai" class="form-control-custom" />
+      </div>
+      <div class="col-md-3">
+        <label class="form-label-custom">GSTIN</label>
+        <input id="gstin" class="form-control-custom" />
+      </div>
+      <div class="col-md-3">
+        <label class="form-label-custom">Manager PIN</label>
+        <input id="managerPin" class="form-control-custom" />
+      </div>
+      <div class="col-md-3">
+        <label class="form-label-custom">Closing Time</label>
+        <input id="closingTime" type="time" class="form-control-custom" required />
+      </div>
+      <div class="col-12">
+        <label class="form-label-custom">Restaurant Logo</label>
+        <div class="d-flex gap-2 align-items-center">
+          <input id="logoFile" type="file" class="form-control-custom" accept="image/*" />
+          <button id="uploadLogoBtn" type="button" class="btn btn-outline-secondary">Upload</button>
         </div>
-        <div class="mt-3">
-            <button id="saveSettings" class="btn-accent">Save Settings</button>
-            <button id="runExpiryNow" type="button" class="btn btn-outline-secondary ms-2">Run Expiry Now</button>
-        </div>
+        <input id="logoUrl" type="hidden" />
+        <img id="logoPreview" alt="Restaurant logo preview"
+          style="display:none; max-height:64px; margin-top:8px; border-radius:8px; border:1px solid #e5e7eb;" />
+      </div>
     </div>
+    <div class="mt-3 d-flex gap-2 flex-wrap">
+      <button id="saveSettings" class="btn-accent">Save Settings</button>
+      <button id="runExpiryNow" type="button" class="btn btn-outline-secondary">Run Expiry Now</button>
+    </div>
+  </div>
 </div>
 
 @section Scripts {
-<script>
-(() => {
-  async function load() {
-    const data = await getJSON('/settings/get?outletId=1');
-    document.getElementById('restaurantName').value = data.restaurantName || 'RestoBill';
-    document.getElementById('logoUrl').value = data.logoUrl || '';
-    const preview = document.getElementById('logoPreview');
-    if (data.logoUrl) {
-      preview.src = data.logoUrl;
-      preview.style.display = 'block';
-    } else {
-      preview.style.display = 'none';
-    }
-    document.getElementById('fssai').value = data.fssai || '';
-    document.getElementById('gstin').value = data.gstin || '';
-    document.getElementById('managerPin').value = data.managerPin || '';
-    document.getElementById('closingTime').value = data.closingTime || '02:00';
-  }
-
-  async function uploadLogo() {
-    const fileInput = document.getElementById('logoFile');
-    if (!fileInput.files || !fileInput.files.length) {
-      toastr.warning('Please choose an image first');
-      return;
-    }
-    const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
-
-    const response = await fetch('/settings/upload-logo?outletId=1', {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest'
+  <script>
+    (() => {
+      async function load() {
+        const data = await getJSON('/settings/get?outletId=1');
+        document.getElementById('restaurantName').value = data.restaurantName || 'RestoBill';
+        document.getElementById('logoUrl').value = data.logoUrl || '';
+        const preview = document.getElementById('logoPreview');
+        if (data.logoUrl) {
+          preview.src = data.logoUrl;
+          preview.style.display = 'block';
+        } else {
+          preview.style.display = 'none';
+        }
+        document.getElementById('fssai').value = data.fssai || '';
+        document.getElementById('gstin').value = data.gstin || '';
+        document.getElementById('managerPin').value = data.managerPin || '';
+        document.getElementById('closingTime').value = data.closingTime || '02:00';
       }
-    });
-    if (!response.ok) {
-      toastr.error('Logo upload failed');
-      return;
-    }
-    const result = await response.json();
-    document.getElementById('logoUrl').value = result.logoUrl || '';
-    const preview = document.getElementById('logoPreview');
-    if (result.logoUrl) {
-      preview.src = result.logoUrl;
-      preview.style.display = 'block';
-    }
-    if (typeof applyBranding === 'function') applyBranding();
-    toastr.success('Logo uploaded');
-  }
 
-  async function save() {
-    const closingTime = (document.getElementById('closingTime').value || '').trim();
-    if (!closingTime) {
-      toastr.warning('Closing Time is required');
-      return;
-    }
-    await postJSON('/settings/save', {
-      outletId: 1,
-      restaurantName: document.getElementById('restaurantName').value,
-      logoUrl: document.getElementById('logoUrl').value,
-      fssai: document.getElementById('fssai').value,
-      gstin: document.getElementById('gstin').value,
-      managerPin: document.getElementById('managerPin').value,
-      closingTime
-    });
-    if (typeof applyBranding === 'function') applyBranding();
-    toastr.success('Settings saved');
-  }
+      async function uploadLogo() {
+        const fileInput = document.getElementById('logoFile');
+        if (!fileInput.files || !fileInput.files.length) {
+          toastr.warning('Please choose an image first');
+          return;
+        }
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
 
-  async function runExpiryNow() {
-    const response = await fetch('/settings/run-expiry-now', {
-      method: 'POST',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest'
+        const response = await fetch('/settings/upload-logo?outletId=1', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+        if (!response.ok) {
+          toastr.error('Logo upload failed');
+          return;
+        }
+        const result = await response.json();
+        document.getElementById('logoUrl').value = result.logoUrl || '';
+        const preview = document.getElementById('logoPreview');
+        if (result.logoUrl) {
+          preview.src = result.logoUrl;
+          preview.style.display = 'block';
+        }
+        if (typeof applyBranding === 'function') applyBranding();
+        toastr.success('Logo uploaded');
       }
-    });
-    if (!response.ok) {
-      toastr.error('Expiry run failed');
-      return;
-    }
-    toastr.success('Perishable expiry executed');
-  }
 
-  document.getElementById('saveSettings').addEventListener('click', save);
-  document.getElementById('uploadLogoBtn').addEventListener('click', uploadLogo);
-  document.getElementById('runExpiryNow').addEventListener('click', runExpiryNow);
-  document.addEventListener('DOMContentLoaded', load);
-})();
-</script>
+      async function save() {
+        const closingTime = (document.getElementById('closingTime').value || '').trim();
+        if (!closingTime) {
+          toastr.warning('Closing Time is required');
+          return;
+        }
+        await postJSON('/settings/save', {
+          outletId: 1,
+          restaurantName: document.getElementById('restaurantName').value,
+          logoUrl: document.getElementById('logoUrl').value,
+          fssai: document.getElementById('fssai').value,
+          gstin: document.getElementById('gstin').value,
+          managerPin: document.getElementById('managerPin').value,
+          closingTime
+        });
+        if (typeof applyBranding === 'function') applyBranding();
+        toastr.success('Settings saved');
+      }
+
+      async function runExpiryNow() {
+        const response = await fetch('/settings/run-expiry-now', {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+        if (!response.ok) {
+          toastr.error('Expiry run failed');
+          return;
+        }
+        toastr.success('Perishable expiry executed');
+      }
+
+      document.getElementById('saveSettings').addEventListener('click', save);
+      document.getElementById('uploadLogoBtn').addEventListener('click', uploadLogo);
+      document.getElementById('runExpiryNow').addEventListener('click', runExpiryNow);
+      document.addEventListener('DOMContentLoaded', load);
+    })();
+  </script>
 }

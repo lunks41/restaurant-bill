@@ -40,15 +40,15 @@ public class InventoryController(AppDbContext db) : Controller
             _ => pageSize
         };
 
-        var query = BuildItemStockQuery(search, unitId);
-        var totalCount = await query.CountAsync(cancellationToken);
+        var allRows = await BuildItemStockRowsAsync(search, unitId, cancellationToken);
+        var totalCount = allRows.Count;
         var totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
         if (totalPages > 0 && page > totalPages) page = totalPages;
 
-        var rows = await query
+        var rows = allRows
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         return Ok(new
         {
@@ -66,7 +66,7 @@ public class InventoryController(AppDbContext db) : Controller
         [FromQuery] int? unitId,
         CancellationToken cancellationToken)
     {
-        var rows = await BuildItemStockQuery(search, unitId).ToListAsync(cancellationToken);
+        var rows = await BuildItemStockRowsAsync(search, unitId, cancellationToken);
         var csv = new StringBuilder("Code,Name,Unit,Type,StockDate,CurrentQty,ReorderLevel,Status\n");
         foreach (var row in rows)
         {
@@ -183,34 +183,67 @@ public class InventoryController(AppDbContext db) : Controller
         if (row is null) return NotFound();
 
         row.IsActive = false;
-        row.IsDeleted = false;
+        row.IsDeleted = true;
+        row.DeletedAtUtc = DateTime.UtcNow;
         row.UpdatedAtUtc = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
         return Ok(new { status = "Inactivated" });
     }
 
-    private IQueryable<StockItemListRow> BuildItemStockQuery(string? search, int? unitId)
+    private async Task<List<StockItemListRow>> BuildItemStockRowsAsync(
+        string? search,
+        int? unitId,
+        CancellationToken cancellationToken)
     {
-        // Always return ONE row per ItemId (latest StockDate, then latest ItemStockId).
-        var latestStocks =
-            db.ItemStocks
-                .Where(s => !s.IsDeleted)
-                .GroupBy(s => s.ItemId)
-                .Select(g => g
-                    .OrderByDescending(s => s.StockDate)
-                    .ThenByDescending(s => s.ItemStockId)
-                    .First());
+        // 100% EF-translation-safe approach:
+        // 1) Load only required rows
+        // 2) Pick the latest ItemStockId per ItemId in C#
+        // 3) Join with Items/Units in C#
+        var stocks = await db.ItemStocks
+            .Where(x => !x.IsDeleted)
+            .Select(x => new
+            {
+                x.ItemStockId,
+                x.ItemId,
+                x.UnitId,
+                x.CurrentQty,
+                x.ReorderLevel,
+                x.Type,
+                x.StockDate,
+                x.IsActive
+            })
+            .ToListAsync(cancellationToken);
 
-        var query =
-            from stock in latestStocks
-            join item in db.Items.Where(x => !x.IsDeleted)
-                on stock.ItemId equals item.ItemId into itemJoin
-            from item in itemJoin.DefaultIfEmpty()
-            join unit in db.Units.Where(x => !x.IsDeleted)
-                on stock.UnitId equals unit.UnitId into unitJoin
-            from unit in unitJoin.DefaultIfEmpty()
-            select new StockItemListRow
+        var items = await db.Items
+            .Where(x => !x.IsDeleted)
+            .Select(x => new { x.ItemId, x.ItemName, x.ItemCode })
+            .ToListAsync(cancellationToken);
+
+        var units = await db.Units
+            .Where(x => !x.IsDeleted)
+            .Select(x => new { x.UnitId, x.UnitName })
+            .ToListAsync(cancellationToken);
+
+        var itemsById = items.ToDictionary(x => x.ItemId, x => x);
+        var unitsById = units.ToDictionary(x => x.UnitId, x => x.UnitName);
+
+        var latestByItem = stocks
+            .GroupBy(x => x.ItemId)
+            .Select(g => g
+                .OrderByDescending(s => s.StockDate)
+                .ThenByDescending(s => s.ItemStockId)
+                .First())
+            .ToList();
+
+        IEnumerable<StockItemListRow> rows = latestByItem.Select(stock =>
+        {
+            itemsById.TryGetValue(stock.ItemId, out var item);
+            var unitName = stock.UnitId.HasValue && unitsById.TryGetValue(stock.UnitId.Value, out var u)
+                ? u
+                : string.Empty;
+
+            return new StockItemListRow
             {
                 ItemId = stock.ItemStockId,
                 ItemCode = $"STK{stock.ItemStockId:000}",
@@ -219,27 +252,32 @@ public class InventoryController(AppDbContext db) : Controller
                 ReorderLevel = stock.ReorderLevel,
                 IsActive = stock.IsActive,
                 UnitId = stock.UnitId,
-                UnitName = unit != null ? unit.UnitName : string.Empty,
+                UnitName = unitName,
                 CurrentQty = stock.CurrentQty,
                 Type = stock.Type,
                 StockDate = stock.StockDate
             };
+        });
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
-            query = query.Where(x =>
-                x.ItemName.Contains(term) ||
-                (x.ItemCode ?? string.Empty).Contains(term) ||
-                x.ItemIdRef.ToString().Contains(term));
+            var hasInt = int.TryParse(term, out var itemIdTerm);
+
+            rows = rows.Where(x =>
+                x.ItemName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                (x.ItemCode ?? string.Empty).Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                (hasInt && x.ItemIdRef == itemIdTerm));
         }
 
         if (unitId.HasValue && unitId.Value > 0)
         {
-            query = query.Where(x => x.UnitId == unitId.Value);
+            rows = rows.Where(x => x.UnitId == unitId.Value);
         }
 
-        return query.OrderBy(x => x.ItemName);
+        return rows
+            .OrderBy(x => x.ItemName)
+            .ToList();
     }
 
     private static string Escape(string value)

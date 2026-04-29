@@ -723,12 +723,33 @@ function openSettleModal() {
   const roundOff = totals.roundOff;
   const discount = totals.discount;
   const summaryEl = document.getElementById("settleSummary");
+  const billDetailsHtml = `
+    <div class="settle-bill-details">
+      <div class="settle-bill-detail"><span>Bill No</span><strong>${posState.currentBillNo || "-"}</strong></div>
+      <div class="settle-bill-detail"><span>Table</span><strong>${posState.selectedTableName || "-"}</strong></div>
+      <div class="settle-bill-detail"><span>Customer</span><strong>${posState.customerName || "-"}</strong></div>
+      <div class="settle-bill-detail"><span>Phone</span><strong>${posState.customerPhone || "-"}</strong></div>
+    </div>
+  `;
+  const itemRowsHtml = posState.cart.map(l => `
+    <div class="settle-summary-row settle-item-row">
+      <span class="settle-item-name">${l.name}</span>
+      <span class="settle-item-qty">${fmtQty(l.qty)}</span>
+      <span class="settle-item-amount">${fmtINR(l.qty * l.price)}</span>
+    </div>
+  `).join("");
   if (summaryEl) summaryEl.innerHTML = `
-    ${posState.cart.map(l => `<div class="settle-summary-row"><span>${l.name} ×${fmtQty(l.qty)}</span><span>${fmtINR(l.qty * l.price)}</span></div>`).join("")}
+    ${billDetailsHtml}
+    <div class="settle-summary-row settle-summary-item-head settle-item-row">
+      <span class="settle-item-name">Item</span>
+      <span class="settle-item-qty">Qty</span>
+      <span class="settle-item-amount">Amount</span>
+    </div>
+    <div class="settle-summary-items">${itemRowsHtml}</div>
     <div class="settle-summary-row" style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;"><span>Subtotal</span><span>${fmtINR(sub)}</span></div>
-    <div class="settle-summary-row"><span>Discount</span><span>${fmtINR(discount)}</span></div>
     <div class="settle-summary-row"><span>Tax</span><span>${fmtINR(tax)}</span></div>
-    <div class="settle-summary-row"><span>Round Off</span><span>${fmtINR(roundOff)}</span></div>
+    <div class="settle-summary-row"><span>Discount</span><span>${fmtINR(discount)}</span></div>
+    <div class="settle-summary-row"><span>RoundOff</span><span>${fmtINR(roundOff)}</span></div>
     <div class="settle-summary-row grand"><span>Grand Total</span><span>${fmtINR(grand)}</span></div>`;
   const amtInput = document.getElementById("settleAmtInput");
   if (amtInput) amtInput.value = Number(grand || 0).toFixed(2);
@@ -848,6 +869,7 @@ async function printReceipt(bill, amtPaid, method, payments) {
   const roundOff = bill?.roundOff ?? liveTotals.roundOff;
   const change = Math.max(0, amtPaid - grand);
   const effectivePayments = Array.isArray(payments) && payments.length ? payments : [{ mode: method, amount: amtPaid }];
+  const paidTotal = effectivePayments.reduce((sum, p) => sum + (p.amount || 0), 0);
   const items = (bill?.items || posState.cart).map(l =>
     `<tr><td>${l.itemName || l.name}</td><td style="text-align:center">${fmtQty(l.qty)}</td><td style="text-align:right">${fmtINR((l.rate || l.price) * l.qty)}</td></tr>`
   ).join("");
@@ -881,9 +903,11 @@ async function printReceipt(bill, amtPaid, method, payments) {
     <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>${fmtINR(subtotal)}</span></div>
     <div style="display:flex;justify-content:space-between;"><span>Tax</span><span>${fmtINR(taxTotal)}</span></div>
     <div style="display:flex;justify-content:space-between;"><span>Discount</span><span>${fmtINR(discount)}</span></div>
-    <div style="display:flex;justify-content:space-between;"><span>Round Off</span><span>${fmtINR(roundOff)}</span></div>
+    <div style="display:flex;justify-content:space-between;"><span>RoundOff</span><span>${fmtINR(roundOff)}</span></div>
     <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;margin-top:4px;"><span>TOTAL</span><span>${fmtINR(grand)}</span></div>
+    <hr style="border-top:1px dashed #000;margin:6px 0;"/>
     ${paymentRows}
+    <div style="display:flex;justify-content:space-between;margin-top:4px;font-weight:bold;"><span>Total Paid Amount</span><span>${fmtINR(paidTotal)}</span></div>
     ${change > 0 ? `<div style="display:flex;justify-content:space-between;"><span>Change</span><span>${fmtINR(change)}</span></div>` : ""}
     <hr style="border-top:1px dashed #000;margin:8px 0;"/>
     <div style="text-align:center;font-size:11px;color:#666;">Thank you! Visit again.</div>

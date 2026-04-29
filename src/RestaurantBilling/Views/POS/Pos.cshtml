@@ -110,42 +110,54 @@
             <button class="settle-modal-close" id="settleClose">&times;</button>
         </div>
         <div class="settle-modal-body">
-            <div class="settle-summary" id="settleSummary"></div>
-            <div class="settle-pay-label">Select Payment Method</div>
-            <div class="settle-pay-grid">
-                <div class="settle-pay-btn active" data-method="Cash">
-                    <i class="fas fa-money-bill-wave"></i><span>Cash</span>
+            <div class="settle-sections">
+                <div class="settle-summary-section">
+                    <div class="settle-summary" id="settleSummary"></div>
                 </div>
-                <div class="settle-pay-btn" data-method="Card">
-                    <i class="fas fa-credit-card"></i><span>Card</span>
+                <div class="settle-payment-section">
+                    <div class="settle-pay-label">Select Payment Method</div>
+                    <div class="settle-pay-grid">
+                        <div class="settle-pay-btn active" data-method="Cash">
+                            <i class="fas fa-money-bill-wave"></i><span>Cash</span>
+                        </div>
+                        <div class="settle-pay-btn" data-method="Card">
+                            <i class="fas fa-credit-card"></i><span>Card</span>
+                        </div>
+                        <div class="settle-pay-btn" data-method="UPI">
+                            <i class="fas fa-mobile-screen"></i><span>UPI</span>
+                        </div>
+                    </div>
+                    <div class="settle-split-row">
+                        <input type="checkbox" id="settlePartialSplit" />
+                        <label for="settlePartialSplit">Partially (Cash + selected mode)</label>
+                    </div>
+                    <div class="form-group-custom" id="settlePartialCashGroup" style="display:none;">
+                        <div class="settle-partial-grid">
+                            <div>
+                                <label class="form-label-custom">Cash Amount</label>
+                                <input type="number" id="settlePartialCashInput" class="form-control-custom" step="0.01" min="0"
+                                    placeholder="Enter cash amount" />
+                            </div>
+                            <div>
+                                <label class="form-label-custom" id="settlePartialSelectedLabel">Card/UPI Amount</label>
+                                <input type="number" id="settlePartialSelectedInput" class="form-control-custom" step="0.01" readonly />
+                            </div>
+                        </div>
+                        <div class="app-muted mt-1" id="settlePartialRemaining">Remaining in selected mode: ₹0.00</div>
+                    </div>
+                    <div class="form-group-custom">
+                        <label class="form-label-custom">Amount Received</label>
+                        <input type="number" id="settleAmtInput" class="form-control-custom" step="0.01" readonly />
+                        <div class="settle-split-row mt-2">
+                            <input type="checkbox" id="settleAmtEditable" />
+                            <label for="settleAmtEditable">Allow editing amount received</label>
+                        </div>
+                    </div>
+                    <div id="settleChangeRow"
+                        style="display:none; background:var(--success-bg); border-radius:var(--radius-sm); padding:10px 14px; font-size:13px; font-weight:600; color:var(--success); margin-top:8px;">
+                        <i class="fas fa-coins me-1"></i>Change: <span id="settleChangeDue">&#8377;0.00</span>
+                    </div>
                 </div>
-                <div class="settle-pay-btn" data-method="UPI">
-                    <i class="fas fa-mobile-screen"></i><span>UPI</span>
-                </div>
-            </div>
-            <div class="settle-split-row">
-                <input type="checkbox" id="settlePartialSplit" />
-                <label for="settlePartialSplit">Partially (Cash + selected mode)</label>
-            </div>
-            <div class="form-group-custom" id="settlePartialCashGroup" style="display:none;">
-                <label class="form-label-custom">Cash Amount</label>
-                <input type="number" id="settlePartialCashInput" class="form-control-custom" step="0.01" min="0"
-                    placeholder="Enter cash amount" />
-                <label class="form-label-custom mt-2" id="settlePartialSelectedLabel">Card/UPI Amount</label>
-                <input type="number" id="settlePartialSelectedInput" class="form-control-custom" step="0.01" readonly />
-                <div class="app-muted mt-1" id="settlePartialRemaining">Remaining in selected mode: ₹0.00</div>
-            </div>
-            <div class="form-group-custom">
-                <label class="form-label-custom">Amount Received</label>
-                <input type="number" id="settleAmtInput" class="form-control-custom" step="0.01" readonly />
-                <div class="settle-split-row mt-2">
-                    <input type="checkbox" id="settleAmtEditable" />
-                    <label for="settleAmtEditable">Allow editing amount received</label>
-                </div>
-            </div>
-            <div id="settleChangeRow"
-                style="display:none; background:var(--success-bg); border-radius:var(--radius-sm); padding:10px 14px; font-size:13px; font-weight:600; color:var(--success); margin-top:8px;">
-                <i class="fas fa-coins me-1"></i>Change: <span id="settleChangeDue">&#8377;0.00</span>
             </div>
         </div>
         <div class="settle-modal-foot">

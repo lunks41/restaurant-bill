@@ -2,15 +2,6 @@
   ViewData["Title"] = "Bills";
 }
 
-<div class="app-surface mb-3" style="padding:12px 16px;font-size:13px;line-height:1.5;">
-  <strong><i class="fas fa-circle-info" style="color:var(--accent);"></i> How billing &amp; KOT work</strong>
-  <p class="mb-2 app-muted" style="margin-top:6px;">New order: open <a href="/floor">Dine-In POS</a> or <a
-      href="/takeaway">Takeaway</a>, add items, then <strong>Hold</strong> (saves a draft bill). Press
-    <strong>KOT</strong> to send that draft to the kitchen. Track tickets under <a href="/kot/kotlist">KOT List</a> or
-    <a href="/kot/kdsscreen" target="_blank" rel="noopener">KDS screen</a>. <strong>Settle Bill</strong> when payment is
-    taken. This page lists all bills — use <strong>View</strong> to open details.</p>
-</div>
-
 <div class="kpi-row" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:16px;">
   <div class="kpi-card">
     <div class="kpi-icon-wrap green"><i class="fas fa-circle-check"></i></div>
@@ -60,8 +51,8 @@
           class="fas fa-rotate"></i> Refresh</button>
     </div>
   </div>
-  <div class="table-scroll">
-    <table class="table-custom" id="billTable">
+  <div class="table-scroll bill-list-scroll">
+    <table class="table-custom bill-list-table" id="billTable">
       <thead>
         <tr>
           <th>Bill No</th>
@@ -138,7 +129,7 @@
         return `<span class="${cls}">${status}</span>`;
       };
 
-      body.innerHTML = filtered.map(x => {
+      const rowsHtml = filtered.map(x => {
         const canQuickSettleTakeaway = x.status === 'Draft' && String(x.billType || '').toLowerCase() === 'takeaway';
         const quickSettleAction = canQuickSettleTakeaway
           ? `<a class="btn-accent" href="/takeaway?recall=${x.billId}&autosettle=1" style="font-size:12px;padding:5px 10px;" title="Settle takeaway draft"><i class="fas fa-indian-rupee-sign"></i></a>`
@@ -149,15 +140,25 @@
         <td style="font-size:12px;">${x.tableName || '-'}</td>
         <td style="font-size:12px;color:var(--text-muted);">${x.billDate}</td>
         <td style="font-size:12px;">${x.itemCount || '-'}</td>
-        <td style="display:flex;gap:6px;align-items:center;">${renderStatusBadges(x.status)}</td>
+        <td><div style="display:flex;gap:6px;align-items:center;">${renderStatusBadges(x.status)}</div></td>
         <td><strong>${fmtINR(x.grandTotal)}</strong></td>
-        <td style="display:flex;gap:6px;">
+        <td><div style="display:flex;gap:6px;">
           ${quickSettleAction}
           <a class="btn-ghost" href="/bills/${x.billId}" style="font-size:12px;padding:5px 10px;" title="View bill"><i class="fas fa-eye"></i></a>
           <a class="btn-ghost" href="/bills/${x.billId}?autoprint=1" target="_blank" rel="noopener" style="font-size:12px;padding:5px 10px;" title="Print bill"><i class="fas fa-print"></i></a>
-        </td>
+        </div></td>
       </tr>`;
       }).join('');
+
+      const minVisibleRows = 8;
+      const emptyRows = Math.max(0, minVisibleRows - filtered.length);
+      const fillerRowsHtml = Array.from({ length: emptyRows }, () => `
+        <tr class="bill-list-empty-row">
+          <td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+        </tr>
+      `).join('');
+
+      body.innerHTML = rowsHtml + fillerRowsHtml;
     }
 
     document.querySelectorAll('.bill-filter-btn').forEach(btn => {

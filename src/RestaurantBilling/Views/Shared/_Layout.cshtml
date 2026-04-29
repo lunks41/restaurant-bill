@@ -114,6 +114,10 @@
           </nav>
           <div class="topbar-spacer"></div>
           <div class="topbar-clock" id="liveClock"></div>
+          <button class="topbar-help-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#processGuidePanel"
+            aria-controls="processGuidePanel" title="Open process guide">
+            <i class="fas fa-circle-question"></i>
+          </button>
           <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme"><i id="themeIcon"
               class="fas fa-moon"></i></button>
           <div class="dropdown topbar-user-menu">
@@ -199,6 +203,61 @@
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-danger" id="globalConfirmYes">Delete</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="offcanvas offcanvas-end process-guide-panel" tabindex="-1" id="processGuidePanel"
+    aria-labelledby="processGuideLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="processGuideLabel"><i class="fas fa-circle-info me-2"></i>Quick Process Guide</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="process-guide-intro">
+        Read these cards once to understand the full flow from order to billing and reports.
+      </div>
+
+      <div class="process-guide-card">
+        <div class="process-guide-title"><i class="fas fa-border-all"></i> KOT (Dining)</div>
+        <p>Open tables from <strong>KOT (Dining)</strong>, select items, then click <strong>Hold</strong> to save a draft.</p>
+        <p>Use this screen for dine-in table orders and quick table switching during rush hours.</p>
+      </div>
+
+      <div class="process-guide-card">
+        <div class="process-guide-title"><i class="fas fa-bag-shopping"></i> Takeaway</div>
+        <p>Create takeaway orders without table mapping, hold drafts, and settle directly at counter.</p>
+        <p>Best for parcel/self-pickup flow where table tracking is not required.</p>
+      </div>
+
+      <div class="process-guide-card">
+        <div class="process-guide-title"><i class="fas fa-fire-burner"></i> Kitchen View / KOT List</div>
+        <p>Send order to kitchen using <strong>KOT</strong> from POS. Kitchen team tracks pending and preparing tickets here.</p>
+        <p>Mark progress in sequence so serving and billing stay synchronized.</p>
+      </div>
+
+      <div class="process-guide-card">
+        <div class="process-guide-title"><i class="fas fa-clock-rotate-left"></i> Orders (Bills)</div>
+        <p>View all bills (Draft/Paid/Cancelled), open details, print bill, and verify payment summary.</p>
+        <p>Use this as the daily operational checkpoint to ensure no draft is missed.</p>
+      </div>
+
+      <div class="process-guide-card">
+        <div class="process-guide-title"><i class="fas fa-layer-group"></i> Masters</div>
+        <p>Maintain menu structure: items, categories, units, and table setup.</p>
+        <p>Keep masters clean so POS/KOT screens work accurately for staff.</p>
+      </div>
+
+      <div class="process-guide-card">
+        <div class="process-guide-title"><i class="fas fa-boxes-stacked"></i> Inventory</div>
+        <p>Track stock levels and reorder indicators to avoid item unavailability during service.</p>
+        <p>Review low-stock cards regularly before peak hours.</p>
+      </div>
+
+      <div class="process-guide-card">
+        <div class="process-guide-title"><i class="fas fa-table-cells-large"></i> Dashboard & Reports</div>
+        <p>Use Dashboard for live KPIs. Use Daily Sales/Bill Wise/Day Close reports for end-of-day reconciliation.</p>
+        <p>This is the final step to verify operations, cash flow, and performance trends.</p>
       </div>
     </div>
   </div>

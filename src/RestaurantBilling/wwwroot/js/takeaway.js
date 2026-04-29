@@ -103,9 +103,9 @@ async function twPrintBillPreview() {
       <tbody>${twState.cart.map(l => `<tr><td>${l.name}</td><td style="text-align:center">${twFmtQty(l.qty)}</td><td style="text-align:right">${fmtINR(l.qty * l.price)}</td></tr>`).join("")}</tbody></table>
       <hr style="border-top:1px dashed #000;margin:6px 0;"/>
       <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>${fmtINR(sub)}</span></div>
-      <div style="display:flex;justify-content:space-between;"><span>Discount</span><span>${fmtINR(discount)}</span></div>
       <div style="display:flex;justify-content:space-between;"><span>Tax</span><span>${fmtINR(tax)}</span></div>
-      <div style="display:flex;justify-content:space-between;"><span>Round Off</span><span>${fmtINR(roundOff)}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>Discount</span><span>${fmtINR(discount)}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>RoundOff</span><span>${fmtINR(roundOff)}</span></div>
       <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;margin-top:4px;"><span>TOTAL</span><span>${fmtINR(grand)}</span></div>
       <hr style="border-top:1px dashed #000;margin:8px 0;"/><div style="text-align:center;font-size:11px;color:#666;">Thank you! Visit again.</div></div>`;
   twPrintNow();
@@ -690,12 +690,33 @@ function twOpenSettle() {
   const roundOff = totals.roundOff;
   const discount = totals.discount;
   const summaryEl = document.getElementById("twSettleSummary");
+  const billDetailsHtml = `
+      <div class="settle-bill-details">
+        <div class="settle-bill-detail"><span>Bill No</span><strong>${twState.currentBillNo || "-"}</strong></div>
+        <div class="settle-bill-detail"><span>Table</span><strong>Takeaway</strong></div>
+        <div class="settle-bill-detail"><span>Customer</span><strong>-</strong></div>
+        <div class="settle-bill-detail"><span>Phone</span><strong>-</strong></div>
+      </div>
+    `;
+  const itemRowsHtml = twState.cart.map(l => `
+      <div class="settle-summary-row settle-item-row">
+        <span class="settle-item-name">${l.name}</span>
+        <span class="settle-item-qty">${twFmtQty(l.qty)}</span>
+        <span class="settle-item-amount">${fmtINR(l.qty * l.price)}</span>
+      </div>
+    `).join("");
   if (summaryEl) summaryEl.innerHTML = `
-      ${twState.cart.map(l => `<div class="settle-summary-row"><span>${l.name} x${twFmtQty(l.qty)}</span><span>${fmtINR(l.qty * l.price)}</span></div>`).join("")}
+      ${billDetailsHtml}
+      <div class="settle-summary-row settle-summary-item-head settle-item-row">
+        <span class="settle-item-name">Item</span>
+        <span class="settle-item-qty">Qty</span>
+        <span class="settle-item-amount">Amount</span>
+      </div>
+      <div class="settle-summary-items">${itemRowsHtml}</div>
       <div class="settle-summary-row" style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;"><span>Subtotal</span><span>${fmtINR(sub)}</span></div>
-      <div class="settle-summary-row"><span>Discount</span><span>${fmtINR(discount)}</span></div>
       <div class="settle-summary-row"><span>Tax</span><span>${fmtINR(tax)}</span></div>
-      <div class="settle-summary-row"><span>Round Off</span><span>${fmtINR(roundOff)}</span></div>
+      <div class="settle-summary-row"><span>Discount</span><span>${fmtINR(discount)}</span></div>
+      <div class="settle-summary-row"><span>RoundOff</span><span>${fmtINR(roundOff)}</span></div>
       <div class="settle-summary-row grand"><span>Grand Total</span><span>${fmtINR(grand)}</span></div>`;
   document.getElementById("twAmtInput").value = Number(grand || 0).toFixed(2);
   document.getElementById("twChangeRow").style.display = "none";
@@ -828,11 +849,13 @@ async function twConfirmSettle() {
         <tbody>${twState.cart.map(l => `<tr><td>${l.name}</td><td style="text-align:center">${twFmtQty(l.qty)}</td><td style="text-align:right">${fmtINR(l.qty * l.price)}</td></tr>`).join("")}</tbody></table>
         <hr style="border-top:1px dashed #000;margin:6px 0;"/>
         <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>${fmtINR(sub)}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>Discount</span><span>${fmtINR(discAmt)}</span></div>
         <div style="display:flex;justify-content:space-between;"><span>Tax</span><span>${fmtINR(taxAmt)}</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>Round Off</span><span>${fmtINR(roundOffAmt)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Discount</span><span>${fmtINR(discAmt)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>RoundOff</span><span>${fmtINR(roundOffAmt)}</span></div>
         <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;margin-top:4px;"><span>TOTAL</span><span>${fmtINR(grand)}</span></div>
+        <hr style="border-top:1px dashed #000;margin:6px 0;"/>
         ${payments.map(p => `<div style="display:flex;justify-content:space-between;margin-top:4px;"><span>Paid (${p.mode})</span><span>${fmtINR(p.amount || 0)}</span></div>`).join("")}
+        <div style="display:flex;justify-content:space-between;margin-top:4px;font-weight:bold;"><span>Total Paid Amount</span><span>${fmtINR(paidFromSplit)}</span></div>
         ${change > 0 ? `<div style="display:flex;justify-content:space-between;"><span>Change</span><span>${fmtINR(change)}</span></div>` : ""}
         <hr style="border-top:1px dashed #000;margin:8px 0;"/><div style="text-align:center;font-size:11px;color:#666;">Thank you! Visit again.</div></div>`;
     document.getElementById("twReceiptWrap").innerHTML = receiptHtml;

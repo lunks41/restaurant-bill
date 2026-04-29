@@ -59,6 +59,10 @@
         <div style="display:flex;justify-content:space-between;"><span>Tax</span><span>₹@Model.TaxAmount.ToString("N2")</span></div>
         <div style="display:flex;justify-content:space-between;"><span>Round Off</span><span>₹@Model.RoundOff.ToString("N2")</span></div>
         <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:14px;margin-top:4px;"><span>TOTAL</span><span>₹@Model.GrandTotal.ToString("N2")</span></div>
+        <hr style="border-top:1px dashed #000;margin:6px 0;" />
+        @{
+            var receiptPaidTotal = Model.Payments?.Sum(x => x.Amount) ?? 0m;
+        }
         @if (Model.Payments?.Any() == true)
         {
             <div style="margin-top:6px;">
@@ -69,6 +73,10 @@
                         <span>₹@payment.Amount.ToString("N2")</span>
                     </div>
                 }
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px;font-weight:bold;">
+                <span>Total Paid Amount</span>
+                <span>₹@receiptPaidTotal.ToString("N2")</span>
             </div>
         }
         <hr style="border-top:1px dashed #000;margin:8px 0;" />
@@ -166,12 +174,41 @@
       printNow();
     }, { once: true });
   })();
+
+  function initBillDetailTables() {
+    if (!window.jQuery || !jQuery.fn.DataTable) return;
+    ['billDetailTable', 'billPaymentTable'].forEach((tableId) => {
+      const table = document.getElementById(tableId);
+      if (!table) return;
+      if ($.fn.dataTable.isDataTable(table)) {
+        $(table).DataTable().destroy();
+      }
+      makeDataTable(`#${tableId}`, {
+        paging: false,
+        info: false,
+        searching: false,
+        lengthChange: false,
+        dom: 't'
+      });
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBillDetailTables);
+  } else {
+    initBillDetailTables();
+  }
 </script>
 }
 
-<div class="card">
+<div class="bill-detail-grid">
+<div class="card bill-detail-card">
+    <div class="card-header-custom">
+        <div class="card-title-custom"><i class="fas fa-receipt"></i> Bill Items</div>
+    </div>
     <div class="card-body-custom">
-        <table class="table-custom app-table" id="billDetailTable">
+        <div class="table-scroll bill-detail-table-scroll">
+        <table class="table-custom app-table bill-detail-items-table" id="billDetailTable">
             <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Tax</th><th>Total</th></tr></thead>
             <tbody>
             @foreach (var line in Model.Items)
@@ -186,17 +223,17 @@
             }
             </tbody>
         </table>
+        </div>
         <div class="mt-3 d-flex flex-wrap justify-content-between align-items-center gap-2" style="border-top:1px solid var(--border);padding-top:14px;">
             <div class="d-flex flex-column gap-1">
                 <div class="app-muted" style="font-size:13px;">Round off: ₹@Model.RoundOff.ToString("N2")</div>
-                <div class="app-muted" style="font-size:13px;">Grand total</div>
             </div>
-            <div class="page-title-h mb-0" style="color:var(--accent);">₹@Model.GrandTotal.ToString("N2")</div>
+            <div class="bill-grand-total mb-0" style="color:var(--accent);">₹@Model.GrandTotal.ToString("N2")</div>
         </div>
     </div>
 </div>
 
-<div class="card mt-3">
+<div class="card bill-detail-card">
     <div class="card-header-custom">
         <div class="card-title-custom"><i class="fas fa-wallet"></i> Payment Summary</div>
     </div>
@@ -213,8 +250,8 @@
         }
         else
         {
-            <div class="table-scroll">
-                <table class="table-custom app-table mb-2">
+            <div class="table-scroll bill-detail-table-scroll">
+                <table class="table-custom app-table mb-2 bill-detail-payments-table" id="billPaymentTable">
                     <thead>
                         <tr>
                             <th>Mode</th>
@@ -236,7 +273,7 @@
             </div>
         }
 
-        <div class="d-flex flex-wrap gap-3 align-items-center mt-2">
+        <div class="d-flex flex-wrap gap-3 align-items-center mt-2" style="border-top:1px solid var(--border);padding-top:10px;">
             <span class="badge-custom status-paid">Paid: ₹@paidTotal.ToString("N2")</span>
             @if (Model.Status == BillStatus.Partial)
             {
@@ -248,4 +285,5 @@
             }
         </div>
     </div>
+</div>
 </div>
