@@ -153,17 +153,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         builder.Entity<ItemStock>(entity =>
         {
             entity.HasKey(x => x.ItemStockId);
-            entity.Property(x => x.CurrentQty).HasPrecision(18, 4);
-            entity.Property(x => x.ReorderLevel).HasPrecision(18, 4);
+            entity.Property(x => x.OpeningQty).HasPrecision(18, 4);
+            entity.Property(x => x.PurchasedQty).HasPrecision(18, 4);
+            entity.Property(x => x.SoldQty).HasPrecision(18, 4);
+            entity.Property(x => x.DisposedQty).HasPrecision(18, 4);
+            entity.Property(x => x.ClosingQty).HasPrecision(18, 4);
             entity.Property(x => x.Type).HasMaxLength(30);
             entity.Property(x => x.RowVersion).IsRowVersion();
             entity.HasQueryFilter(x => !x.IsDeleted);
 
-            // Inventory uses ItemStocks as a "current snapshot" per ItemId.
-            // Enforce: only one active "in" row per ItemId (prevents duplicate rows in UI).
+            // Inventory keeps one active row per item as daily stock snapshot.
             entity.HasIndex(x => x.ItemId)
                 .IsUnique()
-                .HasFilter("[IsDeleted] = 0 AND [Type] = 'in'");
+                .HasFilter("[IsDeleted] = 0");
         });
 
 

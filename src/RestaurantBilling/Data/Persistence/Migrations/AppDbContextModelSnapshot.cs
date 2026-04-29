@@ -515,7 +515,7 @@ namespace RestaurantBilling.Data.Persistence.Migrations
                     b.Property<int>("CreatedBy")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("CurrentQty")
+                    b.Property<decimal>("ClosingQty")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
@@ -534,7 +534,19 @@ namespace RestaurantBilling.Data.Persistence.Migrations
                     b.Property<int>("ItemId")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("ReorderLevel")
+                    b.Property<decimal>("OpeningQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("PurchasedQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("SoldQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("DisposedQty")
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
@@ -562,6 +574,10 @@ namespace RestaurantBilling.Data.Persistence.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("ItemStockId");
+
+                    b.HasIndex("ItemId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("ItemStocks");
                 });

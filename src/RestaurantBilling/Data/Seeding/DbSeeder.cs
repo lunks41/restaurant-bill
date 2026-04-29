@@ -218,30 +218,17 @@ public static class DbSeeder
                 .Where(x => !x.IsDeleted && x.IsStock)
                 .ToList();
 
-            // Inventory UI expects to show only one row per Item (current stock),
-            // so we clean up legacy/duplicate ItemStocks during seeding.
-            // - Remove all legacy "out" rows
-            // - Keep only one "in" row per ItemId (lowest ItemStockId)
+            // Inventory UI expects one active snapshot row per item.
+            // Keep only one row per ItemId (lowest ItemStockId), soft-delete duplicates.
             {
-                var legacyOutRows = db.ItemStocks
-                    .Where(x => !x.IsDeleted && x.Type == "out")
+                var activeRows = db.ItemStocks
+                    .Where(x => !x.IsDeleted)
                     .ToList();
-                foreach (var row in legacyOutRows)
-                {
-                    row.IsActive = false;
-                    row.IsDeleted = true;
-                    row.DeletedAtUtc = DateTime.UtcNow;
-                    row.UpdatedAtUtc = DateTime.UtcNow;
-                }
-
-                var inRows = db.ItemStocks
-                    .Where(x => !x.IsDeleted && x.Type == "in")
-                    .ToList();
-                var inGroups = inRows
+                var groups = activeRows
                     .GroupBy(x => x.ItemId)
                     .ToList();
 
-                foreach (var group in inGroups)
+                foreach (var group in groups)
                 {
                     var ordered = group.OrderBy(x => x.ItemStockId).ToList();
                     foreach (var duplicate in ordered.Skip(1))
@@ -258,22 +245,49 @@ public static class DbSeeder
 
             foreach (var item in stockTrackedItems)
             {
-                var hasIn = db.ItemStocks.Any(x => !x.IsDeleted && x.ItemId == item.ItemId && x.Type == "in");
-                if (!hasIn)
+                var existing = db.ItemStocks.FirstOrDefault(x => !x.IsDeleted && x.ItemId == item.ItemId);
+                if (existing is null)
                 {
                     var unitId = ResolveStockUnitId(item.ItemCode, units);
                     db.ItemStocks.Add(new ItemStock
                     {
                         ItemId = item.ItemId,
                         UnitId = unitId,
-                        CurrentQty = 30m,
-                        ReorderLevel = 10m,
-                        Type = "in",
+                        OpeningQty = 30m,
+                        PurchasedQty = 0m,
+                        SoldQty = 0m,
+                        DisposedQty = 0m,
+                        ClosingQty = 30m,
+                        Type = "snapshot",
                         StockDate = today,
                         IsActive = true,
                         IsDeleted = false
                     });
                 }
+                else
+                {
+                    existing.OpeningQty = existing.OpeningQty <= 0 ? existing.ClosingQty : existing.OpeningQty;
+                    existing.ClosingQty = existing.OpeningQty + existing.PurchasedQty - existing.SoldQty - existing.DisposedQty;
+                    existing.Type = "snapshot";
+                    existing.UpdatedAtUtc = DateTime.UtcNow;
+                }
+            }
+
+            var kachoriStock = (
+                from stock in db.ItemStocks
+                join item in db.Items on stock.ItemId equals item.ItemId
+                where !stock.IsDeleted && !item.IsDeleted && item.ItemCode == "STR005"
+                select stock
+            ).FirstOrDefault();
+            if (kachoriStock is not null)
+            {
+                kachoriStock.OpeningQty = 100m;
+                kachoriStock.PurchasedQty = 0m;
+                kachoriStock.SoldQty = 80m;
+                kachoriStock.DisposedQty = 20m;
+                kachoriStock.ClosingQty = 0m;
+                kachoriStock.Type = "snapshot";
+                kachoriStock.UpdatedAtUtc = DateTime.UtcNow;
             }
 
             await db.SaveChangesAsync();

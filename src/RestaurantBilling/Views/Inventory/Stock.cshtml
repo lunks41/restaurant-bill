@@ -28,13 +28,19 @@
   #stockItemsTable th:nth-child(3),
   #stockItemsTable td:nth-child(3) { width: 90px; }   /* Unit */
   #stockItemsTable th:nth-child(4),
-  #stockItemsTable td:nth-child(4) { width: 110px; text-align: right; }   /* Current Qty */
+  #stockItemsTable td:nth-child(4) { width: 95px; text-align: right; }   /* Opening */
   #stockItemsTable th:nth-child(5),
-  #stockItemsTable td:nth-child(5) { width: 100px; text-align: right; }   /* Reorder */
+  #stockItemsTable td:nth-child(5) { width: 95px; text-align: right; }   /* Purchased */
   #stockItemsTable th:nth-child(6),
-  #stockItemsTable td:nth-child(6) { width: 90px; }   /* Status */
+  #stockItemsTable td:nth-child(6) { width: 95px; text-align: right; }   /* Sold */
   #stockItemsTable th:nth-child(7),
-  #stockItemsTable td:nth-child(7) { width: 90px; text-align: right; } /* Action */
+  #stockItemsTable td:nth-child(7) { width: 95px; text-align: right; }   /* Disposed */
+  #stockItemsTable th:nth-child(8),
+  #stockItemsTable td:nth-child(8) { width: 95px; text-align: right; }   /* Closing */
+  #stockItemsTable th:nth-child(9),
+  #stockItemsTable td:nth-child(9) { width: 90px; }   /* Status */
+  #stockItemsTable th:nth-child(10),
+  #stockItemsTable td:nth-child(10) { width: 90px; text-align: right; } /* Action */
 
   #stockItemsTable td:nth-child(2) {
     overflow: hidden;
@@ -99,11 +105,21 @@
         </select>
     </div>
     <button type="button" class="btn btn-outline-secondary" id="exportStockItems">
-        <i class="fas fa-file-csv"></i> Export CSV
+        <i class="fas fa-file-excel"></i> Export Excel
     </button>
     <button type="button" class="btn-accent ms-auto" id="openAddStockItem">
         <i class="fas fa-plus"></i> Add Item Stock
     </button>
+</div>
+
+<div class="app-surface mb-3 d-flex flex-wrap gap-3 small" id="stockSummaryBar">
+    <span><strong>Date:</strong> <span id="sumDate">-</span></span>
+    <span><strong>Items:</strong> <span id="sumItems">0</span></span>
+    <span><strong>Opening:</strong> <span id="sumOpening">0.00</span></span>
+    <span><strong>Purchased:</strong> <span id="sumPurchased">0.00</span></span>
+    <span><strong>Sold:</strong> <span id="sumSold">0.00</span></span>
+    <span><strong>Disposed:</strong> <span id="sumDisposed">0.00</span></span>
+    <span><strong>Closing:</strong> <span id="sumClosing">0.00</span></span>
 </div>
 
 <div class="card stock-compact">
@@ -114,8 +130,11 @@
                     <th>Code</th>
                     <th>Name</th>
                     <th>Unit</th>
-                    <th>Current Qty</th>
-                    <th>Reorder</th>
+                    <th>Opening</th>
+                    <th>Purchased</th>
+                    <th>Sold</th>
+                    <th>Disposed</th>
+                    <th>Closing</th>
                     <th>Status</th>
                     <th>Action</th>
                 </tr>
@@ -123,6 +142,9 @@
             <tbody id="stockItemsBody">
                 <tr>
                     <td class="text-center text-muted">No stock items found.</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
                     <td></td>
                     <td></td>
                     <td></td>
@@ -158,26 +180,38 @@
                 </div>
                 <div class="row g-2">
                     <div class="col-md-6">
-                        <label class="form-label">Current qty</label>
-                        <input id="stockCurrentQty" type="number" step="0.01" class="form-control" />
+                        <label class="form-label">Opening qty</label>
+                        <input id="stockOpeningQty" type="number" step="0.01" class="form-control" />
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Reorder</label>
-                        <input id="stockReorder" type="number" step="0.01" class="form-control" />
+                        <label class="form-label">Purchased qty</label>
+                        <input id="stockPurchasedQty" type="number" step="0.01" class="form-control" />
                     </div>
                 </div>
                 <div class="row g-2 mt-1">
                     <div class="col-md-6">
-                        <label class="form-label">Type</label>
-                        <select id="stockType" class="form-select">
-                            <option value="in">In</option>
-                            <option value="out">Out</option>
-                        </select>
+                        <label class="form-label">Disposed qty</label>
+                        <input id="stockDisposedQty" type="number" step="0.01" class="form-control" />
                     </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Sold qty (auto)</label>
+                        <input id="stockSoldQty" type="number" step="0.01" class="form-control" readonly />
+                    </div>
+                </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-6">
+                        <label class="form-label">Closing qty</label>
+                        <input id="stockClosingQty" type="number" step="0.01" class="form-control" readonly />
+                    </div>
+                </div>
+                <div class="row g-2 mt-1">
                     <div class="col-md-6">
                         <label class="form-label">Stock date</label>
                         <input id="stockStockDate" type="date" class="form-control" />
                     </div>
+                </div>
+                <div class="mt-2 small text-muted">
+                    Closing formula: Opening + Purchased - Sold - Disposed
                 </div>
             </div>
             <div class="modal-footer">
@@ -199,14 +233,23 @@
   const idEl = document.getElementById('stockItemId');
   const itemEl = document.getElementById('stockItemRefId');
   const unitEl = document.getElementById('stockUnitId');
-  const currentQtyEl = document.getElementById('stockCurrentQty');
-  const reorderEl = document.getElementById('stockReorder');
-  const typeEl = document.getElementById('stockType');
+  const openingQtyEl = document.getElementById('stockOpeningQty');
+  const purchasedQtyEl = document.getElementById('stockPurchasedQty');
+  const soldQtyEl = document.getElementById('stockSoldQty');
+  const disposedQtyEl = document.getElementById('stockDisposedQty');
+  const closingQtyEl = document.getElementById('stockClosingQty');
   const stockDateEl = document.getElementById('stockStockDate');
   const searchEl = document.getElementById('stockSearch');
   const unitFilterEl = document.getElementById('stockUnitFilter');
   const titleEl = document.getElementById('stockItemModalTitle');
   const saveBtnEl = document.getElementById('saveStockItem');
+  const sumDateEl = document.getElementById('sumDate');
+  const sumItemsEl = document.getElementById('sumItems');
+  const sumOpeningEl = document.getElementById('sumOpening');
+  const sumPurchasedEl = document.getElementById('sumPurchased');
+  const sumSoldEl = document.getElementById('sumSold');
+  const sumDisposedEl = document.getElementById('sumDisposed');
+  const sumClosingEl = document.getElementById('sumClosing');
   let currentPage = 1;
   const pageSize = 1000;
 
@@ -225,6 +268,27 @@
     const tzAdjusted = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
     return tzAdjusted.toISOString().slice(0, 10);
   };
+
+  const recalcClosing = () => {
+    const opening = parseFloat(openingQtyEl.value || '0');
+    const purchased = parseFloat(purchasedQtyEl.value || '0');
+    const sold = parseFloat(soldQtyEl.value || '0');
+    const disposed = parseFloat(disposedQtyEl.value || '0');
+    closingQtyEl.value = (opening + purchased - sold - disposed).toFixed(2);
+  };
+
+  const fmt2 = (value) => Number(value ?? 0).toFixed(2);
+
+  async function loadSummary() {
+    const result = await getJSON(`${apiPrefix}/stock-summary?_=${Date.now()}`);
+    sumDateEl.textContent = result.stockDate || '-';
+    sumItemsEl.textContent = String(result.items ?? 0);
+    sumOpeningEl.textContent = fmt2(result.openingQty);
+    sumPurchasedEl.textContent = fmt2(result.purchasedQty);
+    sumSoldEl.textContent = fmt2(result.soldQty);
+    sumDisposedEl.textContent = fmt2(result.disposedQty);
+    sumClosingEl.textContent = fmt2(result.closingQty);
+  }
 
   async function loadUnits() {
     const rows = await getJSON(`${apiPrefix}/stock-units-data?outletId=1&_=${Date.now()}`);
@@ -257,9 +321,12 @@
       currentPage = result.page || 1;
     }
     document.getElementById('stockItemsBody').innerHTML = rows.length
-      ? rows.map(x => `<tr><td>${x.itemCode || ''}</td><td>${x.itemName}</td><td>${x.unitName || '-'}</td><td>${Number(x.currentQty ?? 0).toFixed(2)}</td><td>${Number(x.reorderLevel ?? 0).toFixed(2)}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary" data-edit="${x.itemId}" data-item-id="${x.itemIdRef || ''}" data-unit-id="${x.unitId || ''}" data-current-qty="${x.currentQty ?? 0}" data-reorder="${x.reorderLevel ?? 0}" data-type="${x.type || 'in'}" data-stock-date="${String(x.stockDate ?? '').slice(0,10)}">Edit</button></td></tr>`).join('')
+      ? rows.map(x => `<tr><td>${x.itemCode || ''}</td><td>${x.itemName}</td><td>${x.unitName || '-'}</td><td>${Number(x.openingQty ?? 0).toFixed(2)}</td><td>${Number(x.purchasedQty ?? 0).toFixed(2)}</td><td>${Number(x.soldQty ?? 0).toFixed(2)}</td><td>${Number(x.disposedQty ?? 0).toFixed(2)}</td><td>${Number(x.closingQty ?? 0).toFixed(2)}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary" data-edit="${x.itemId}" data-item-id="${x.itemIdRef || ''}" data-unit-id="${x.unitId || ''}" data-opening-qty="${x.openingQty ?? 0}" data-purchased-qty="${x.purchasedQty ?? 0}" data-sold-qty="${x.soldQty ?? 0}" data-disposed-qty="${x.disposedQty ?? 0}" data-closing-qty="${x.closingQty ?? 0}" data-stock-date="${String(x.stockDate ?? '').slice(0,10)}">Edit</button></td></tr>`).join('')
       : `<tr>
            <td class="text-center text-muted">No stock items found.</td>
+           <td></td>
+           <td></td>
+           <td></td>
            <td></td>
            <td></td>
            <td></td>
@@ -277,10 +344,13 @@
     idEl.value = '';
     itemEl.value = '';
     unitEl.value = '';
-    currentQtyEl.value = '0';
-    reorderEl.value = '0';
-    typeEl.value = 'in';
+    openingQtyEl.value = '0';
+    purchasedQtyEl.value = '0';
+    soldQtyEl.value = '0';
+    disposedQtyEl.value = '0';
+    closingQtyEl.value = '0.00';
     stockDateEl.value = todayIso();
+    recalcClosing();
     titleEl.textContent = 'Add Item Stock';
     saveBtnEl.textContent = 'Add';
     modal.show();
@@ -292,10 +362,13 @@
     idEl.value = btn.getAttribute('data-edit') || '';
     itemEl.value = btn.getAttribute('data-item-id') || '';
     unitEl.value = btn.getAttribute('data-unit-id') || '';
-    currentQtyEl.value = btn.getAttribute('data-current-qty') || '0';
-    reorderEl.value = btn.getAttribute('data-reorder') || '0';
-    typeEl.value = btn.getAttribute('data-type') || 'in';
+    openingQtyEl.value = btn.getAttribute('data-opening-qty') || '0';
+    purchasedQtyEl.value = btn.getAttribute('data-purchased-qty') || '0';
+    soldQtyEl.value = btn.getAttribute('data-sold-qty') || '0';
+    disposedQtyEl.value = btn.getAttribute('data-disposed-qty') || '0';
+    closingQtyEl.value = btn.getAttribute('data-closing-qty') || '0';
     stockDateEl.value = btn.getAttribute('data-stock-date') || todayIso();
+    recalcClosing();
     titleEl.textContent = 'Edit Item Stock';
     saveBtnEl.textContent = 'Update';
     modal.show();
@@ -311,9 +384,11 @@
       outletId: 1,
       itemId: parseInt(itemEl.value, 10),
       unitId: unitEl.value ? parseInt(unitEl.value, 10) : null,
-      currentQty: parseFloat(currentQtyEl.value || '0'),
-      reorderLevel: parseFloat(reorderEl.value || '0'),
-      type: typeEl.value,
+      openingQty: parseFloat(openingQtyEl.value || '0'),
+      purchasedQty: parseFloat(purchasedQtyEl.value || '0'),
+      soldQty: parseFloat(soldQtyEl.value || '0'),
+      disposedQty: parseFloat(disposedQtyEl.value || '0'),
+      type: 'snapshot',
       stockDate: stockDateEl.value
     };
 
@@ -328,6 +403,7 @@
       }
       modal.hide();
       await loadItems();
+      await loadSummary();
     } catch (_) {
       notifySafe('Unable to save item stock right now', 'error');
     }
@@ -341,10 +417,12 @@
   saveBtnEl.addEventListener('click', save);
   searchEl.addEventListener('input', () => loadItems(true));
   unitFilterEl.addEventListener('change', () => loadItems(true));
+  [openingQtyEl, purchasedQtyEl, disposedQtyEl].forEach(el => el.addEventListener('input', recalcClosing));
   document.getElementById('exportStockItems')?.addEventListener('click', () => {
     const q = new URLSearchParams({ outletId: '1' });
     if (searchEl.value.trim()) q.set('search', searchEl.value.trim());
     if (unitFilterEl.value) q.set('unitId', unitFilterEl.value);
+    q.set('format', 'xlsx');
     window.location.href = `${apiPrefix}/stock-items-export?${q.toString()}`;
   });
   if (document.readyState === 'loading') {
@@ -352,9 +430,13 @@
       await loadUnits();
       await loadItemsCatalog();
       await loadItems();
+      await loadSummary();
     });
   } else {
-    Promise.all([loadUnits(), loadItemsCatalog()]).then(() => loadItems());
+    Promise.all([loadUnits(), loadItemsCatalog()]).then(async () => {
+      await loadItems();
+      await loadSummary();
+    });
   }
 })();
 </script>

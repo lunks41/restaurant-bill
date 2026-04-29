@@ -38,8 +38,11 @@ public class StockService(AppDbContext db) : IStockService
                 row = new ItemStock
                 {
                     ItemId = billItem.ItemId,
-                    CurrentQty = 0m,
-                    ReorderLevel = 10m,
+                    OpeningQty = 0m,
+                    PurchasedQty = 0m,
+                    SoldQty = 0m,
+                    DisposedQty = 0m,
+                    ClosingQty = 0m,
                     Type = "Opening",
                     StockDate = businessDate,
                     IsActive = true,
@@ -49,7 +52,8 @@ public class StockService(AppDbContext db) : IStockService
                 stockRows.Add(row);
             }
 
-            row.CurrentQty -= billItem.Qty;
+            row.SoldQty += billItem.Qty;
+            row.ClosingQty = row.OpeningQty + row.PurchasedQty - row.SoldQty - row.DisposedQty;
             row.IsActive = true;
             row.StockDate = businessDate;
             billItem.MarkStockReduced();
@@ -86,8 +90,11 @@ public class StockService(AppDbContext db) : IStockService
                 row = new ItemStock
                 {
                     ItemId = billItem.ItemId,
-                    CurrentQty = 0m,
-                    ReorderLevel = 10m,
+                    OpeningQty = 0m,
+                    PurchasedQty = 0m,
+                    SoldQty = 0m,
+                    DisposedQty = 0m,
+                    ClosingQty = 0m,
                     Type = "Opening",
                     StockDate = businessDate,
                     IsActive = true,
@@ -97,7 +104,8 @@ public class StockService(AppDbContext db) : IStockService
                 stockRows.Add(row);
             }
 
-            row.CurrentQty += billItem.Qty;
+            row.SoldQty = Math.Max(0m, row.SoldQty - billItem.Qty);
+            row.ClosingQty = row.OpeningQty + row.PurchasedQty - row.SoldQty - row.DisposedQty;
             row.IsActive = true;
             row.StockDate = businessDate;
             billItem.MarkStockRestored();

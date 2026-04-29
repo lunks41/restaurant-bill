@@ -9,6 +9,7 @@ namespace RestaurantBilling.Controllers;
 [Authorize]
 public class DashboardController(AppDbContext db) : Controller
 {
+    private const decimal LowStockThreshold = 10m;
     [HttpGet("/")]
     [HttpGet("/dashboard")]
     [HttpGet("/dashbord")]
@@ -56,7 +57,8 @@ public class DashboardController(AppDbContext db) : Controller
             where !stock.IsDeleted
                   && stock.IsActive
                   && item.IsStock
-                  && stock.CurrentQty <= stock.ReorderLevel
+                  && stock.ClosingQty > 0
+                  && stock.ClosingQty <= LowStockThreshold
             select stock.ItemId
         ).Distinct().CountAsync(cancellationToken);
 
@@ -66,7 +68,7 @@ public class DashboardController(AppDbContext db) : Controller
             where !stock.IsDeleted
                   && stock.IsActive
                   && item.IsStock
-                  && stock.CurrentQty <= 0
+                  && stock.ClosingQty <= 0
             select stock.ItemId
         ).Distinct().CountAsync(cancellationToken);
 
@@ -168,15 +170,14 @@ public class DashboardController(AppDbContext db) : Controller
             where !stock.IsDeleted
                   && stock.IsActive
                   && item.IsStock
-                  && stock.CurrentQty <= stock.ReorderLevel
-            orderby stock.CurrentQty ascending, item.ItemName
+                  && stock.ClosingQty <= LowStockThreshold
+            orderby stock.ClosingQty ascending, item.ItemName
             select new
             {
                 stock.ItemId,
                 item.ItemName,
                 unitName = unit != null ? unit.UnitName : null,
-                stock.CurrentQty,
-                stock.ReorderLevel
+                stock.ClosingQty
             })
             .Take(20)
             .ToListAsync(cancellationToken);

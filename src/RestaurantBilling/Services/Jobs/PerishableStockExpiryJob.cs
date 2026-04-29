@@ -20,7 +20,7 @@ public class PerishableStockExpiryJob(AppDbContext db, ILogger<PerishableStockEx
             from stock in db.ItemStocks
             join item in db.Items on stock.ItemId equals item.ItemId
             where !stock.IsDeleted
-                  && stock.CurrentQty > 0
+                  && stock.ClosingQty > 0
                   && OneDayPerishableCodes.Contains(item.ItemCode)
             select new { stock, item.ItemCode, item.ItemName }
         ).ToListAsync(cancellationToken);
@@ -31,8 +31,9 @@ public class PerishableStockExpiryJob(AppDbContext db, ILogger<PerishableStockEx
         decimal expiredQtyTotal = 0m;
         foreach (var row in rows)
         {
-            var previousQty = row.stock.CurrentQty;
-            row.stock.CurrentQty = 0m;
+            var previousQty = row.stock.ClosingQty;
+            row.stock.ClosingQty = 0m;
+            row.stock.DisposedQty += previousQty;
             row.stock.Type = "Expired";
             row.stock.IsActive = true;
             expiredCount++;

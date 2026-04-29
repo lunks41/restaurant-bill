@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ClosedXML.Excel;
+using System.IO;
 using System.Text;
 using Data.Persistence;
 using Entities.Inventory;
@@ -64,10 +66,50 @@ public class InventoryController(AppDbContext db) : Controller
     public async Task<IActionResult> StockItemsExport(
         [FromQuery] string? search,
         [FromQuery] int? unitId,
+        [FromQuery] string? format,
         CancellationToken cancellationToken)
     {
         var rows = await BuildItemStockRowsAsync(search, unitId, cancellationToken);
-        var csv = new StringBuilder("Code,Name,Unit,Type,StockDate,CurrentQty,ReorderLevel,Status\n");
+        if (string.Equals(format, "xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            using var workbook = new XLWorkbook();
+            var sheet = workbook.Worksheets.Add("Stock");
+            var headers = new[]
+            {
+                "Code", "Name", "Unit", "Stock Date", "Opening Qty", "Purchased Qty",
+                "Sold Qty", "Disposed Qty", "Closing Qty", "Status"
+            };
+
+            for (var i = 0; i < headers.Length; i++)
+            {
+                sheet.Cell(1, i + 1).Value = headers[i];
+                sheet.Cell(1, i + 1).Style.Font.Bold = true;
+            }
+
+            for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+            {
+                var row = rows[rowIndex];
+                var excelRow = rowIndex + 2;
+                sheet.Cell(excelRow, 1).Value = row.ItemCode ?? string.Empty;
+                sheet.Cell(excelRow, 2).Value = row.ItemName ?? string.Empty;
+                sheet.Cell(excelRow, 3).Value = row.UnitName ?? string.Empty;
+                sheet.Cell(excelRow, 4).Value = row.StockDate.ToString("yyyy-MM-dd");
+                sheet.Cell(excelRow, 5).Value = row.OpeningQty;
+                sheet.Cell(excelRow, 6).Value = row.PurchasedQty;
+                sheet.Cell(excelRow, 7).Value = row.SoldQty;
+                sheet.Cell(excelRow, 8).Value = row.DisposedQty;
+                sheet.Cell(excelRow, 9).Value = row.ClosingQty;
+                sheet.Cell(excelRow, 10).Value = row.IsActive ? "Active" : "Inactive";
+            }
+
+            sheet.Columns().AdjustToContents();
+            using var ms = new MemoryStream();
+            workbook.SaveAs(ms);
+            var fileName = $"stock-items-{DateTime.UtcNow:yyyyMMdd-HHmmss}.xlsx";
+            return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+
+        var csv = new StringBuilder("Code,Name,Unit,StockDate,OpeningQty,PurchasedQty,SoldQty,DisposedQty,ClosingQty,Status\n");
         foreach (var row in rows)
         {
             var status = row.IsActive ? "Active" : "Inactive";
@@ -75,15 +117,17 @@ public class InventoryController(AppDbContext db) : Controller
                 $"{Escape(row.ItemCode ?? string.Empty)}," +
                 $"{Escape(row.ItemName ?? string.Empty)}," +
                 $"{Escape(row.UnitName ?? string.Empty)}," +
-                $"{Escape(row.Type ?? string.Empty)}," +
                 $"{row.StockDate:yyyy-MM-dd}," +
-                $"{row.CurrentQty}," +
-                $"{row.ReorderLevel}," +
+                $"{row.OpeningQty}," +
+                $"{row.PurchasedQty}," +
+                $"{row.SoldQty}," +
+                $"{row.DisposedQty}," +
+                $"{row.ClosingQty}," +
                 $"{status}"
             );
         }
-        var fileName = $"stock-items-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
-        return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", fileName);
+        var csvFileName = $"stock-items-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
+        return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", csvFileName);
     }
 
     [HttpGet("stock-units-data")]
@@ -96,6 +140,28 @@ public class InventoryController(AppDbContext db) : Controller
             .ToListAsync(cancellationToken);
 
         return Ok(units);
+    }
+
+    [HttpGet("stock-summary")]
+    public async Task<IActionResult> StockSummary(
+        [FromQuery] DateOnly? stockDate,
+        CancellationToken cancellationToken)
+    {
+        var date = stockDate ?? DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        var rows = await db.ItemStocks
+            .Where(x => !x.IsDeleted && x.StockDate == date)
+            .ToListAsync(cancellationToken);
+
+        return Ok(new
+        {
+            stockDate = date.ToString("yyyy-MM-dd"),
+            items = rows.Count,
+            openingQty = rows.Sum(x => x.OpeningQty),
+            purchasedQty = rows.Sum(x => x.PurchasedQty),
+            soldQty = rows.Sum(x => x.SoldQty),
+            disposedQty = rows.Sum(x => x.DisposedQty),
+            closingQty = rows.Sum(x => x.ClosingQty)
+        });
     }
 
     [HttpGet("item-options")]
@@ -118,28 +184,23 @@ public class InventoryController(AppDbContext db) : Controller
         {
             return BadRequest("ItemId is required.");
         }
-        if (string.IsNullOrWhiteSpace(request.Type))
-        {
-            return BadRequest("Type is required (in/out).");
-        }
-
-        var type = request.Type.Trim().ToLowerInvariant();
-        if (type != "in" && type != "out")
-        {
-            return BadRequest("Invalid Type. Use 'in' or 'out'.");
-        }
-
-        var reorderLevel = request.ReorderLevel ?? 0m;
-        var qty = request.CurrentQty ?? reorderLevel;
+        var openingQty = request.OpeningQty ?? 0m;
+        var purchasedQty = request.PurchasedQty ?? 0m;
+        var soldQty = request.SoldQty ?? 0m;
+        var disposedQty = request.DisposedQty ?? 0m;
+        var closingQty = openingQty + purchasedQty - soldQty - disposedQty;
         var stockDate = request.StockDate ?? DateOnly.FromDateTime(DateTime.UtcNow.Date);
 
         db.ItemStocks.Add(new ItemStock
         {
             ItemId = request.ItemId.Value,
             UnitId = request.UnitId,
-            CurrentQty = qty,
-            ReorderLevel = reorderLevel,
-            Type = type,
+            OpeningQty = openingQty,
+            PurchasedQty = purchasedQty,
+            SoldQty = soldQty,
+            DisposedQty = disposedQty,
+            ClosingQty = closingQty,
+            Type = "snapshot",
             StockDate = stockDate,
             IsActive = true,
             IsDeleted = false
@@ -154,21 +215,13 @@ public class InventoryController(AppDbContext db) : Controller
     {
         var row = await db.ItemStocks.FirstOrDefaultAsync(x => x.ItemStockId == id, cancellationToken);
         if (row is null) return NotFound();
-        if (string.IsNullOrWhiteSpace(request.Type))
-        {
-            return BadRequest("Type is required (in/out).");
-        }
-
-        var type = request.Type.Trim().ToLowerInvariant();
-        if (type != "in" && type != "out")
-        {
-            return BadRequest("Invalid Type. Use 'in' or 'out'.");
-        }
-
         row.UnitId = request.UnitId;
-        row.CurrentQty = request.CurrentQty ?? row.CurrentQty;
-        row.ReorderLevel = request.ReorderLevel ?? row.ReorderLevel;
-        row.Type = type;
+        row.OpeningQty = request.OpeningQty ?? row.OpeningQty;
+        row.PurchasedQty = request.PurchasedQty ?? row.PurchasedQty;
+        row.SoldQty = request.SoldQty ?? row.SoldQty;
+        row.DisposedQty = request.DisposedQty ?? row.DisposedQty;
+        row.ClosingQty = row.OpeningQty + row.PurchasedQty - row.SoldQty - row.DisposedQty;
+        row.Type = "snapshot";
         row.StockDate = request.StockDate ?? row.StockDate;
         row.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -207,8 +260,11 @@ public class InventoryController(AppDbContext db) : Controller
                 x.ItemStockId,
                 x.ItemId,
                 x.UnitId,
-                x.CurrentQty,
-                x.ReorderLevel,
+                x.OpeningQty,
+                x.PurchasedQty,
+                x.SoldQty,
+                x.DisposedQty,
+                x.ClosingQty,
                 x.Type,
                 x.StockDate,
                 x.IsActive
@@ -249,11 +305,14 @@ public class InventoryController(AppDbContext db) : Controller
                 ItemCode = $"STK{stock.ItemStockId:000}",
                 ItemIdRef = stock.ItemId,
                 ItemName = item != null ? item.ItemName : "Item " + stock.ItemId,
-                ReorderLevel = stock.ReorderLevel,
                 IsActive = stock.IsActive,
                 UnitId = stock.UnitId,
                 UnitName = unitName,
-                CurrentQty = stock.CurrentQty,
+                OpeningQty = stock.OpeningQty,
+                PurchasedQty = stock.PurchasedQty,
+                SoldQty = stock.SoldQty,
+                DisposedQty = stock.DisposedQty,
+                ClosingQty = stock.ClosingQty,
                 Type = stock.Type,
                 StockDate = stock.StockDate
             };
@@ -297,19 +356,24 @@ public class InventoryController(AppDbContext db) : Controller
         public string ItemName { get; set; } = string.Empty;
         public string? Type { get; set; }
         public DateOnly StockDate { get; set; }
-        public decimal ReorderLevel { get; set; }
         public bool IsActive { get; set; }
         public int? UnitId { get; set; }
         public string? UnitName { get; set; }
-        public decimal CurrentQty { get; set; }
+        public decimal OpeningQty { get; set; }
+        public decimal PurchasedQty { get; set; }
+        public decimal SoldQty { get; set; }
+        public decimal DisposedQty { get; set; }
+        public decimal ClosingQty { get; set; }
     }
 
     public sealed record StockItemInputDto(
         int? OutletId,
         int? ItemId,
         int? UnitId,
-        decimal? ReorderLevel,
-        decimal? CurrentQty,
+        decimal? OpeningQty,
+        decimal? PurchasedQty,
+        decimal? SoldQty,
+        decimal? DisposedQty,
         string? Type,
         DateOnly? StockDate);
 }
