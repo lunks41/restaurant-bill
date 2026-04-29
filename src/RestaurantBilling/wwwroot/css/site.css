@@ -185,7 +185,7 @@ a:hover { color: var(--accent-hover); }
   background: var(--sidebar-bg);
   position: fixed; top: 0; left: 0; bottom: 0;
   display: flex; flex-direction: column;
-  z-index: 1040;
+  z-index: 1020;
   transition: width var(--transition), transform var(--transition);
   overflow: hidden;
   box-shadow: 1px 0 0 0 color-mix(in srgb, #fff 8%, transparent);
@@ -295,7 +295,7 @@ a:hover { color: var(--accent-hover); }
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; gap: 10px;
   padding: 0 14px;
-  z-index: 1030;
+  z-index: 1025;
   transition: left var(--transition), background var(--transition);
   box-shadow: var(--shadow-sm);
 }
@@ -1636,7 +1636,7 @@ input[type="submit"].btn {
 
 /* ─── Side Panel Overlay (Table Picker / Recall) ─── */
 .side-panel-overlay {
-  position: fixed; inset: 0; z-index: 1060;
+  position: fixed; inset: 0; z-index: 1045;
   background: rgba(0,0,0,0.55); backdrop-filter: blur(3px);
   display: none; justify-content: flex-end;
 }
@@ -2123,9 +2123,17 @@ body.kds-body::before { display: none !important; background: none !important; }
   align-items: center;
 }
 
-/* Fix backdrop stacking conflict on this project setup */
+/* Modal backdrop: blur + correct stacking (so modal remains editable) */
+.modal {
+  z-index: 2000 !important;
+}
+
 .modal-backdrop {
-  --bs-backdrop-zindex: 0;
+  z-index: 1990 !important;
+  /* Keep backdrop blur here so it applies during the whole show/hide cycle */
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: none;
 }
 
 /* Ensure ALL bootstrap modals follow dark theme, even without .modal-custom */
@@ -2163,8 +2171,16 @@ body.kds-body::before { display: none !important; background: none !important; }
 [data-theme="dark"] .modal .btn-close {
   filter: invert(1) grayscale(100%) brightness(180%);
 }
+/* Backdrop appearance while modal is open */
+.modal-backdrop.show {
+  background-color: rgba(10, 10, 10, 0.35);
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  opacity: 1;
+}
+
 [data-theme="dark"] .modal-backdrop.show {
-  opacity: 0.5;
+  opacity: 1;
 }
 
 /* ─── Payment Tabs ─── */

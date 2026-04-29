@@ -218,6 +218,44 @@ public static class DbSeeder
                 .Where(x => !x.IsDeleted && x.IsStock)
                 .ToList();
 
+            // Inventory UI expects to show only one row per Item (current stock),
+            // so we clean up legacy/duplicate ItemStocks during seeding.
+            // - Remove all legacy "out" rows
+            // - Keep only one "in" row per ItemId (lowest ItemStockId)
+            {
+                var legacyOutRows = db.ItemStocks
+                    .Where(x => !x.IsDeleted && x.Type == "out")
+                    .ToList();
+                foreach (var row in legacyOutRows)
+                {
+                    row.IsActive = false;
+                    row.IsDeleted = true;
+                    row.DeletedAtUtc = DateTime.UtcNow;
+                    row.UpdatedAtUtc = DateTime.UtcNow;
+                }
+
+                var inRows = db.ItemStocks
+                    .Where(x => !x.IsDeleted && x.Type == "in")
+                    .ToList();
+                var inGroups = inRows
+                    .GroupBy(x => x.ItemId)
+                    .ToList();
+
+                foreach (var group in inGroups)
+                {
+                    var ordered = group.OrderBy(x => x.ItemStockId).ToList();
+                    foreach (var duplicate in ordered.Skip(1))
+                    {
+                        duplicate.IsActive = false;
+                        duplicate.IsDeleted = true;
+                        duplicate.DeletedAtUtc = DateTime.UtcNow;
+                        duplicate.UpdatedAtUtc = DateTime.UtcNow;
+                    }
+                }
+
+                await db.SaveChangesAsync();
+            }
+
             foreach (var item in stockTrackedItems)
             {
                 var hasIn = db.ItemStocks.Any(x => !x.IsDeleted && x.ItemId == item.ItemId && x.Type == "in");
@@ -236,22 +274,31 @@ public static class DbSeeder
                         IsDeleted = false
                     });
                 }
+            }
 
-                var hasOut = db.ItemStocks.Any(x => !x.IsDeleted && x.ItemId == item.ItemId && x.Type == "out");
-                if (!hasOut)
+            await db.SaveChangesAsync();
+        }
+
+        // Safety cleanup: keep only one active row per ItemCode.
+        // This handles older databases where same code might have been inserted multiple times.
+        {
+            var duplicateCodeGroups = db.Items
+                .Where(x => !x.IsDeleted && !string.IsNullOrWhiteSpace(x.ItemCode))
+                .AsEnumerable()
+                .GroupBy(x => x.ItemCode.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1)
+                .ToList();
+
+            foreach (var group in duplicateCodeGroups)
+            {
+                var ordered = group.OrderBy(x => x.ItemId).ToList();
+                var duplicatesToDeactivate = ordered.Skip(1);
+                foreach (var duplicate in duplicatesToDeactivate)
                 {
-                    var unitId = ResolveStockUnitId(item.ItemCode, units);
-                    db.ItemStocks.Add(new ItemStock
-                    {
-                        ItemId = item.ItemId,
-                        UnitId = unitId,
-                        CurrentQty = 2m,
-                        ReorderLevel = 10m,
-                        Type = "out",
-                        StockDate = today,
-                        IsActive = true,
-                        IsDeleted = false
-                    });
+                    duplicate.IsActive = false;
+                    duplicate.IsDeleted = true;
+                    duplicate.DeletedAtUtc = DateTime.UtcNow;
+                    duplicate.UpdatedAtUtc = DateTime.UtcNow;
                 }
             }
 

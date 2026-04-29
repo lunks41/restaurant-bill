@@ -158,6 +158,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(x => x.Type).HasMaxLength(30);
             entity.Property(x => x.RowVersion).IsRowVersion();
             entity.HasQueryFilter(x => !x.IsDeleted);
+
+            // Inventory uses ItemStocks as a "current snapshot" per ItemId.
+            // Enforce: only one active "in" row per ItemId (prevents duplicate rows in UI).
+            entity.HasIndex(x => x.ItemId)
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0 AND [Type] = 'in'");
         });
 
 

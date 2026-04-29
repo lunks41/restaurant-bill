@@ -67,11 +67,20 @@ public class InventoryController(AppDbContext db) : Controller
         CancellationToken cancellationToken)
     {
         var rows = await BuildItemStockQuery(search, unitId).ToListAsync(cancellationToken);
-        var csv = new StringBuilder("Code,ItemId,UnitId,CurrentQty,ReorderLevel,Status\n");
+        var csv = new StringBuilder("Code,Name,Unit,Type,StockDate,CurrentQty,ReorderLevel,Status\n");
         foreach (var row in rows)
         {
             var status = row.IsActive ? "Active" : "Inactive";
-            csv.AppendLine($"{Escape(row.ItemCode ?? string.Empty)},{row.ItemIdRef},{(row.UnitId.HasValue ? row.UnitId.Value.ToString() : string.Empty)},{row.CurrentQty},{row.ReorderLevel},{status}");
+            csv.AppendLine(
+                $"{Escape(row.ItemCode ?? string.Empty)}," +
+                $"{Escape(row.ItemName ?? string.Empty)}," +
+                $"{Escape(row.UnitName ?? string.Empty)}," +
+                $"{Escape(row.Type ?? string.Empty)}," +
+                $"{row.StockDate:yyyy-MM-dd}," +
+                $"{row.CurrentQty}," +
+                $"{row.ReorderLevel}," +
+                $"{status}"
+            );
         }
         var fileName = $"stock-items-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
         return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", fileName);
@@ -109,28 +118,33 @@ public class InventoryController(AppDbContext db) : Controller
         {
             return BadRequest("ItemId is required.");
         }
-
-        var exists = await db.ItemStocks
-            .AnyAsync(x => x.ItemId == request.ItemId.Value && !x.IsDeleted, cancellationToken);
-        if (exists)
+        if (string.IsNullOrWhiteSpace(request.Type))
         {
-            return BadRequest("This item stock already exists. Use edit.");
+            return BadRequest("Type is required (in/out).");
+        }
+
+        var type = request.Type.Trim().ToLowerInvariant();
+        if (type != "in" && type != "out")
+        {
+            return BadRequest("Invalid Type. Use 'in' or 'out'.");
         }
 
         var reorderLevel = request.ReorderLevel ?? 0m;
-        var openingQty = request.CurrentQty ?? reorderLevel;
+        var qty = request.CurrentQty ?? reorderLevel;
+        var stockDate = request.StockDate ?? DateOnly.FromDateTime(DateTime.UtcNow.Date);
 
         db.ItemStocks.Add(new ItemStock
         {
             ItemId = request.ItemId.Value,
             UnitId = request.UnitId,
-            CurrentQty = openingQty,
+            CurrentQty = qty,
             ReorderLevel = reorderLevel,
-            Type = "Opening",
-            StockDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            Type = type,
+            StockDate = stockDate,
             IsActive = true,
             IsDeleted = false
         });
+
         await db.SaveChangesAsync(cancellationToken);
         return Ok(new { status = "Created" });
     }
@@ -140,23 +154,22 @@ public class InventoryController(AppDbContext db) : Controller
     {
         var row = await db.ItemStocks.FirstOrDefaultAsync(x => x.ItemStockId == id, cancellationToken);
         if (row is null) return NotFound();
-
-        if (request.ItemId.HasValue && request.ItemId.Value > 0 && request.ItemId.Value != row.ItemId)
+        if (string.IsNullOrWhiteSpace(request.Type))
         {
-            var duplicate = await db.ItemStocks.AnyAsync(
-                x => x.ItemStockId != id && x.ItemId == request.ItemId.Value && !x.IsDeleted,
-                cancellationToken);
-            if (duplicate)
-            {
-                return BadRequest("This item stock already exists. Use edit.");
-            }
+            return BadRequest("Type is required (in/out).");
+        }
 
-            row.ItemId = request.ItemId.Value;
+        var type = request.Type.Trim().ToLowerInvariant();
+        if (type != "in" && type != "out")
+        {
+            return BadRequest("Invalid Type. Use 'in' or 'out'.");
         }
 
         row.UnitId = request.UnitId;
         row.CurrentQty = request.CurrentQty ?? row.CurrentQty;
         row.ReorderLevel = request.ReorderLevel ?? row.ReorderLevel;
+        row.Type = type;
+        row.StockDate = request.StockDate ?? row.StockDate;
         row.UpdatedAtUtc = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
@@ -179,9 +192,18 @@ public class InventoryController(AppDbContext db) : Controller
 
     private IQueryable<StockItemListRow> BuildItemStockQuery(string? search, int? unitId)
     {
+        // Always return ONE row per ItemId (latest StockDate, then latest ItemStockId).
+        var latestStocks =
+            db.ItemStocks
+                .Where(s => !s.IsDeleted)
+                .GroupBy(s => s.ItemId)
+                .Select(g => g
+                    .OrderByDescending(s => s.StockDate)
+                    .ThenByDescending(s => s.ItemStockId)
+                    .First());
+
         var query =
-            from stock in db.ItemStocks
-            where !stock.IsDeleted
+            from stock in latestStocks
             join item in db.Items.Where(x => !x.IsDeleted)
                 on stock.ItemId equals item.ItemId into itemJoin
             from item in itemJoin.DefaultIfEmpty()
@@ -198,7 +220,9 @@ public class InventoryController(AppDbContext db) : Controller
                 IsActive = stock.IsActive,
                 UnitId = stock.UnitId,
                 UnitName = unit != null ? unit.UnitName : string.Empty,
-                CurrentQty = stock.CurrentQty
+                CurrentQty = stock.CurrentQty,
+                Type = stock.Type,
+                StockDate = stock.StockDate
             };
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -233,6 +257,8 @@ public class InventoryController(AppDbContext db) : Controller
         public string? ItemCode { get; set; }
         public int ItemIdRef { get; set; }
         public string ItemName { get; set; } = string.Empty;
+        public string? Type { get; set; }
+        public DateOnly StockDate { get; set; }
         public decimal ReorderLevel { get; set; }
         public bool IsActive { get; set; }
         public int? UnitId { get; set; }
@@ -245,5 +271,7 @@ public class InventoryController(AppDbContext db) : Controller
         int? ItemId,
         int? UnitId,
         decimal? ReorderLevel,
-        decimal? CurrentQty);
+        decimal? CurrentQty,
+        string? Type,
+        DateOnly? StockDate);
 }

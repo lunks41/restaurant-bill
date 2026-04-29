@@ -90,18 +90,18 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     // Auto migration/ensure is intentionally disabled during app startup.
     // Run schema changes manually using dotnet ef commands when needed.
-    // var migrations = db.Database.GetMigrations();
-    // if (migrations.Any())
-    // {
-    //     await db.Database.MigrateAsync();
-    // }
-    // else
-    // {
-    //     await db.Database.EnsureCreatedAsync();
-    // }
+    var migrations = db.Database.GetMigrations();
+    if (migrations.Any())
+    {
+        await db.Database.MigrateAsync();
+    }
+    else
+    {
+        await db.Database.EnsureCreatedAsync();
+    }
     var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Microsoft.AspNetCore.Identity.IdentityUser<int>>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole<int>>>();
-    //await DbSeeder.SeedAsync(db, userManager, roleManager);
+    await DbSeeder.SeedAsync(db, userManager, roleManager);
 
     var closingTimeSetting = await db.RestaurantSettings
         .AsNoTracking()

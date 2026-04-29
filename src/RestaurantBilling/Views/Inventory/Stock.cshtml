@@ -166,6 +166,19 @@
                         <input id="stockReorder" type="number" step="0.01" class="form-control" />
                     </div>
                 </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-6">
+                        <label class="form-label">Type</label>
+                        <select id="stockType" class="form-select">
+                            <option value="in">In</option>
+                            <option value="out">Out</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Stock date</label>
+                        <input id="stockStockDate" type="date" class="form-control" />
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -188,6 +201,8 @@
   const unitEl = document.getElementById('stockUnitId');
   const currentQtyEl = document.getElementById('stockCurrentQty');
   const reorderEl = document.getElementById('stockReorder');
+  const typeEl = document.getElementById('stockType');
+  const stockDateEl = document.getElementById('stockStockDate');
   const searchEl = document.getElementById('stockSearch');
   const unitFilterEl = document.getElementById('stockUnitFilter');
   const titleEl = document.getElementById('stockItemModalTitle');
@@ -203,6 +218,12 @@
     if (typeof toastr !== 'undefined' && typeof toastr[type] === 'function') {
       toastr[type](message);
     }
+  };
+
+  const todayIso = () => {
+    const d = new Date();
+    const tzAdjusted = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
+    return tzAdjusted.toISOString().slice(0, 10);
   };
 
   async function loadUnits() {
@@ -236,7 +257,7 @@
       currentPage = result.page || 1;
     }
     document.getElementById('stockItemsBody').innerHTML = rows.length
-      ? rows.map(x => `<tr><td>${x.itemCode || ''}</td><td>${x.itemName}</td><td>${x.unitName || '-'}</td><td>${Number(x.currentQty ?? 0).toFixed(2)}</td><td>${Number(x.reorderLevel ?? 0).toFixed(2)}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary" data-edit="${x.itemId}" data-item-id="${x.itemIdRef || ''}" data-unit-id="${x.unitId || ''}" data-current-qty="${x.currentQty ?? 0}" data-reorder="${x.reorderLevel ?? 0}">Edit</button></td></tr>`).join('')
+      ? rows.map(x => `<tr><td>${x.itemCode || ''}</td><td>${x.itemName}</td><td>${x.unitName || '-'}</td><td>${Number(x.currentQty ?? 0).toFixed(2)}</td><td>${Number(x.reorderLevel ?? 0).toFixed(2)}</td><td>${x.isActive ? '<span class="badge-custom badge-success">Active</span>' : '<span class="badge-custom badge-muted">Inactive</span>'}</td><td><button class="btn btn-sm btn-outline-primary" data-edit="${x.itemId}" data-item-id="${x.itemIdRef || ''}" data-unit-id="${x.unitId || ''}" data-current-qty="${x.currentQty ?? 0}" data-reorder="${x.reorderLevel ?? 0}" data-type="${x.type || 'in'}" data-stock-date="${String(x.stockDate ?? '').slice(0,10)}">Edit</button></td></tr>`).join('')
       : `<tr>
            <td class="text-center text-muted">No stock items found.</td>
            <td></td>
@@ -258,6 +279,8 @@
     unitEl.value = '';
     currentQtyEl.value = '0';
     reorderEl.value = '0';
+    typeEl.value = 'in';
+    stockDateEl.value = todayIso();
     titleEl.textContent = 'Add Item Stock';
     saveBtnEl.textContent = 'Add';
     modal.show();
@@ -271,6 +294,8 @@
     unitEl.value = btn.getAttribute('data-unit-id') || '';
     currentQtyEl.value = btn.getAttribute('data-current-qty') || '0';
     reorderEl.value = btn.getAttribute('data-reorder') || '0';
+    typeEl.value = btn.getAttribute('data-type') || 'in';
+    stockDateEl.value = btn.getAttribute('data-stock-date') || todayIso();
     titleEl.textContent = 'Edit Item Stock';
     saveBtnEl.textContent = 'Update';
     modal.show();
@@ -287,7 +312,9 @@
       itemId: parseInt(itemEl.value, 10),
       unitId: unitEl.value ? parseInt(unitEl.value, 10) : null,
       currentQty: parseFloat(currentQtyEl.value || '0'),
-      reorderLevel: parseFloat(reorderEl.value || '0')
+      reorderLevel: parseFloat(reorderEl.value || '0'),
+      type: typeEl.value,
+      stockDate: stockDateEl.value
     };
 
     try {

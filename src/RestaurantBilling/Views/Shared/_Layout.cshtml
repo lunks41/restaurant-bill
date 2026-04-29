@@ -229,6 +229,17 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="~/js/site.js" asp-append-version="true"></script>
   <script>
+    // Ensure any Bootstrap modal markup declared inside page layout
+    // gets moved under <body> on show, fixing stacking/blur issues.
+    document.addEventListener('show.bs.modal', function (e) {
+      const modalEl = e.target;
+      if (!(modalEl instanceof HTMLElement)) return;
+      if (modalEl.parentElement !== document.body) {
+        document.body.appendChild(modalEl);
+      }
+    }, true);
+  </script>
+  <script>
     document.addEventListener("DOMContentLoaded", function () {
       if (typeof toastr === "undefined") return;
 
