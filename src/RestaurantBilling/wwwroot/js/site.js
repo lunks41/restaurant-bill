@@ -21,14 +21,34 @@ function startClock() {
   const el = document.getElementById('liveClock');
   if (!el) return;
   const update = () => {
-    const n = new Date();
-    el.textContent = n.toLocaleString('en-IN', {
-      day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
-    });
+    el.textContent = fmtDateTimeDMY(new Date(), true);
   };
   update(); setInterval(update, 1000);
 }
+
+function fmtDateDMY(value) {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function fmtDateTimeDMY(value, includeSeconds = false) {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const base = fmtDateDMY(d);
+  const hh = d.getHours();
+  const h12 = hh % 12 || 12;
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  const meridiem = hh >= 12 ? 'PM' : 'AM';
+  const time = includeSeconds ? `${h12}:${mm}:${ss} ${meridiem}` : `${h12}:${mm} ${meridiem}`;
+  return `${base} ${time}`;
+}
+window.fmtDateDMY = fmtDateDMY;
+window.fmtDateTimeDMY = fmtDateTimeDMY;
 
 /* ─── Sidebar Toggle ─── */
 function initSidebar() {

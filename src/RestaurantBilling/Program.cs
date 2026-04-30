@@ -12,6 +12,8 @@ using Extensions;
 using Services.Jobs;
 using RestaurantBilling.Hubs;
 using Serilog;
+using Microsoft.AspNetCore.Localization;
+using System.Globalization;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
@@ -48,9 +50,13 @@ builder.Services.AddAuthentication()
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
-        ? CookieSecurePolicy.SameAsRequest
-        : CookieSecurePolicy.Always;
+
+    //options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+    //    ? CookieSecurePolicy.SameAsRequest
+    //    : CookieSecurePolicy.Always;
+    // Keep login cookie usable in both HTTP (local/test tunnels)
+    // and HTTPS environments.
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.SlidingExpiration = true;
     options.LoginPath = "/Account/Login";
@@ -70,6 +76,18 @@ builder.Services.AddSignalR();
 builder.Services.AddHangfireServer();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+var appCulture = new CultureInfo("en-GB");
+appCulture.DateTimeFormat.ShortDatePattern = "dd-MMM-yyyy";
+appCulture.DateTimeFormat.LongDatePattern = "dd-MMM-yyyy";
+var supportedCultures = new[] { appCulture };
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    options.DefaultRequestCulture = new RequestCulture("en-GB");
+    options.SupportedCultures = supportedCultures;
+    options.SupportedUICultures = supportedCultures;
+});
+CultureInfo.DefaultThreadCurrentCulture = supportedCultures[0];
+CultureInfo.DefaultThreadCurrentUICulture = supportedCultures[0];
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -90,18 +108,18 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     // Auto migration/ensure is intentionally disabled during app startup.
     // Run schema changes manually using dotnet ef commands when needed.
-    var migrations = db.Database.GetMigrations();
-    if (migrations.Any())
-    {
-        await db.Database.MigrateAsync();
-    }
-    else
-    {
-        await db.Database.EnsureCreatedAsync();
-    }
+    //var migrations = db.Database.GetMigrations();
+    //if (migrations.Any())
+    //{
+    //    await db.Database.MigrateAsync();
+    //}
+    //else
+    //{
+    //    await db.Database.EnsureCreatedAsync();
+    //}
     var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Microsoft.AspNetCore.Identity.IdentityUser<int>>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole<int>>>();
-    await DbSeeder.SeedAsync(db, userManager, roleManager);
+    //await DbSeeder.SeedAsync(db, userManager, roleManager);
 
     var closingTimeSetting = await db.RestaurantSettings
         .AsNoTracking()
@@ -128,6 +146,7 @@ else
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+app.UseRequestLocalization();
 app.UseRouting();
 app.UseRateLimiter();
 app.UseMiddleware<SecurityHeadersMiddleware>();

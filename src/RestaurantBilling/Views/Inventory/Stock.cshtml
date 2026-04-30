@@ -90,6 +90,10 @@
       font-size: 11.5px;
     }
   }
+
+  .stock-item-modal-dialog {
+    max-width: 860px;
+  }
 </style>
 }
 
@@ -158,7 +162,7 @@
 </div>
 
 <div class="modal fade" id="stockItemModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg stock-item-modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="stockItemModalTitle">Add Item Stock</h5>
@@ -166,26 +170,32 @@
             </div>
             <div class="modal-body">
                 <input id="stockItemId" type="hidden" />
-                <div class="mb-3">
-                    <label class="form-label">Item</label>
-                    <select id="stockItemRefId" class="form-select">
-                        <option value="">Select item</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Unit</label>
-                    <select id="stockUnitId" class="form-select">
-                        <option value="">Select unit</option>
-                    </select>
-                </div>
                 <div class="row g-2">
                     <div class="col-md-6">
+                        <label class="form-label">Item</label>
+                        <select id="stockItemRefId" class="form-select">
+                            <option value="">Select item</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Unit</label>
+                        <select id="stockUnitId" class="form-select">
+                            <option value="">Select unit</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-2 mt-1">
+                    <div class="col-md-4">
                         <label class="form-label">Opening qty</label>
                         <input id="stockOpeningQty" type="number" step="0.01" class="form-control" />
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label class="form-label">Purchased qty</label>
                         <input id="stockPurchasedQty" type="number" step="0.01" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Sold qty (auto)</label>
+                        <input id="stockSoldQty" type="number" step="0.01" class="form-control" readonly />
                     </div>
                 </div>
                 <div class="row g-2 mt-1">
@@ -193,12 +203,6 @@
                         <label class="form-label">Disposed qty</label>
                         <input id="stockDisposedQty" type="number" step="0.01" class="form-control" />
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Sold qty (auto)</label>
-                        <input id="stockSoldQty" type="number" step="0.01" class="form-control" readonly />
-                    </div>
-                </div>
-                <div class="row g-2 mt-1">
                     <div class="col-md-6">
                         <label class="form-label">Closing qty</label>
                         <input id="stockClosingQty" type="number" step="0.01" class="form-control" readonly />

@@ -129,7 +129,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
             .Select(x => new
             {
                 x.DayCloseReportId,
-                businessDate = x.BusinessDate.ToString("yyyy-MM-dd"),
+                businessDate = x.BusinessDate.ToString("dd-MMM-yyyy"),
                 openedAt = x.OpenedAtUtc.ToString("dd-MMM-yyyy HH:mm"),
                 closedAt = x.ClosedAtUtc.ToString("dd-MMM-yyyy HH:mm"),
                 x.OpeningCash,
@@ -158,7 +158,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
             for (var i = 0; i < rows.Count; i++)
             {
                 var r = rows[i]; var row = i + 2;
-                ws.Cell(row, 1).Value = r.BusinessDate.ToString("yyyy-MM-dd");
+                ws.Cell(row, 1).Value = r.BusinessDate.ToString("dd-MMM-yyyy");
                 ws.Cell(row, 2).Value = r.TotalBills;
                 ws.Cell(row, 3).Value = (double)r.GrossSales;
                 ws.Cell(row, 4).Value = (double)r.TotalTax;
@@ -169,7 +169,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
         }
         var csv = new StringBuilder("Date,Bills,GrossSales,TotalTax,NetSales\n");
         foreach (var r in rows)
-            csv.AppendLine($"{r.BusinessDate:yyyy-MM-dd},{r.TotalBills},{r.GrossSales},{r.TotalTax},{r.NetSales}");
+            csv.AppendLine($"{r.BusinessDate:dd-MMM-yyyy},{r.TotalBills},{r.GrossSales},{r.TotalTax},{r.NetSales}");
         return CsvResult(csv, fn + ".csv");
     }
 
@@ -269,7 +269,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
             .OrderByDescending(x => x.BusinessDate)
             .Select(x => new
             {
-                businessDate = x.BusinessDate.ToString("yyyy-MM-dd"),
+                businessDate = x.BusinessDate.ToString("dd-MMM-yyyy"),
                 openedAt = x.OpenedAtUtc.ToString("dd-MMM-yyyy HH:mm"),
                 closedAt = x.ClosedAtUtc.ToString("dd-MMM-yyyy HH:mm"),
                 x.OpeningCash,
@@ -318,7 +318,7 @@ public class ReportsController(ISalesReportRepository repository, AppDbContext d
         var rows = await db.Bills
             .Where(x => x.BusinessDate >= from && x.BusinessDate <= to && x.Status == BillStatus.Cancelled)
             .OrderByDescending(x => x.BillDate)
-            .Select(x => new { x.BillNo, date = x.BusinessDate.ToString("yyyy-MM-dd"), x.GrandTotal, status = x.Status.ToString() })
+            .Select(x => new { x.BillNo, date = x.BusinessDate.ToString("dd-MMM-yyyy"), x.GrandTotal, status = x.Status.ToString() })
             .Take(5000)
             .ToListAsync(cancellationToken);
         var fn = $"voids-{from:yyyyMMdd}-{to:yyyyMMdd}";

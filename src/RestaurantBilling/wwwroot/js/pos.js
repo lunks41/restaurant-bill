@@ -891,7 +891,7 @@ async function printReceipt(bill, amtPaid, method, payments) {
       <div style="font-size:18px;font-weight:bold;">${brandName}</div>
       <div style="font-size:11px;color:#666;">Dine-In Receipt</div>
       ${tableLine}
-      <div style="font-size:11px;color:#666;">${new Date().toLocaleString("en-IN")}</div>
+      <div style="font-size:11px;color:#666;">${window.fmtDateTimeDMY ? window.fmtDateTimeDMY(new Date()) : new Date().toLocaleString("en-GB")}</div>
       <div style="font-size:12px;font-weight:bold;margin-top:4px;">Bill: ${bill?.billNo || posState.currentBillNo || "---"}</div>
     </div>
     <hr style="border-top:1px dashed #000;margin:6px 0;"/>
@@ -972,7 +972,7 @@ async function printKotSlip() {
       <div style="font-size:18px;font-weight:bold;">${brandName}</div>
       <div style="font-size:11px;color:#666;">Kitchen Order Ticket</div>
       ${tableLine}
-      <div style="font-size:11px;color:#666;">${new Date().toLocaleString("en-IN")}</div>
+      <div style="font-size:11px;color:#666;">${window.fmtDateTimeDMY ? window.fmtDateTimeDMY(new Date()) : new Date().toLocaleString("en-GB")}</div>
       <div style="font-size:12px;font-weight:bold;margin-top:4px;">KOT for Bill: ${posState.currentBillNo || "---"}</div>
     </div>
     <hr style="border-top:1px dashed #000;margin:6px 0;"/>

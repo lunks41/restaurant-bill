@@ -120,7 +120,7 @@ public class DashboardController(AppDbContext db) : Controller
             .OrderBy(x => x.Date)
             .ToListAsync(cancellationToken);
 
-        return Ok(rows.Select(x => new { date = x.Date.ToString("dd-MMM"), sales = x.Sales }));
+        return Ok(rows.Select(x => new { date = x.Date.ToString("dd-MMM-yyyy"), sales = x.Sales }));
     }
 
     [HttpGet("/dashboard/payment-breakdown")]

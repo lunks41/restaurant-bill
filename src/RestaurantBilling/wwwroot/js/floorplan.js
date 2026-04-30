@@ -37,6 +37,10 @@
     if (status === "running") return "running";
     return "available";
   };
+  const statusCapsuleClass = (status) => {
+    if (status === "running") return "status-capsule running";
+    return "status-capsule";
+  };
 
   const esc = (v) => String(v ?? "")
     .replaceAll("&", "&amp;")
@@ -50,16 +54,16 @@
     return state.heldBills.find((b) => ((b.tableName || "").trim().toLowerCase() === matchName));
   };
 
-  /** Order label + print/eye only when a held bill exists for this table. */
+  /** Show order label + print/eye icons only when a held bill exists. */
   const floorCardHeadRight = (bill) => {
     if (!bill) return "";
-    const orderPart =
-      bill.billNo != null && String(bill.billNo).trim() !== ""
-        ? `Order ${esc(bill.billNo)}`
-        : bill.billId != null
-          ? `Order #${esc(String(bill.billId))}`
-          : "Order";
-    return `<span class="order-no">${orderPart}</span><i class="fas fa-print" aria-hidden="true"></i><i class="fas fa-eye" aria-hidden="true"></i>`;
+    return `<i class="fas fa-print" aria-hidden="true"></i><i class="fas fa-eye" aria-hidden="true"></i>`;
+  };
+  const floorCardOrderNumber = (bill) => {
+    if (!bill) return "";
+    if (bill.billNo != null && String(bill.billNo).trim() !== "") return `Order ${esc(bill.billNo)}`;
+    if (bill.billId != null) return `Order #${esc(String(bill.billId))}`;
+    return "Order";
   };
 
   function render() {
@@ -88,9 +92,6 @@
             const bill = billByTable(t.tableName);
             const status = statusFromTable(t, bill);
             const orderCount = bill?.items?.reduce((s, i) => s + (i.qty || 0), 0) || 0;
-            const previewItems = (bill?.items || []).slice(0, 4)
-              .map((i) => `<li>${esc(i.name)} x${i.qty || 0}</li>`)
-              .join("");
             return `
               <article class="floor-card ${statusClass(status)}" data-table-id="${t.tableMasterId}" data-table-name="${t.tableName}">
                 <div class="head">
@@ -102,16 +103,12 @@
                 <div class="name">${t.tableName}</div>
                 <div class="capacity">${t.capacity} seats</div>
                 <div class="meta">
-                  <span>${statusText(status)}</span>
-                  <strong>${orderCount > 0 ? orderCount + " items" : "Open"}</strong>
+                  <span class="${statusCapsuleClass(status)}">${statusText(status)}</span>
+                  ${orderCount > 0
+                    ? `<strong class="meta-value">${orderCount} items</strong>`
+                    : `<span class="status-capsule open-capsule">Open</span>`}
                 </div>
-                <div class="zone">${esc(zoneLabel)}</div>
-                ${bill ? `<div class="amount">${fmtINR(bill.grandTotal || 0)}</div>` : ""}
-                ${bill?.items?.length ? `
-                  <div class="order-preview">
-                    <div class="preview-title">Order open</div>
-                    <ul>${previewItems}</ul>
-                  </div>` : ""}
+                <div class="order-number-strong${bill ? "" : " order-number-empty"}">${bill ? floorCardOrderNumber(bill) : "Order"}</div>
               </article>
             `;
           }).join("")}

@@ -93,7 +93,7 @@ public class InventoryController(AppDbContext db) : Controller
                 sheet.Cell(excelRow, 1).Value = row.ItemCode ?? string.Empty;
                 sheet.Cell(excelRow, 2).Value = row.ItemName ?? string.Empty;
                 sheet.Cell(excelRow, 3).Value = row.UnitName ?? string.Empty;
-                sheet.Cell(excelRow, 4).Value = row.StockDate.ToString("yyyy-MM-dd");
+                sheet.Cell(excelRow, 4).Value = row.StockDate.ToString("dd-MMM-yyyy");
                 sheet.Cell(excelRow, 5).Value = row.OpeningQty;
                 sheet.Cell(excelRow, 6).Value = row.PurchasedQty;
                 sheet.Cell(excelRow, 7).Value = row.SoldQty;
@@ -117,7 +117,7 @@ public class InventoryController(AppDbContext db) : Controller
                 $"{Escape(row.ItemCode ?? string.Empty)}," +
                 $"{Escape(row.ItemName ?? string.Empty)}," +
                 $"{Escape(row.UnitName ?? string.Empty)}," +
-                $"{row.StockDate:yyyy-MM-dd}," +
+                $"{row.StockDate:dd-MMM-yyyy}," +
                 $"{row.OpeningQty}," +
                 $"{row.PurchasedQty}," +
                 $"{row.SoldQty}," +
@@ -154,7 +154,7 @@ public class InventoryController(AppDbContext db) : Controller
 
         return Ok(new
         {
-            stockDate = date.ToString("yyyy-MM-dd"),
+            stockDate = date.ToString("dd-MMM-yyyy"),
             items = rows.Count,
             openingQty = rows.Sum(x => x.OpeningQty),
             purchasedQty = rows.Sum(x => x.PurchasedQty),

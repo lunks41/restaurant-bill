@@ -97,7 +97,7 @@ async function twPrintBillPreview() {
     : "";
 
   wrap.innerHTML = `<div style="font-family:'Courier New',monospace;font-size:12px;max-width:300px;margin:0 auto;padding:10px;">
-      <div style="text-align:center;margin-bottom:10px;">${logoBlock}<div style="font-size:18px;font-weight:bold;">${brandName}</div><div style="font-size:11px;color:#666;">Takeaway Receipt</div><div style="font-size:11px;color:#666;">${new Date().toLocaleString("en-IN")}</div><div style="font-size:12px;font-weight:bold;margin-top:4px;">Bill: ${billLabel}</div></div>
+      <div style="text-align:center;margin-bottom:10px;">${logoBlock}<div style="font-size:18px;font-weight:bold;">${brandName}</div><div style="font-size:11px;color:#666;">Takeaway Receipt</div><div style="font-size:11px;color:#666;">${window.fmtDateTimeDMY ? window.fmtDateTimeDMY(new Date()) : new Date().toLocaleString("en-GB")}</div><div style="font-size:12px;font-weight:bold;margin-top:4px;">Bill: ${billLabel}</div></div>
       <hr style="border-top:1px dashed #000;margin:6px 0;"/>
       <table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left">Item</th><th>Qty</th><th style="text-align:right">Amt</th></tr></thead>
       <tbody>${twState.cart.map(l => `<tr><td>${l.name}</td><td style="text-align:center">${twFmtQty(l.qty)}</td><td style="text-align:right">${fmtINR(l.qty * l.price)}</td></tr>`).join("")}</tbody></table>
@@ -136,7 +136,7 @@ async function twPrintKotSlip() {
         <div style="font-size:18px;font-weight:bold;">${brandName}</div>
         <div style="font-size:11px;color:#666;">Kitchen Order Ticket</div>
         <div style="font-size:11px;color:#666;">Takeaway</div>
-        <div style="font-size:11px;color:#666;">${new Date().toLocaleString("en-IN")}</div>
+        <div style="font-size:11px;color:#666;">${window.fmtDateTimeDMY ? window.fmtDateTimeDMY(new Date()) : new Date().toLocaleString("en-GB")}</div>
         <div style="font-size:12px;font-weight:bold;margin-top:4px;">KOT for Bill: ${twState.currentBillNo || "---"}</div>
       </div>
       <hr style="border-top:1px dashed #000;margin:6px 0;"/>
@@ -843,7 +843,7 @@ async function twConfirmSettle() {
       ? `<img src="${safeLogoUrl}" alt="Logo" style="max-height:48px;max-width:120px;object-fit:contain;margin:0 auto 4px;display:block;" />`
       : "";
     const receiptHtml = `<div style="font-family:'Courier New',monospace;font-size:12px;max-width:300px;margin:0 auto;padding:10px;">
-        <div style="text-align:center;margin-bottom:10px;">${logoBlock}<div style="font-size:18px;font-weight:bold;">${brandName}</div><div style="font-size:11px;color:#666;">Takeaway Receipt</div><div style="font-size:11px;color:#666;">${new Date().toLocaleString("en-IN")}</div><div style="font-size:12px;font-weight:bold;margin-top:4px;">Bill: ${result.billNo || "---"}</div></div>
+        <div style="text-align:center;margin-bottom:10px;">${logoBlock}<div style="font-size:18px;font-weight:bold;">${brandName}</div><div style="font-size:11px;color:#666;">Takeaway Receipt</div><div style="font-size:11px;color:#666;">${window.fmtDateTimeDMY ? window.fmtDateTimeDMY(new Date()) : new Date().toLocaleString("en-GB")}</div><div style="font-size:12px;font-weight:bold;margin-top:4px;">Bill: ${result.billNo || "---"}</div></div>
         <hr style="border-top:1px dashed #000;margin:6px 0;"/>
         <table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left">Item</th><th>Qty</th><th style="text-align:right">Amt</th></tr></thead>
         <tbody>${twState.cart.map(l => `<tr><td>${l.name}</td><td style="text-align:center">${twFmtQty(l.qty)}</td><td style="text-align:right">${fmtINR(l.qty * l.price)}</td></tr>`).join("")}</tbody></table>
